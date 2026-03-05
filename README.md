@@ -44,7 +44,7 @@ Veloxis follows the "Micro-kernel + Plugin Runtime" design principle:
 ### Deployment Steps
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-repo/veloxis.git
+   git clone https://github.com/Kobayashi-classmate/veloxis.git
    cd veloxis
    ```
 2. Initialize environment variables (the system generates a random admin path):

@@ -46,7 +46,7 @@ Veloxis 遵循“微内核 + 插件运行时”的设计原则：
 ### 部署步骤
 1. 克隆仓库：
    ```bash
-   git clone https://github.com/your-repo/veloxis.git
+   git clone https://github.com/Kobayashi-classmate/veloxis.git
    cd veloxis
    ```
 2. 初始化环境变量（系统将自动生成随机后台访问前缀）：
