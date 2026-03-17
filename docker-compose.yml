@@ -165,9 +165,6 @@ services:
     container_name: veloxis_seaweedfs
     # Startup command: -s3 enables S3 compatible API, -dir specifies the local data volume, -metrics enables monitoring support.
     command: "server -dir=/data -s3"
-    environment:
-      # Simplified injection with S3 authentication (effective in the actual mounted security.toml, but exposed in the environment for simplicity in a single container)
-      - WEED_S3_CONFIG={\"identities\":[{\"name\":\"admin\",\"credentials\":[{\"accessKey\":\"${S3_ACCESS_KEY}\",\"secretKey\":\"${S3_SECRET_KEY}\"}],\"actions\":[\"Read\",\"Write\",\"List\",\"Tagging\",\"Admin\"]}]}
     volumes:
       - ./data/seaweedfs:/data
     ports:
@@ -180,7 +177,21 @@ services:
       context: ./worker 
     image: node:18-alpine
     container_name: veloxis_data_worker
-    command: sh -c "echo 'Worker pending code...' && tail -f /dev/null"
+    command: npm start
+    environment:
+      - S3_ENDPOINT=http://seaweedfs:8333
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY}
+      - S3_SECRET_KEY=${S3_SECRET_KEY}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DORIS_HTTP_PORT=8030
+      - CUBEJS_DB_HOST=${CUBEJS_DB_HOST}
+      - CUBEJS_DB_USER=${CUBEJS_DB_USER}
+      - CUBEJS_DB_PASS=${CUBEJS_DB_PASS}
+      - CUBEJS_DB_NAME=${CUBEJS_DB_NAME}
+      - ADMIN_BASE_PATH=${ADMIN_BASE_PATH}
+      - ADMIN_EMAIL=${ADMIN_EMAIL}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
     depends_on:
       - redis
       - doris-fe
