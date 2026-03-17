@@ -42,7 +42,7 @@ export const initIngestionWorker = async () => {
 
                 // 3. Stream Load to Doris
                 console.log(`[Job ${job.id}] Pushing stream to Doris table: ${job.data.tableName}`);
-                await dorisClient.streamLoadCSV(job.data.tableName, stream);
+                await dorisClient.streamLoad(job.data.tableName, stream);
 
                 // 4. Update Directus state to 'Ready'
                 console.log(`[Job ${job.id}] Ingestion complete! Updating status to Ready.`);

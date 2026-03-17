@@ -14,6 +14,7 @@ data/
 
 # Node.js 依赖
 node_modules/
+test_file/
 npm-debug.log
 yarn-error.log
 

@@ -8,8 +8,6 @@ services:
       - "8080:80"
     volumes:
       - ./conf/nginx/nginx.conf:/etc/nginx/templates/default.conf.template:ro
-    environment:
-      - ADMIN_BASE_PATH=${ADMIN_BASE_PATH}
     depends_on:
       - directus
     networks:
@@ -32,7 +30,6 @@ services:
       CACHE_ENABLED: 'true'
       CACHE_STORE: 'redis'
       REDIS: 'redis://redis:6379/0'
-      # Dynamic prefix reverse proxy for Nginx
       PUBLIC_URL: "http://localhost:8080${ADMIN_BASE_PATH}"
       PROJECT_NAME: "Veloxis Analytics Platform"
       PROJECT_DESCRIPTOR: "Self-hosted Data Analytics"
@@ -90,9 +87,7 @@ services:
       CUBEJS_CACHE_AND_QUEUE_DRIVER: cubestore
       CUBEJS_CUBESTORE_HOST: 'cubestore'
       CUBEJS_CUBESTORE_PORT: '3030'
-      CUBEJS_DEV_MODE: "true" # The production environment should be shut down.
-    # ports:
-    #   - "4000:4000"
+      CUBEJS_DEV_MODE: "true"
     volumes:
       - ./data/cube_conf:/cube/conf
     depends_on:
@@ -126,10 +121,9 @@ services:
       resources:
         limits:
           memory: 2G
-    memswap_limit: 2g      # 禁止使用 swap
     ports:
-      - "9030:9030" # MySQL 协议端口
-      - "8030:8030" # HTTP 端口
+      - "9030:9030"
+      - "8030:8030"
     volumes:
       - ./data/doris/fe/meta:/opt/apache-doris/fe/doris-meta
       - ./data/doris/fe/log:/opt/apache-doris/fe/log
@@ -149,7 +143,6 @@ services:
       resources:
         limits:
           memory: 2G
-    memswap_limit: 2g
     volumes:
       - ./data/doris/be/storage:/opt/apache-doris/be/storage
       - ./data/doris/be/log:/opt/apache-doris/be/log
@@ -163,12 +156,13 @@ services:
   seaweedfs:
     image: chrislusf/seaweedfs:latest
     container_name: veloxis_seaweedfs
-    # Startup command: -s3 enables S3 compatible API, -dir specifies the local data volume, -metrics enables monitoring support.
     command: "server -dir=/data -s3"
+    environment:
+      - 'WEED_S3_CONFIG={"identities":[{"name":"admin","credentials":[{"accessKey":"dcd_admin_key","secretKey":"dcd_super_secret_key_2026"}],"actions":["Read","Write","List","Tagging","Admin"]}]}'
     volumes:
       - ./data/seaweedfs:/data
     ports:
-      - "8333:8333" # S3 API default port (can be blocked if external access is not required).
+      - "8333:8333"
     networks:
       - veloxis_network
 
@@ -177,21 +171,21 @@ services:
       context: ./worker 
     image: node:18-alpine
     container_name: veloxis_data_worker
-    command: npm start
     environment:
       - S3_ENDPOINT=http://seaweedfs:8333
-      - S3_ACCESS_KEY=${S3_ACCESS_KEY}
-      - S3_SECRET_KEY=${S3_SECRET_KEY}
+      - S3_ACCESS_KEY=dcd_admin_key
+      - S3_SECRET_KEY=dcd_super_secret_key_2026
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - DORIS_HTTP_PORT=8030
-      - CUBEJS_DB_HOST=${CUBEJS_DB_HOST}
-      - CUBEJS_DB_USER=${CUBEJS_DB_USER}
-      - CUBEJS_DB_PASS=${CUBEJS_DB_PASS}
-      - CUBEJS_DB_NAME=${CUBEJS_DB_NAME}
+      - CUBEJS_DB_HOST=doris-fe
+      - CUBEJS_DB_USER=root
+      - CUBEJS_DB_PASS=
+      - CUBEJS_DB_NAME=veloxis_data
       - ADMIN_BASE_PATH=${ADMIN_BASE_PATH}
       - ADMIN_EMAIL=${ADMIN_EMAIL}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+    command: npm start
     depends_on:
       - redis
       - doris-fe
