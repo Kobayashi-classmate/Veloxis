@@ -1,0 +1,196 @@
+version: '3.8'
+
+services:
+  gateway:
+    image: nginx:alpine
+    container_name: veloxis_gateway
+    ports:
+      - "8080:80"
+    volumes:
+      - ./conf/nginx/nginx.conf:/etc/nginx/templates/default.conf.template:ro
+    environment:
+      - ADMIN_BASE_PATH=${ADMIN_BASE_PATH}
+    depends_on:
+      - directus
+    networks:
+      - veloxis_network
+
+  directus:
+    image: directus/directus:11.14.1
+    container_name: veloxis_directus
+    environment:
+      KEY: ${KEY}
+      SECRET: ${SECRET}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      DB_CLIENT: 'pg'
+      DB_HOST: 'postgres'
+      DB_PORT: '5432'
+      DB_DATABASE: ${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      CACHE_ENABLED: 'true'
+      CACHE_STORE: 'redis'
+      REDIS: 'redis://redis:6379/0'
+      # Dynamic prefix reverse proxy for Nginx
+      PUBLIC_URL: "http://localhost:8080${ADMIN_BASE_PATH}"
+      PROJECT_NAME: "Veloxis Analytics Platform"
+      PROJECT_DESCRIPTOR: "Self-hosted Data Analytics"
+    volumes:
+      - ./data/uploads:/directus/uploads
+      - ./data/extensions:/directus/extensions
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      - veloxis_network
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: veloxis_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - ./data/database:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - veloxis_network
+
+  cubestore:
+    image: cubejs/cubestore:latest
+    container_name: veloxis_cubestore
+    environment:
+      - CUBESTORE_SERVER_NAME=cubestore:3030
+      - CUBESTORE_WORKER_PORT=3030
+      - CUBESTORE_ROUTER_PORT=3030
+    volumes:
+      - ./data/cubestore:/cubestore/data
+    networks:
+      - veloxis_network
+
+  cubejs:
+    image: cubejs/cube:latest
+    container_name: veloxis_cubejs
+    environment:
+      CUBEJS_DB_TYPE: ${CUBEJS_DB_TYPE}
+      CUBEJS_DB_HOST: ${CUBEJS_DB_HOST}
+      CUBEJS_DB_PORT: ${CUBEJS_DB_PORT}
+      CUBEJS_DB_NAME: ${CUBEJS_DB_NAME}
+      CUBEJS_DB_USER: ${CUBEJS_DB_USER}
+      CUBEJS_DB_PASS: ${CUBEJS_DB_PASS}
+      CUBEJS_API_SECRET: ${CUBEJS_API_SECRET}
+      CUBEJS_CACHE_AND_QUEUE_DRIVER: cubestore
+      CUBEJS_CUBESTORE_HOST: 'cubestore'
+      CUBEJS_CUBESTORE_PORT: '3030'
+      CUBEJS_DEV_MODE: "true" # The production environment should be shut down.
+    # ports:
+    #   - "4000:4000"
+    volumes:
+      - ./data/cube_conf:/cube/conf
+    depends_on:
+      - cubestore
+      - doris-fe
+    networks:
+      - veloxis_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: veloxis_redis
+    command: redis-server --appendonly yes
+    volumes:
+      - ./data/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - veloxis_network
+
+  doris-fe:
+    image: apache/doris:fe-4.0.3-slim
+    container_name: veloxis_doris_fe
+    hostname: doris-fe
+    environment:
+      - FE_SERVERS=fe1:172.20.0.10:9010
+      - FE_ID=1
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+    memswap_limit: 2g      # 禁止使用 swap
+    ports:
+      - "9030:9030" # MySQL 协议端口
+      - "8030:8030" # HTTP 端口
+    volumes:
+      - ./data/doris/fe/meta:/opt/apache-doris/fe/doris-meta
+      - ./data/doris/fe/log:/opt/apache-doris/fe/log
+      - ./conf/doris/fe.conf:/opt/apache-doris/fe/conf/fe.conf
+    networks:
+      veloxis_network:
+        ipv4_address: 172.20.0.10
+
+  doris-be:
+    image: apache/doris:be-4.0.3-slim
+    container_name: veloxis_doris_be
+    hostname: doris-be
+    environment:
+      - FE_SERVERS=fe1:172.20.0.10:9010
+      - BE_ADDR=172.20.0.20:9050
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+    memswap_limit: 2g
+    volumes:
+      - ./data/doris/be/storage:/opt/apache-doris/be/storage
+      - ./data/doris/be/log:/opt/apache-doris/be/log
+      - ./conf/doris/be.conf:/opt/apache-doris/be/conf/be.conf
+    depends_on:
+      - doris-fe
+    networks:
+      veloxis_network:
+        ipv4_address: 172.20.0.20
+
+  seaweedfs:
+    image: chrislusf/seaweedfs:latest
+    container_name: veloxis_seaweedfs
+    # Startup command: -s3 enables S3 compatible API, -dir specifies the local data volume, -metrics enables monitoring support.
+    command: "server -dir=/data -s3"
+    environment:
+      # Simplified injection with S3 authentication (effective in the actual mounted security.toml, but exposed in the environment for simplicity in a single container)
+      - WEED_S3_CONFIG={\"identities\":[{\"name\":\"admin\",\"credentials\":[{\"accessKey\":\"${S3_ACCESS_KEY}\",\"secretKey\":\"${S3_SECRET_KEY}\"}],\"actions\":[\"Read\",\"Write\",\"List\",\"Tagging\",\"Admin\"]}]}
+    volumes:
+      - ./data/seaweedfs:/data
+    ports:
+      - "8333:8333" # S3 API default port (can be blocked if external access is not required).
+    networks:
+      - veloxis_network
+
+  data-worker:
+    build: 
+      context: ./worker 
+    image: node:18-alpine
+    container_name: veloxis_data_worker
+    command: sh -c "echo 'Worker pending code...' && tail -f /dev/null"
+    depends_on:
+      - redis
+      - doris-fe
+      - seaweedfs
+    networks:
+      - veloxis_network
+
+networks:
+  veloxis_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24

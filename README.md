@@ -39,7 +39,7 @@ Veloxis follows the "Micro-kernel + Plugin Runtime" design principle:
 
 ### Requirements
 - Docker 20.10+ & Docker Compose 2.0+
-- Recommended: 16GB+ RAM (to run Doris and the plugin isolation pool)
+- Recommended: 8GB+ RAM (to run Doris and the plugin isolation pool)
 
 ### Deployment Steps
 1. Clone the repository:

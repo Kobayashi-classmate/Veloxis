@@ -1,0 +1,29 @@
+# 忽略本地持久化数据目录 (Doris, Postgres, Redis, CubeStore, SeaweedFS)
+data/
+
+# 忽略系统生成文件和 IDE 配置
+.DS_Store
+.idea/
+.vscode/
+
+# 忽略环境变量和敏感配置
+.env
+.env.local
+*.pem
+*.key
+
+# Node.js 依赖
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# 编译和构建输出
+dist/
+build/
+coverage/
+
+# 脚本临时产物
+scripts/node_modules/
+
+# 忽略产品文档与设计文件
+企业级数据分析平台 V1 架构白皮书.md
