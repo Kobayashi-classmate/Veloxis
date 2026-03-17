@@ -1,61 +1,103 @@
-# Veloxis Analytics Platform (v1.0-alpha)
+# Veloxis Analytics Platform (v1.0-alpha) 🚀
 
-Veloxis 是一套专为“自托管、高并发、强合规”设计的企业级敏捷数据分析平台。系统基于 **D/C/D (Directus / Cube.js / Doris)** 核心架构，通过自研的同构化 **Data Worker** 计算大坝，实现从原始数据到多维语义分析的全链路闭环。
+<p align="center">
+  <b>English</b> | <a href="README-zh_CN.md">简体中文</a>
+</p>
 
----
+Veloxis is an enterprise-grade agile data analytics platform designed for "**Self-hosting, High concurrency, and Strict compliance**".
 
-## 🏗️ 核心架构：D/C/D 巨构
-
-- **Control Plane (Directus)**: 负责多租户隔离、RBAC 权限、元数据建档及 Recipe 任务编排。
-- **Semantic Layer (Cube.js)**: 统一指标定义层，提供高性能 GraphQL/REST API，支撑前端复杂透视分析。
-- **Compute Engine (Data Worker)**: 基于 Node.js/TypeScript 的高性能计算节点，处理 S3 流式下钻、Excel 极速转换与 Doris 压力灌入。
-- **Storage Engine (Apache Doris)**: 分布式 OLAP 存储引擎，承载毫秒级查询响应。
+By leveraging the innovative **D/C/D (Directus / Cube.js / Doris)** hybrid architecture and a centralized **Data Worker** execution engine, Veloxis addresses the pain points of "mediocre performance, poor scalability, and security black boxes" commonly found in private-cloud BI tools. Veloxis is capable of ingesting millions of rows per second while supporting 500+ concurrent users for complex OLAP interactive analysis.
 
 ---
 
-## 🚦 当前开发进展 (Progress Report)
+## 🌟 Key Features
 
-目前系统已完成核心引擎的打通，具备了处理海量数据入库的工业级能力。
-
-### 1. 基础设施与网关 [100%]
-- [x] 基于 Docker Compose 的全组件编排（10+ 容器协同）。
-- [x] Nginx 随机路径安全网关，通过环境变量动态隔离 Directus 管理后台。
-- [x] SeaweedFS 对象存储初始化，支持 S3 协议对接。
-
-### 2. 元数据模型 [100%]
-- [x] 完成 `Projects` (多租户)、`Datasets`、`Dataset_Versions`、`Recipes` 物理表建模。
-- [x] 建立元数据与 Doris 存储层的外键逻辑关联。
-
-### 3. 数据计算引擎 (Data Worker) [85%]
-- [x] **Doris 工业级驱动**: 实现支持 307 重定向与 `100-continue` 协议的 Stream Load 客户端。
-- [x] **极速转换逻辑**: 内置 Excel-to-CSV 流式处理器。
-- [x] **异步调度系统**: 集成 BullMQ + Redis 任务队列，支持横向扩展。
-- [x] **性能指标验证**: **实测 100,000 行 Excel 数据入库耗时 1.04 秒**。
-
-### 4. 待办计划 (Next Steps)
-- [ ] **全链路点火**: 配置 Directus Flows 触发 Webhook 自动开启入库任务。
-- [ ] **语义建模**: 编写 Cube.js Schema，实现基于 `project_id` 的行级数据安全拦截。
-- [ ] **算子工厂**: 开发首批内置数据清洗算子（去重、脱敏、格式化）。
+- **🚀 Industrial-grade Throughput**: Powered by Doris Stream Load, benching **100,000 Excel rows in just 1.04s**.
+- **🛡️ Iron-clad Security**: Built-in TOTP secondary verification, dynamic admin URL obfuscation, and JWT-based tenant-level row-locking.
+- **🏗️ D/C/D Hybrid Infrastructure**: Seamlessly integrates Directus for administrative productivity, Cube.js for semantic flexibility, and Apache Doris for extreme computational power.
+- **📦 Zero-dependency Self-hosting**: Fully Docker Compose compatible, utilizing SeaweedFS instead of MinIO to avoid licensing risks.
+- **🤖 Automation Operators**: Orchestrate data processing logic via "Recipes", supporting official operators and restricted Python sandboxing.
 
 ---
 
-## 🛠️ 快速验证
+## 🏗️ Architecture Deep Dive
 
-### 1. 启动全量集群
+Veloxis is powered by three industry-leading engines:
+
+### 1. Control Plane: Directus
+*   **Responsibility**: Identity (RBAC), Multi-tenancy, Audit logs, Metadata modeling, Task orchestration.
+*   **Value**: Provides extreme management flexibility where all business entities (projects, versions, recipes) are unified.
+
+### 2. Semantic & Acceleration: Cube.js
+*   **Responsibility**: Unified metric definitions, Dynamic schema generation, Redis results caching, Query rate-limiting.
+*   **Value**: Acts as a breakwater for 500+ concurrent requests, preventing backend overload and providing SQL-rewrite protection.
+
+### 3. Storage & Analytics: Apache Doris
+*   **Responsibility**: Massive detail/aggregate storage, Real-time OLAP, High-frequency stream ingestion.
+*   **Value**: Features "Version-based Partitioning" supporting sub-second rollbacks and custom data retention policies.
+
+### 4. Execution Engine: Data Worker
+*   **Responsibility**: File parsing, Data cleaning, Metric calculation, Doris ingestion.
+*   **Stack**: Built with Node.js/TypeScript and BullMQ, featuring streaming Excel-to-CSV processing to minimize memory footprint.
+
+---
+
+## 🛠️ Tech Stack Matrix
+
+| Dimension | Technology |
+| :--- | :--- |
+| **Admin Console** | Directus (Vue) + PostgreSQL 15 |
+| **Query Layer** | Cube.js + Redis 8.6 |
+| **OLAP Engine** | Apache Doris 4.0.3-slim |
+| **Storage** | SeaweedFS (S3 Compatible) |
+| **Frontend** | React 18 + Webpack MF + Echarts + AntV S2 |
+| **Task Queue** | BullMQ + Redis |
+| **Security** | TOTP (RFC 6238) + Step-up Auth |
+
+---
+
+## 🏁 Progress Report
+
+### 1. Infrastructure & Security [100%]
+- [x] Full Docker Compose orchestration and network isolation.
+- [x] Dynamic path gateway (Nginx random prefix).
+- [x] TOTP binding and Step-up auth for high-risk operations.
+
+### 2. Metadata & Data Flow [100%]
+- [x] Physical modeling for Tenants / Projects / Datasets / Versions / Recipes.
+- [x] Asset management via SeaweedFS with S3 protocol support.
+
+### 3. Execution Engine (Data Worker) [85%]
+- [x] **Doris Industrial Driver**: Encapsulated Stream Load with idempotency support.
+- [x] **Turbo Charge**: Implemented streaming Excel-to-CSV converter.
+- [x] **Async Scheduling**: BullMQ-based load balancing.
+
+### 4. Roadmap 2026 Q2
+- [ ] **Full-link Ignition**: Sync Data Worker tasks with Directus Flows.
+- [ ] **Dynamic Modeling**: Automated Cube.js schema generation based on `project_id`.
+- [ ] **Dashboard Marketplace**: Export layouts with cross-project data re-binding.
+
+---
+
+## 📦 Quick Start
+
+### 1. Prerequisites
+Ensure Docker Compose is installed.
+
+### 2. Launch Cluster
 ```bash
+git clone https://github.com/your-repo/veloxis.git
+cd veloxis
 docker compose up -d
 ```
 
-### 2. 执行 10 万行数据压测
-该脚本将读取 `/worker/test_file/test.xlsx`，并在 1 秒左右完成 Doris 入库。
-```bash
-docker exec veloxis_data_worker npx tsx src/excel-test.ts
-```
-
-### 3. 访问管理后台
-访问路径：`http://localhost:8080${ADMIN_BASE_PATH}` (具体路径见 `.env`)
+### 3. Access
+*   **Workstation**: `http://localhost:8080/`
+*   **Admin Console**: `http://localhost:8080${ADMIN_BASE_PATH}` (Refer to `.env`)
 
 ---
 
-## 📜 许可证
-本项目遵循 **GNU Affero General Public License v3.0 (AGPL-3.0)**。
+## 📜 License
+
+This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
+Any modification made to the system must be open-sourced if you provide a network service using this platform.

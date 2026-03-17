@@ -1,66 +1,96 @@
 import { Job, Worker } from 'bullmq';
 import { Redis } from 'ioredis';
 import { config } from '../config';
-import { StorageService } from '../services/StorageService';
 import { DorisClient } from '../services/DorisClient';
+import { ExcelConverter } from '../utils/ExcelConverter';
+import axios from 'axios';
+import fs from 'fs';
+import path from 'path';
+import { Readable } from 'stream';
 
 const connection = new Redis({
     host: config.redis.host,
     port: config.redis.port,
-    maxRetriesPerRequest: null // Required by BullMQ
+    maxRetriesPerRequest: null
 });
 
-const storageService = new StorageService();
 const dorisClient = new DorisClient();
 
 interface IngestionJobData {
     datasetId: string;
     versionId: string;
-    fileId: string; // SeaweedFS object key
-    tableName: string; // Doris table name
+    fileId: string; // Directus File UUID
+    tableName: string;
+    extension: 'xlsx' | 'csv';
 }
 
 export const initIngestionWorker = async () => {
-    // Ensure bucket is ready
-    await storageService.initBucket();
-
-    console.log(`[Worker] Started listening on queue: ingestion-queue`);
+    console.log(`[Worker] ✨ Ingestion Engine Online (Queue: ingestion-queue)`);
     
     const worker = new Worker<IngestionJobData>(
         'ingestion-queue',
         async (job: Job<IngestionJobData>) => {
-            console.log(`[Job ${job.id}] Starting ingestion for dataset version: ${job.data.versionId}`);
+            const { versionId, fileId, tableName, extension } = job.data;
+            console.log(`[Job ${job.id}] Processing ${extension} ingestion for ${tableName}`);
             
             try {
-                // 1. Update Directus state to 'Processing' (placeholder)
-                console.log(`[Job ${job.id}] Updating status in Directus to Processing...`);
-                // TODO: Call Directus API
+                // 1. Get Token & Download file from Directus
+                // In a real scenario, we might use a service token
+                const authRes = await axios.post(`${config.directus.url}/auth/login`, {
+                    email: config.directus.email,
+                    password: config.directus.password
+                });
+                const token = authRes.data.data.access_token;
+                const headers = { Authorization: `Bearer ${token}` };
 
-                // 2. Open Stream from SeaweedFS
-                console.log(`[Job ${job.id}] Downloading ${job.data.fileId} from SeaweedFS...`);
-                const stream = await storageService.downloadFileStream(job.data.fileId);
+                // Update version status to 'processing'
+                await axios.patch(`${config.directus.url}/items/dataset_versions/${versionId}`, 
+                    { status: 'processing' }, { headers });
 
-                // 3. Stream Load to Doris
-                console.log(`[Job ${job.id}] Pushing stream to Doris table: ${job.data.tableName}`);
-                await dorisClient.streamLoad(job.data.tableName, stream);
+                // 2. Fetch File Stream
+                const fileUrl = `${config.directus.url}/assets/${fileId}`;
+                const fileRes = await axios.get(fileUrl, { headers, responseType: 'arraybuffer' });
+                const tempPath = path.join('/tmp', `${fileId}.${extension}`);
+                fs.writeFileSync(tempPath, fileRes.data);
 
-                // 4. Update Directus state to 'Ready'
-                console.log(`[Job ${job.id}] Ingestion complete! Updating status to Ready.`);
-                // TODO: Call Directus API
+                // 3. Convert to CSV Stream
+                let csvBuffer: Buffer;
+                if (extension === 'xlsx') {
+                    console.log(`[Job ${job.id}] Converting Excel to CSV...`);
+                    const csvString = ExcelConverter.toCSV(tempPath);
+                    csvBuffer = Buffer.from(csvString);
+                } else {
+                    csvBuffer = fs.readFileSync(tempPath);
+                }
+
+                // 4. Heavy Lift: Stream Load into Doris
+                console.log(`[Job ${job.id}] Pumping data into Doris...`);
+                await dorisClient.streamLoad(tableName, csvBuffer);
+
+                // 5. Cleanup & Success Status
+                fs.unlinkSync(tempPath);
+                await axios.patch(`${config.directus.url}/items/dataset_versions/${versionId}`, 
+                    { status: 'ready' }, { headers });
+                
+                console.log(`[Job ${job.id}] 🏆 Done! ${tableName} is now live in Doris.`);
                 
             } catch (error: any) {
-                console.error(`[Job ${job.id}] Ingestion failed:`, error.message);
-                // 5. Update Directus state to 'Failed'
-                // TODO: Call Directus API
+                console.error(`[Job ${job.id}] ❌ Error:`, error.message);
+                // Attempt to mark as failed in Directus
+                try {
+                    const authRes = await axios.post(`${config.directus.url}/auth/login`, {
+                        email: config.directus.email,
+                        password: config.directus.password
+                    });
+                    const token = authRes.data.data.access_token;
+                    await axios.patch(`${config.directus.url}/items/dataset_versions/${versionId}`, 
+                        { status: 'failed' }, { headers: { Authorization: `Bearer ${token}` } });
+                } catch (e) {}
                 throw error;
             }
         },
         { connection: connection as any }
     );
-
-    worker.on('failed', (job, err) => {
-        console.error(`[Worker] Job ${job?.id} failed with error:`, err);
-    });
 
     return worker;
 };

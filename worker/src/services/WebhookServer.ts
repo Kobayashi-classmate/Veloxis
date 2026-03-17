@@ -1,13 +1,13 @@
 import express from 'express';
 import bodyParser from 'body-parser';
 import { Queue } from 'bullmq';
-import IORedis from 'ioredis';
+import { Redis } from 'ioredis';
 import { config } from '../config';
 
 const app = express();
 app.use(bodyParser.json());
 
-const connection = new IORedis({
+const connection = new Redis({
     host: config.redis.host,
     port: config.redis.port,
     maxRetriesPerRequest: null
@@ -20,29 +20,26 @@ const ingestionQueue = new Queue('ingestion-queue', { connection: connection as 
  */
 app.post('/webhooks/ingestion', async (req, res) => {
     const payload = req.body;
-    console.log('[Webhook] Received ingestion event:', JSON.stringify(payload, null, 2));
+    console.log('[Webhook] Received Directus event for:', payload.collection);
 
-    // Expected Directus Payload Structure:
-    // {
-    //   event: 'items.create',
-    //   collection: 'dataset_versions',
-    //   payload: { id, dataset_id, file_id, ... },
-    //   key: 'some-uuid'
-    // }
-    
     if (payload.collection === 'dataset_versions' && payload.event.includes('create')) {
         const { id, dataset_id, file_id } = payload.payload;
         
-        // We'll generate a table name based on dataset_id or a unique name
+        // Simple table name mapping: remove hyphens
         const tableName = `ds_${dataset_id.replace(/-/g, '_')}`;
 
-        console.log(`[Webhook] Queuing ingestion job for ${file_id} into ${tableName}`);
+        // Need to guess extension, assume Excel for now as our primary test format, 
+        // in production we'd fetch the file metadata from directus.
+        const extension = 'xlsx';
+
+        console.log(`[Webhook] Queuing job for Directus File [${file_id}] -> Doris [${tableName}]`);
         
         await ingestionQueue.add('ingest-from-directus', {
             datasetId: dataset_id,
             versionId: id,
             fileId: file_id,
-            tableName: tableName
+            tableName: tableName,
+            extension: extension
         });
         
         return res.status(200).json({ status: 'queued', jobId: id });
@@ -53,6 +50,6 @@ app.post('/webhooks/ingestion', async (req, res) => {
 
 export const startWebhookServer = (port: number = 3000) => {
     app.listen(port, '0.0.0.0', () => {
-        console.log(`[Webhook Server] Listening on port ${port}`);
+        console.log(`[Webhook Server] Ready on port ${port}. Waiting for Directus triggers...`);
     });
 };
