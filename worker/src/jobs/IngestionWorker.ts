@@ -6,6 +6,7 @@ import { StorageService } from '../services/StorageService';
 import { ExcelConverter } from '../utils/ExcelConverter';
 import { CsvHelper } from '../utils/CsvHelper';
 import { CubeSchemaGenerator } from '../utils/CubeSchemaGenerator';
+import { ETLPipeline, ETLOperator } from '../utils/ETLPipeline';
 import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
@@ -89,21 +90,57 @@ export const initIngestionWorker = async () => {
                     csvBuffer = fs.readFileSync(tempPath);
                 }
 
-                // 4. Create Table Dynamically
-                const csvHeaders = CsvHelper.getHeaders(csvPathToRead);
-                console.log(`[Job ${job.id}] Detected headers:`, csvHeaders);
+                // 4. Check for ETL Recipes
+                let etlOperators: ETLOperator[] = [];
+                let finalCsvPathToRead = csvPathToRead;
+                
+                if (!isTest) {
+                    try {
+                        const recipesRes = await axios.get(`${config.directus.url}/items/recipes?filter[dataset_id][_eq]=${datasetId}`, { headers });
+                        if (recipesRes.data.data && recipesRes.data.data.length > 0) {
+                            const recipe = recipesRes.data.data[0];
+                            if (recipe.config && Array.isArray(recipe.config)) {
+                                etlOperators = recipe.config;
+                                console.log(`[Job ${job.id}] Fetched ${etlOperators.length} ETL recipes from Directus.`);
+                            }
+                        } else {
+                            console.log(`[Job ${job.id}] No ETL recipes found for this dataset.`);
+                        }
+                    } catch(e: any) {
+                        console.error(`[Job ${job.id}] Failed to fetch recipes:`, e.response?.data || e.message);
+                    }
+                }
+
+                let csvHeaders: string[] = [];
+
+                if (etlOperators.length > 0) {
+                    console.log(`[Job ${job.id}] Applying ETL Pipeline (${etlOperators.length} ops)...`);
+                    const etlOutputPath = path.join('/tmp', `${fileId}_etl.csv`);
+                    csvHeaders = await ETLPipeline.process(csvPathToRead, etlOutputPath, etlOperators);
+                    finalCsvPathToRead = etlOutputPath;
+                    csvBuffer = fs.readFileSync(finalCsvPathToRead);
+                } else {
+                    csvHeaders = CsvHelper.getHeaders(finalCsvPathToRead);
+                }
+
+                console.log(`[Job ${job.id}] Final Detected headers:`, csvHeaders);
+
+                // 5. Create Table Dynamically
                 await dorisClient.ensureTableExists(tableName, csvHeaders);
 
-                // 5. Heavy Lift: Stream Load into Doris
+                // 6. Heavy Lift: Stream Load into Doris
                 console.log(`[Job ${job.id}] Pumping data into Doris...`);
                 await dorisClient.streamLoad(tableName, csvBuffer, { headers: csvHeaders, projectId: projectId });
 
-                // 6. Generate Dynamic Cube.js Schema
+                // 7. Generate Dynamic Cube.js Schema
                 CubeSchemaGenerator.generateSchema(tableName, csvHeaders, datasetId);
 
-                // 7. Cleanup & Success Status
+                // 8. Cleanup & Success Status
                 if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
                 if (csvPathToRead !== tempPath && fs.existsSync(csvPathToRead)) fs.unlinkSync(csvPathToRead);
+                if (finalCsvPathToRead !== csvPathToRead && finalCsvPathToRead !== tempPath && fs.existsSync(finalCsvPathToRead)) {
+                    fs.unlinkSync(finalCsvPathToRead);
+                }
                 
                 if (!isTest) {
                     await axios.patch(`${config.directus.url}/items/dataset_versions/${versionId}`, 

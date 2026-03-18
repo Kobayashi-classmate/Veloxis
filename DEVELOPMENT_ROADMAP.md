@@ -24,13 +24,13 @@ Veloxis 是一套专为“数据密集型交互、高并发访问、强安全合
 - [x] **网关配置**: 启动 Nginx 作为统一流量入口 (监听 8080 端口)。
 
 ### 🟢 阶段二：数据摄入与处理管道 (Data Ingestion & Processing)
-**状态：核心完成 (Core Done)**
+**状态：已完成 (Done)**
 本阶段目标是实现业务数据的极速导入、清洗与入库。
 - [x] **基础解析测试**: 编写基础脚本（如 `excel-test.ts`）测试千万级/十万级 Excel/CSV 文件的解析。
 - [x] **对象存储集成**: 实现用户上传文件至 SeaweedFS，Worker 从 SeaweedFS 拉取文件流。
 - [x] **高吞吐入库 (Stream Load)**: 完善 Data Worker 到 Doris 的 HTTP Stream Load 机制，确保高并发写入的稳定性与错误重试机制。
 - [x] **任务调度与队列 (BullMQ)**: 完善文件解析、数据清洗、数据入库任务的队列化管理，实现任务状态追踪（Pending, Processing, Completed, Failed）。
-- [ ] **自动化清洗队列 (Automation Queue)**: 设计并开发基础的数据清洗算子（过滤、映射、聚合）。
+- [x] **自动化清洗队列 (Automation Queue)**: 设计并开发基础的数据清洗算子（过滤、映射、聚合、大小写转换）。
 
 ### 🟢 阶段三：语义加速层映射 (Semantic Layer & Query Acceleration)
 **状态：核心完成 (Core Done)**
@@ -59,5 +59,5 @@ Veloxis 是一套专为“数据密集型交互、高并发访问、强安全合
 ---
 
 ## 📈 下一步行动建议 (Next Action Items)
-1. **清洗算子研发**: 为 Data Worker 增加数据转换（如字段重命名、类型强转）的 ETL 算子支持。
-2. **动态图表构建器**: 开发前端仪表盘的可视化组件，与动态生成的 Cube.js Schema 进行联调。
+1. **动态图表构建器**: 开发前端仪表盘的可视化组件，与动态生成的 Cube.js Schema 进行联调。
+2. **租户鉴权联调**: 在前端完整落地基于 `project_id` 的 Dashboard 隔离与 Cube.js 请求头隔离机制。
