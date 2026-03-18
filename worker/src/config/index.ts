@@ -30,7 +30,8 @@ export const config = {
     },
     // Directus API (Control Plane)
     directus: {
-        url: `http://directus:8055${process.env.ADMIN_BASE_PATH || ''}`,
+        // We communicate with directus container internally, so no base path is needed
+        url: `http://directus:8055`,
         email: process.env.ADMIN_EMAIL,
         password: process.env.ADMIN_PASSWORD,
     }

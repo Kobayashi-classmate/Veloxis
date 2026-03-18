@@ -4,10 +4,11 @@ import { config } from '../config';
 import { DorisClient } from '../services/DorisClient';
 import { StorageService } from '../services/StorageService';
 import { ExcelConverter } from '../utils/ExcelConverter';
+import { CsvHelper } from '../utils/CsvHelper';
+import { CubeSchemaGenerator } from '../utils/CubeSchemaGenerator';
 import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
-import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
 
 const connection = new Redis({
@@ -26,6 +27,7 @@ export interface IngestionJobData {
     tableName: string;
     extension?: 'xlsx' | 'csv';
     storageSource?: 'directus' | 's3'; // default directus
+    projectId?: string;
 }
 
 export const initIngestionWorker = async () => {
@@ -37,8 +39,8 @@ export const initIngestionWorker = async () => {
     const worker = new Worker<IngestionJobData>(
         'ingestion-queue',
         async (job: Job<IngestionJobData>) => {
-            const { versionId, fileId, tableName, extension = 'csv', storageSource = 'directus' } = job.data;
-            console.log(`[Job ${job.id}] Processing ${extension} ingestion from ${storageSource} for ${tableName}`);
+            const { datasetId, versionId, fileId, tableName, extension = 'csv', storageSource = 'directus', projectId = 'default_project' } = job.data;
+            console.log(`[Job ${job.id}] Processing ${extension} ingestion from ${storageSource} for ${tableName} (Project: ${projectId})`);
             
             let token = '';
             let headers = {};
@@ -72,24 +74,36 @@ export const initIngestionWorker = async () => {
                     fs.writeFileSync(tempPath, fileRes.data);
                 }
 
-                // 3. Convert to CSV Stream
+                // 3. Convert to CSV / Prepare Headers
                 let csvBuffer: Buffer;
+                let csvPathToRead = tempPath;
+
                 if (extension === 'xlsx') {
                     console.log(`[Job ${job.id}] Converting Excel to CSV...`);
                     const csvString = ExcelConverter.toCSV(tempPath);
                     csvBuffer = Buffer.from(csvString);
+                    // Write to temp file for CsvHelper to read headers
+                    csvPathToRead = path.join('/tmp', `${fileId}_converted.csv`);
+                    fs.writeFileSync(csvPathToRead, csvBuffer);
                 } else {
                     csvBuffer = fs.readFileSync(tempPath);
                 }
 
-                // 4. Heavy Lift: Stream Load into Doris
-                console.log(`[Job ${job.id}] Pumping data into Doris...`);
-                await dorisClient.streamLoad(tableName, csvBuffer);
+                // 4. Create Table Dynamically
+                const csvHeaders = CsvHelper.getHeaders(csvPathToRead);
+                console.log(`[Job ${job.id}] Detected headers:`, csvHeaders);
+                await dorisClient.ensureTableExists(tableName, csvHeaders);
 
-                // 5. Cleanup & Success Status
-                if (fs.existsSync(tempPath)) {
-                    fs.unlinkSync(tempPath);
-                }
+                // 5. Heavy Lift: Stream Load into Doris
+                console.log(`[Job ${job.id}] Pumping data into Doris...`);
+                await dorisClient.streamLoad(tableName, csvBuffer, { headers: csvHeaders, projectId: projectId });
+
+                // 6. Generate Dynamic Cube.js Schema
+                CubeSchemaGenerator.generateSchema(tableName, csvHeaders, datasetId);
+
+                // 7. Cleanup & Success Status
+                if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+                if (csvPathToRead !== tempPath && fs.existsSync(csvPathToRead)) fs.unlinkSync(csvPathToRead);
                 
                 if (!isTest) {
                     await axios.patch(`${config.directus.url}/items/dataset_versions/${versionId}`, 
