@@ -1,30 +1,32 @@
-# 忽略本地持久化数据目录 (Doris, Postgres, Redis, CubeStore, SeaweedFS)
+# Ignore local persistent data directory (Doris, Postgres, Redis, CubeStore, SeaweedFS)
 data/
 
-# 忽略系统生成文件和 IDE 配置
+# Ignore system-generated files and IDE configurations
 .DS_Store
 .idea/
 .vscode/
 
-# 忽略环境变量和敏感配置
+# Ignore environment variables and sensitive configurations
 .env
 .env.local
 *.pem
 *.key
 
-# Node.js 依赖
+# Node.js
 node_modules/
 test_file/
 npm-debug.log
 yarn-error.log
 
-# 编译和构建输出
+# Compilation and build output
 dist/
 build/
 coverage/
 
-# 脚本临时产物
+# Script temporary product
 scripts/node_modules/
 
-# 忽略产品文档与设计文件
-企业级数据分析平台 V1 架构白皮书.md
+# Ignore project files
+V1.md
+GEMINI.md
+DEVELOPMENT_ROADMAP.md

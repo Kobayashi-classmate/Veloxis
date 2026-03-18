@@ -20,10 +20,13 @@ const run = async () => {
     
     console.log("[Test Script] Uploading to SeaweedFS...");
     const s3 = new S3Client({
-        region: 'us-east-1',
-        endpoint: 'http://seaweedfs:8333',
-        forcePathStyle: true,
-        credentials: { accessKeyId: 'any', secretAccessKey: 'any' }
+        region: config.s3.region,
+        endpoint: config.s3.endpoint,
+        forcePathStyle: config.s3.forcePathStyle,
+        credentials: { 
+            accessKeyId: config.s3.accessKey, 
+            secretAccessKey: config.s3.secretKey 
+        }
     });
 
     try {
@@ -50,7 +53,14 @@ const run = async () => {
     console.log("[Test Script] Pushing job to BullMQ queue...");
     const connection = new Redis({ host: config.redis.host, port: config.redis.port, maxRetriesPerRequest: null });
     const queue = new Queue('ingestion-queue', { connection: connection as any });
-    await queue.add('ingest-csv-test', { datasetId: 'test', versionId: 'v1.test', fileId: fileId, tableName: tableName });
+    await queue.add('ingest-csv-test', { 
+        datasetId: 'test', 
+        versionId: 'v1.test', 
+        fileId: fileId, 
+        tableName: tableName,
+        extension: 'csv',
+        storageSource: 's3'
+    });
     console.log(`[Test Script] ✅ Job pushed! Check worker logs.`);
     await connection.quit();
     process.exit(0);

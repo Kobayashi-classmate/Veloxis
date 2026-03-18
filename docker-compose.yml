@@ -89,7 +89,7 @@ services:
       CUBEJS_CUBESTORE_PORT: '3030'
       CUBEJS_DEV_MODE: "true"
     volumes:
-      - ./data/cube_conf:/cube/conf
+      - ./conf/cube:/cube/conf
     depends_on:
       - cubestore
       - doris-fe
@@ -156,7 +156,7 @@ services:
   seaweedfs:
     image: chrislusf/seaweedfs:latest
     container_name: veloxis_seaweedfs
-    command: "server -dir=/data -s3"
+    command: "server -dir=/data -s3 -s3.config=/data/s3.json"
     environment:
       - 'WEED_S3_CONFIG={"identities":[{"name":"admin","credentials":[{"accessKey":"dcd_admin_key","secretKey":"dcd_super_secret_key_2026"}],"actions":["Read","Write","List","Tagging","Admin"]}]}'
     volumes:

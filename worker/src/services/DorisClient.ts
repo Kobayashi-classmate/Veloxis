@@ -28,7 +28,7 @@ export class DorisClient {
         // Step 1: Handle FE to BE redirection (Doris FE redirects to a specific BE for the load)
         try {
             // We send a small empty request or just use axios with maxRedirects: 0 to catch the 307
-            await axios.put(feUrl, null, {
+            const redirectRes = await axios.put(feUrl, null, {
                 headers: {
                     'Authorization': this.authHeader,
                     'Expect': '100-continue',
@@ -37,14 +37,15 @@ export class DorisClient {
                 maxRedirects: 0,
                 validateStatus: (status) => status === 307 || (status >= 200 && status < 300)
             });
-        } catch (error: any) {
-            if (error.response && error.response.status === 307) {
-                targetUrl = error.response.headers.location;
+
+            if (redirectRes.status === 307) {
+                targetUrl = redirectRes.headers.location;
                 console.log(`[Doris] Step 2: Redirected to BE: ${targetUrl}`);
-            } else {
-                console.error(`[Doris] FE Request Failed:`, error.response?.data || error.message);
-                throw error;
             }
+
+        } catch (error: any) {
+            console.error(`[Doris] FE Request Failed:`, error.response?.data || error.message);
+            throw error;
         }
 
         // Step 3: Perform the actual load to the BE
@@ -55,7 +56,8 @@ export class DorisClient {
                     'Authorization': this.authHeader,
                     'format': 'csv',
                     'column_separator': options?.columnSeparator || ',',
-                    'label': label
+                    'label': label,
+                    'Expect': '100-continue'
                 },
                 maxBodyLength: Infinity,
                 maxContentLength: Infinity
