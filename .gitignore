@@ -35,3 +35,4 @@ patch_*.js
 patch_*.sh
 query_cube.js
 .geminiignore
+conf/cube/model/Dataset_*.js
