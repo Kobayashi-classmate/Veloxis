@@ -66,8 +66,6 @@ services:
     container_name: veloxis_cubestore
     environment:
       - CUBESTORE_SERVER_NAME=cubestore:3030
-      - CUBESTORE_WORKER_PORT=3030
-      - CUBESTORE_ROUTER_PORT=3030
     volumes:
       - ./data/cubestore:/cubestore/data
     networks:
