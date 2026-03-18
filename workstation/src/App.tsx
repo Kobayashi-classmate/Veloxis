@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import DataSources from './pages/DataSources';
 import { CubeContextWrapper } from './contexts/CubeContext';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -25,6 +26,7 @@ function App() {
               <CubeContextWrapper>
                 <Routes>
                   <Route path="/" element={<Dashboard />} />
+                  <Route path="/data-sources" element={<DataSources />} />
                 </Routes>
               </CubeContextWrapper>
             </ProtectedRoute>
