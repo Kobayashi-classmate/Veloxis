@@ -1,0 +1,10 @@
+{
+  "default": true,
+  "no-hard-tabs": false,
+  "whitespace": false,
+  "line-length": false,
+
+  "MD033": false,
+  "MD041": false,
+  "MD060": false
+}

@@ -1,0 +1,27 @@
+{
+  "extends": "stylelint-config-standard",
+  "rules": {
+    "value-keyword-case": null,
+    "selector-class-pattern": null,
+    "no-invalid-position-at-import-rule": null,
+    "property-no-unknown": [
+      true,
+      {
+        "ignoreProperties": ["composes"]
+      }
+    ],
+    "selector-pseudo-class-no-unknown": [
+      true,
+      {
+        "ignorePseudoClasses": ["global"]
+      }
+    ],
+    "at-rule-no-unknown": [
+      true,
+      {
+        "ignoreAtRules": ["tailwind", "apply", "variants", "responsive", "screen", "layer", "theme", "utility"]
+      }
+    ]
+  },
+  "ignoreFiles": ["dist-lib/**", "coverage/**", "node_modules/**"]
+}

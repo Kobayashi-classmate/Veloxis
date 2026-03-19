@@ -1,0 +1,779 @@
+import { parse, stringify } from 'qs'
+import html2canvas from 'html2canvas'
+
+const getCrypto = () => {
+  try {
+    return typeof globalThis !== 'undefined' &&
+      globalThis.crypto &&
+      typeof globalThis.crypto.getRandomValues === 'function'
+      ? globalThis.crypto
+      : null
+  } catch {
+    return null
+  }
+}
+
+// Non-cryptographic fallback RNG (only used when Web Crypto is unavailable).
+// Sonar hotspot S2245 is addressed by avoiding Math.random().
+let fallbackSeed = (() => {
+  try {
+    const perfNow = typeof performance !== 'undefined' && typeof performance.now === 'function' ? performance.now() : 0
+    return (Date.now() ^ Math.floor(perfNow * 1000)) >>> 0
+  } catch {
+    return Date.now() >>> 0
+  }
+})()
+
+const fallbackUint32 = () => {
+  // xorshift32
+  let x = fallbackSeed >>> 0
+  x ^= (x << 13) >>> 0
+  x ^= (x >>> 17) >>> 0
+  x ^= (x << 5) >>> 0
+  fallbackSeed = x >>> 0
+  return fallbackSeed
+}
+
+const randomUint32 = () => {
+  const cryptoObj = getCrypto()
+  if (!cryptoObj) return fallbackUint32()
+  const buf = new Uint32Array(1)
+  cryptoObj.getRandomValues(buf)
+  return buf[0]
+}
+
+const randomFloat01 = () => {
+  return randomUint32() / 0x100000000
+}
+
+const randomIntInclusive = (min, max) => {
+  const lo = Math.ceil(min)
+  const hi = Math.floor(max)
+  if (hi < lo) return lo
+  const range = hi - lo + 1
+  return lo + Math.floor(randomFloat01() * range)
+}
+
+const randomHexBytes = (byteLength) => {
+  const cryptoObj = getCrypto()
+  const bytes = new Uint8Array(byteLength)
+  if (cryptoObj) cryptoObj.getRandomValues(bytes)
+  else {
+    for (let i = 0; i < bytes.length; i++) bytes[i] = randomIntInclusive(0, 255)
+  }
+
+  let hex = ''
+  for (const b of bytes) hex += b.toString(16).padStart(2, '0')
+  return hex
+}
+
+const randomBase36 = (length) => {
+  const alphabet = '0123456789abcdefghijklmnopqrstuvwxyz'
+  let out = ''
+  for (let i = 0; i < length; i++) {
+    out += alphabet[randomIntInclusive(0, alphabet.length - 1)]
+  }
+  return out
+}
+
+export const getEnv = () => {
+  let env
+  if (typeof process !== 'undefined' && Object.prototype.toString.call(process) === '[object process]') {
+    env = 'NODE'
+  }
+  if (typeof XMLHttpRequest !== 'undefined') {
+    env = 'BROWSER'
+  }
+  return env
+}
+
+export const isArray = (val) => typeof val === 'object' && Object.prototype.toString.call(val) === '[object Array]'
+
+export const isURLSearchParams = (val) => typeof URLSearchParams !== 'undefined' && val instanceof URLSearchParams
+
+export const isDate = (val) => typeof val === 'object' && Object.prototype.toString.call(val) === '[object Date]'
+
+export const isObject = (val) => val !== null && typeof val === 'object'
+
+export const getParamObject = (val) => {
+  if (isURLSearchParams(val)) {
+    return parse(val.toString(), { strictNullHandling: true })
+  }
+  if (typeof val === 'string') {
+    return [val]
+  }
+  return val
+}
+
+export const reqStringify = (val) => stringify(val, { arrayFormat: 'repeat', strictNullHandling: true })
+
+export const getType = (obj) => {
+  const typeString = Object.prototype.toString.call(obj)
+  const prefix = '[object '
+  const suffix = ']'
+  if (typeString.startsWith(prefix) && typeString.endsWith(suffix)) {
+    return typeString.slice(prefix.length, -suffix.length)
+  }
+  const start = typeString.indexOf(prefix)
+  const end = typeString.lastIndexOf(suffix)
+  if (start !== -1 && end !== -1 && end > start + prefix.length) {
+    return typeString.slice(start + prefix.length, end)
+  }
+  return null
+}
+
+export const hidePhone = (phone) => phone?.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')
+
+// asyncAction(action)(callback)
+export const asyncAction = (action) => {
+  const wait = Promise.resolve(action)
+  return (cb) => {
+    wait.then(() => setTimeout(() => cb()))
+  }
+}
+
+export const getImgsUrl = (html) => {
+  if (!html) return null
+  if (typeof DOMParser === 'undefined') return null
+
+  try {
+    const doc = new DOMParser().parseFromString(String(html), 'text/html')
+    const imgs = Array.from(doc.querySelectorAll('img'))
+    const srcs = imgs.map((img) => img.getAttribute('src')).filter(Boolean)
+    return srcs.length ? srcs : null
+  } catch {
+    return null
+  }
+}
+
+export const customizeTimer = {
+  intervalTimer: null,
+  timeoutTimer: null,
+  setTimeout(cb, interval) {
+    const { now } = Date
+    const stime = now()
+    let etime = stime
+    const loop = () => {
+      this.timeoutTimer = requestAnimationFrame(loop)
+      etime = now()
+      if (etime - stime >= interval) {
+        cb()
+        cancelAnimationFrame(this.timeoutTimer)
+      }
+    }
+    this.timeoutTimer = requestAnimationFrame(loop)
+    return this.timeoutTimer
+  },
+  clearTimeout() {
+    cancelAnimationFrame(this.timeoutTimer)
+  },
+  setInterval(cb, interval) {
+    const { now } = Date
+    let stime = now()
+    let etime = stime
+    const loop = () => {
+      this.intervalTimer = requestAnimationFrame(loop)
+      etime = now()
+      if (etime - stime >= interval) {
+        stime = now()
+        etime = stime
+        cb()
+      }
+    }
+    this.intervalTimer = requestAnimationFrame(loop)
+    return this.intervalTimer
+  },
+  clearInterval() {
+    cancelAnimationFrame(this.intervalTimer)
+  },
+}
+
+export const isDecimal = (value) => {
+  const reg = /(?:^[1-9](\d+)?(?:\.\d{1,2})?$)|(?:^(?:0)$)|(?:^\d\.\d(?:\d)?$)/
+  return reg.test(value)
+}
+
+export const limitDecimal = (val) => {
+  const s = String(val)
+  const sign = s.startsWith('-') ? '-' : ''
+  const unsigned = sign ? s.slice(1) : s
+  const dot = unsigned.indexOf('.')
+  if (dot === -1) return s
+  const intPart = unsigned.slice(0, dot)
+  const fracPart = unsigned.slice(dot + 1)
+  const limited = fracPart.slice(0, 2)
+  return `${sign}${intPart}.${limited}`
+}
+
+export const passwordStrength = (pass) => {
+  const reg = /^(?=.*[A-Z])(?=.*\d)(?=.*[a-z]).{8,}$/
+  return reg.test(pass)
+}
+
+/*
+ ** 判断用户是否离开当前页面
+ */
+export const checkIsLocalPage = () => {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      return false
+    }
+    if (document.visibilityState === 'visible') {
+      return true
+    }
+    window.addEventListener(
+      'pagehide',
+      (event) => {
+        if (event.persisted) {
+          /* the page isn't being discarded, so it can be reused later */
+        }
+      },
+      false
+    )
+  })
+}
+
+// Generate Random Hex
+export const randomHex = () => `#${randomHexBytes(3)}`
+
+export const rgbToHex = (r, g, b) => `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`
+
+export const fibonacci = (n) => {
+  const seq = [0, 1]
+
+  for (let i = 2; i < n; i++) {
+    seq.push(seq[i - 1] + seq[i - 2])
+  }
+
+  return seq.slice(0, n)
+}
+
+export const lerp = (a, b, t) => a + (b - a) * t
+
+export const formatFileSize = (bytes, decimals = 2) => {
+  if (bytes === 0) return '0 Bytes'
+
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return `${(bytes / Math.pow(k, i)).toFixed(decimals)} ${sizes[i]}`
+}
+
+export const formatOrdinal = (num) => {
+  const suffixes = ['th', 'st', 'nd', 'rd']
+  const v = num % 100
+  return `${num}${suffixes[(v - 20) % 10] || suffixes[v] || suffixes[0]}`
+}
+
+export const formatPercentage = (num, decimals = 2) => `${(num * 100).toFixed(decimals)}%`
+
+export const formatRomanNumeral = (num) => {
+  const romanMap = [
+    { value: 1000, numeral: 'M' },
+    { value: 900, numeral: 'CM' },
+    { value: 500, numeral: 'D' },
+    { value: 400, numeral: 'CD' },
+    { value: 100, numeral: 'C' },
+    { value: 90, numeral: 'XC' },
+    { value: 50, numeral: 'L' },
+    { value: 40, numeral: 'XL' },
+    { value: 10, numeral: 'X' },
+    { value: 9, numeral: 'IX' },
+    { value: 5, numeral: 'V' },
+    { value: 4, numeral: 'IV' },
+    { value: 1, numeral: 'I' },
+  ]
+  let result = ''
+  for (const { value, numeral } of romanMap) {
+    while (num >= value) {
+      result += numeral
+      num -= value
+    }
+  }
+
+  return result
+}
+
+export const capitalizeWords = (str) => str.replace(/\b\w/g, (match) => match.toUpperCase())
+
+export const isPalindrome = (str) => {
+  const normalized = str.toLowerCase().replace(/[^a-z0-9]/g, '')
+  return normalized === normalized.split('').reverse().join('')
+}
+
+export const toCamelCase = (str) => {
+  const s = String(str)
+  let out = ''
+  let upperNext = false
+
+  for (const ch of s) {
+    const code = ch.charCodeAt(0)
+    const isWord =
+      (code >= 48 && code <= 57) || // 0-9
+      (code >= 65 && code <= 90) || // A-Z
+      (code >= 97 && code <= 122) || // a-z
+      ch === '_'
+
+    if (!isWord) {
+      upperNext = true
+      continue
+    }
+
+    if (upperNext) {
+      out += ch.toUpperCase()
+      upperNext = false
+    } else {
+      out += ch
+    }
+  }
+
+  return out
+}
+
+export const toKebabCase = (str) => {
+  const s = String(str ?? '')
+  const isAlnum = (ch) => {
+    const code = ch.charCodeAt(0)
+    return (
+      (code >= 48 && code <= 57) || // 0-9
+      (code >= 65 && code <= 90) || // A-Z
+      (code >= 97 && code <= 122) // a-z
+    )
+  }
+  const isLower = (ch) => {
+    const code = ch.charCodeAt(0)
+    return code >= 97 && code <= 122
+  }
+  const isUpper = (ch) => {
+    const code = ch.charCodeAt(0)
+    return code >= 65 && code <= 90
+  }
+
+  // Trim leading/trailing non-alphanumerics (same effect as the first replace())
+  let start = 0
+  while (start < s.length && !isAlnum(s[start])) start++
+  let end = s.length
+  while (end > start && !isAlnum(s[end - 1])) end--
+  if (start >= end) return ''
+
+  let out = ''
+  let prevWasSep = false
+  let prevWasLower = false
+
+  for (let i = start; i < end; i++) {
+    const ch = s[i]
+
+    if (ch === '_' || !isAlnum(ch)) {
+      // Normalize any separator run to a single '-'
+      if (!prevWasSep && out) {
+        out += '-'
+        prevWasSep = true
+      }
+      prevWasLower = false
+      continue
+    }
+
+    // camelCase boundary: [a-z][A-Z] => insert separator before upper
+    if (prevWasLower && isUpper(ch) && out && !out.endsWith('-')) {
+      out += '-'
+    }
+
+    out += ch.toLowerCase()
+    prevWasSep = false
+    prevWasLower = isLower(ch)
+  }
+
+  return out
+}
+
+export const truncate = (str, num) => (str.length > num ? str.slice(0, num) + '...' : str)
+
+export const delay = (ms) => {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+// Clear All Cookies
+export const clearCookies = () => {
+  if (typeof document === 'undefined') return
+
+  document.cookie.split(';').forEach((cookie) => {
+    const trimmed = cookie.trimStart()
+    const eq = trimmed.indexOf('=')
+    const name = eq === -1 ? trimmed : trimmed.slice(0, eq)
+    document.cookie = `${name}=;expires=${new Date(0).toUTCString()};path=/`
+  })
+}
+
+// Find the number of days between two days
+export const dayDif = (date1, date2) => Math.ceil(Math.abs(date1.getTime() - date2.getTime()) / 86400000)
+
+// Capitalize a String
+export const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1)
+
+// Check if the array is empty
+export const isNotEmpty = (arr) => Array.isArray(arr) && arr.length > 0
+
+// Detect Dark Mode
+export const isDarkMode =
+  typeof window !== 'undefined' &&
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia('(prefers-color-scheme: dark)').matches
+
+export const fetchSomething = () =>
+  new Promise((resolve) => {
+    setTimeout(() => {
+      resolve('')
+    }, 1000)
+  })
+
+export const toFixed = (number, m) => {
+  if (typeof number !== 'number') {
+    throw new Error('number不是数字')
+  }
+  let result = Math.round(10 ** m * number) / 10 ** m
+  result = String(result)
+  if (result.indexOf('.') === -1) {
+    if (m !== 0) {
+      result += '.'
+      result += new Array(m + 1).join('0')
+    }
+  } else {
+    const arr = result.split('.')
+    if (arr[1].length < m) {
+      arr[1] += new Array(m - arr[1].length + 1).join('0')
+    }
+    result = arr.join('.')
+  }
+  return result
+}
+export const toFixedBug = (n, fixed) => ~~(10 ** fixed * n) / 10 ** fixed
+
+export const promiseWithTimeout = (promise, timeout) => {
+  const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve('Time Out!'), timeout))
+  return Promise.race([timeoutPromise, promise])
+}
+
+export const shuffleArr = (arr) => {
+  const a = Array.isArray(arr) ? [...arr] : []
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = randomIntInclusive(0, i)
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+export const sleep = (time) => new Promise((resolve) => setTimeout(() => resolve(), time))
+export const ThousandNum = (num) => {
+  const raw = String(num)
+
+  // Fast path for real numbers
+  const asNumber = typeof num === 'number' ? num : Number(raw)
+  if (Number.isFinite(asNumber)) {
+    // Force comma grouping regardless of user locale.
+    return asNumber.toLocaleString('en-US')
+  }
+
+  // String-safe path (keeps original decimals if present)
+  const sign = raw.startsWith('-') ? '-' : ''
+  const unsigned = sign ? raw.slice(1) : raw
+  const dotIndex = unsigned.indexOf('.')
+  const intPart = dotIndex === -1 ? unsigned : unsigned.slice(0, dotIndex)
+  const fracPart = dotIndex === -1 ? '' : unsigned.slice(dotIndex) // includes '.'
+
+  const digits = intPart.replaceAll(',', '')
+  if (!digits) return raw
+
+  let out = ''
+  let groupCount = 0
+  for (let i = digits.length - 1; i >= 0; i--) {
+    const ch = digits[i]
+    if (ch < '0' || ch > '9') return raw
+    out = ch + out
+    groupCount++
+    if (groupCount === 3 && i !== 0) {
+      out = ',' + out
+      groupCount = 0
+    }
+  }
+
+  return `${sign}${out}${fracPart}`
+}
+export const RandomId = (len) => randomBase36(Math.max(0, Number(len) || 0))
+export const RoundNum = (num, decimal) => Math.round(num * 10 ** decimal) / 10 ** decimal
+export const randomNum = (min, max) => randomIntInclusive(min, max)
+
+export const isEmptyArray = (arr) => Array.isArray(arr) && !arr.length
+export const randomItem = (arr) => {
+  if (!Array.isArray(arr) || arr.length === 0) return undefined
+  return arr[randomIntInclusive(0, arr.length - 1)]
+}
+export const asyncTo = (promise) => promise.then((data) => [null, data]).catch((err) => [err])
+export const hasFocus = (element) => element === document.activeElement
+export const isEqual = (a, b) => JSON.stringify(a) === JSON.stringify(b)
+export const randomString = () => randomBase36(16)
+export const random = (min, max) => randomIntInclusive(min, max)
+export const randomColor = () => `#${randomHexBytes(3)}`
+export const pause = (millions) => new Promise((resolve) => setTimeout(resolve, millions))
+export const camelizeCamelCase = (str) =>
+  str
+    .replace(/(?:^\w|[A-Z]|\b\w)/g, (letter, index) => (index === 0 ? letter.toLowerCase() : letter.toUpperCase()))
+    .replace(/\s+/g, '')
+
+export const copyTextToClipboard = async (textToCopy) => {
+  try {
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(textToCopy)
+    }
+  } catch (err) {
+    console.error(`复制到剪贴板失败:${err.message}`)
+  }
+}
+
+export const getRandomId = () => {
+  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+  let text = ''
+  for (let i = 0; i < 32; i++) {
+    text += possible.charAt(randomIntInclusive(0, possible.length - 1))
+  }
+  return text
+}
+
+// https://github.com/Azure/fetch-event-source
+// https://github.com/mpetazzoni/sse.js
+// https://nodejs.org/api/http.html#httprequesturl-options-callback
+export const oneApiChat = (chatList, token, signal) =>
+  fetch('https://api.zhizengzeng.com/v1/chat/completions', {
+    method: 'POST',
+    signal,
+    headers: {
+      Authorization: token,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'gpt-4.1',
+      messages: chatList,
+      stream: true,
+    }),
+  })
+
+export const oneApiImage = (chatList, token, signal) =>
+  fetch('https://api.zhizengzeng.com/v1/images/generations', {
+    method: 'POST',
+    signal,
+    headers: {
+      Authorization: token,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'dall-e-3',
+      prompt: chatList[0].content,
+      n: 1,
+      size: '1792x1024',
+      response_format: 'url',
+    }),
+  })
+export const getCurrentDate = () => {
+  const date = new Date()
+  const day = date.getDate()
+  const month = date.getMonth() + 1
+  const year = date.getFullYear()
+  return `${year}-${month}-${day}`
+}
+
+export const exportJsonData = (data) => {
+  const date = getCurrentDate()
+  const jsonString = JSON.stringify(JSON.parse(data), null, 2)
+  const blob = new Blob([jsonString], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `chat-store_${date}.json`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
+
+export const saveHtmlToPng = async (eleHtml, successFun, errorFun) => {
+  try {
+    const ele = eleHtml ?? document.getElementById('image-wrapper')
+    const canvas = await html2canvas(ele, {
+      useCORS: true,
+    })
+    const imgUrl = canvas.toDataURL('image/png')
+    const tempLink = document.createElement('a')
+    tempLink.style.display = 'none'
+    tempLink.href = imgUrl
+    tempLink.setAttribute('download', 'chat-shot.png')
+    if (typeof tempLink.download === 'undefined') tempLink.setAttribute('target', '_blank')
+
+    document.body.appendChild(tempLink)
+    tempLink.click()
+    document.body.removeChild(tempLink)
+    window.URL.revokeObjectURL(imgUrl)
+    if (successFun) successFun()
+    Promise.resolve()
+  } catch (error) {
+    if (errorFun) errorFun(error.message)
+  }
+}
+
+export const trimTopic = (topic) => {
+  const s = String(topic ?? '')
+  const punct = new Set(['，', '。', '！', '？', '”', '“', '"', '、', ',', '.', '!', '?'])
+  let end = s.length
+  while (end > 0 && punct.has(s[end - 1])) end--
+  return s.slice(0, end)
+}
+
+// onClick={() => importFromFile()}
+// readFromFile().then((content) => { JSON.parse(content)})
+
+export const readFromFile = () =>
+  new Promise((res, rej) => {
+    const fileInput = document.createElement('input')
+    fileInput.type = 'file'
+    fileInput.accept = 'application/json'
+
+    fileInput.onchange = (event) => {
+      const file = event.target.files[0]
+      const fileReader = new FileReader()
+      fileReader.onload = (e) => {
+        res(e.target.result)
+      }
+      fileReader.onerror = (e) => rej(new Error(e))
+      fileReader.readAsText(file)
+    }
+
+    fileInput.click()
+  })
+
+export const prettyObject = (msg) => {
+  let obj = ''
+  if (typeof msg !== 'string') {
+    obj = JSON.stringify(msg, null, '  ')
+  }
+  if (obj === '{}') {
+    return obj.toString()
+  }
+  if (obj.startsWith('```json')) {
+    return obj
+  }
+  return ['```json', obj, '```'].join('\n')
+}
+
+export const getFileType = (data, fileName) => {
+  // 根据文件扩展名判断类型
+  const extension = fileName.split('.').pop().toLowerCase()
+  switch (extension) {
+    case 'txt':
+      return 'text/plain'
+    case 'json':
+      return 'application/json'
+    case 'doc':
+      return 'application/msword'
+    case 'docx':
+      return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    case 'xls':
+      return 'application/vnd.ms-excel'
+    case 'xlsx':
+      return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    case 'ppt':
+      return 'application/vnd.ms-powerpoint'
+    case 'pptx':
+      return 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+    case 'pdf':
+      return 'application/pdf'
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg'
+    case 'png':
+      return 'image/png'
+    case 'gif':
+      return 'image/gif'
+    case 'zip':
+      return 'application/zip'
+    case 'rar':
+      return 'application/x-rar-compressed'
+    // 可以继续添加其他类型...
+    default:
+      // 如果无法根据扩展名判断，则尝试根据数据内容判断或返回默认类型
+      if (typeof data === 'string') {
+        try {
+          JSON.parse(data)
+          return 'application/json'
+        } catch {
+          return 'text/plain'
+        }
+      } else if (data instanceof Uint8Array || data instanceof ArrayBuffer) {
+        return 'application/octet-stream' // 默认二进制流
+      } else {
+        return 'application/octet-stream' // 默认类型，无法确定时使用
+      }
+  }
+}
+// 导出
+export const exportFile = (res, fileName) => {
+  if (res?.headers['content-type']?.indexOf('application/json') !== -1) {
+    return
+  }
+  const disposition = res.headers?.['content-disposition'] || `attachment;filename=${fileName || 'file'}.xlsx`
+  const disName =
+    decodeURI(disposition.split('=')[1].replace(/'/g, '').replace(/UTF-8/g, '').replace(/utf-8/g, '')) || ''
+
+  const fileType = getFileType(res.data, fileName || disName)
+  const blob = new Blob([res.data], { type: fileType })
+
+  const objectUrl = URL.createObjectURL(blob)
+  const downloadElement = document.createElement('a')
+  document.body.appendChild(downloadElement)
+  downloadElement.style = 'display: none'
+  downloadElement.href = objectUrl
+  downloadElement.download = disName
+  downloadElement.click()
+  document.body.removeChild(downloadElement)
+}
+
+export const getDirection = (ev, obj) => {
+  const { width: w, height: h, left, top } = obj.getBoundingClientRect()
+  const x = ev.clientX - left - (w / 2) * (w > h ? h / w : 1)
+  const y = ev.clientY - top - (h / 2) * (h > w ? w / h : 1)
+  const d = Math.round(Math.atan2(y, x) / 1.57079633 + 5) % 4
+  return d
+}
+
+const generatedSet = new Set()
+
+export const generateUniqueHex32 = () => {
+  let hex
+  do {
+    hex = randomHexBytes(16)
+  } while (generatedSet.has(hex))
+
+  generatedSet.add(hex)
+  return hex
+}
+
+export const clearGeneratedSet = () => {
+  generatedSet.clear()
+}
+
+/**
+ * 绑定事件并返回取消函数，避免监听器泄漏
+ * @param {Window|Document|HTMLElement} target
+ * @param {string} type
+ * @param {EventListenerOrEventListenerObject} listener
+ * @param {boolean|AddEventListenerOptions} [options]
+ * @returns {() => void} off
+ */
+export function on(target, type, listener, options) {
+  target.addEventListener(type, listener, options)
+  return () => target.removeEventListener(type, listener, options)
+}
+
+// 可选：批量绑定
+export function onMany(items) {
+  const offs = items.map(({ target, type, listener, options }) => {
+    target.addEventListener(type, listener, options)
+    return () => target.removeEventListener(type, listener, options)
+  })
+  return () => offs.forEach((off) => off())
+}

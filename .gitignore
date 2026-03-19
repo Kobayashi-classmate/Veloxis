@@ -11,6 +11,7 @@ data/
 .env.local
 *.pem
 *.key
+*.bak
 
 # Node.js
 node_modules/
@@ -29,6 +30,7 @@ scripts/node_modules/
 # Ignore project files
 V1.md
 GEMINI.md
+Veloxis_React_Workstation_V1.md
 
 # Ignore temporary patches and scripts
 patch_*.js
