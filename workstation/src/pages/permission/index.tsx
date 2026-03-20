@@ -25,8 +25,7 @@ const PermissionExample = () => {
   // 角色切换（开发测试用）
   const switchRole = async (roleCode: string) => {
     // 如果已登录且未强制启用示例切换，则阻止切换，以免与真实登录权限冲突
-    const token =
-      localStorage.getItem('token') || localStorage.getItem('github_token') || localStorage.getItem('github_user')
+    const token = localStorage.getItem('token')
     const force = localStorage.getItem('force_demo_switch') === '1'
     if (token && !force) {
       message.warning('当前为已登录状态，示例内角色切换已被禁用。如需测试切换，请先登出或在本页面启用开发强制开关。')
@@ -79,10 +78,7 @@ const PermissionExample = () => {
         </Row>
         <Divider />
         {/* 登录时提示：已使用登录账户权限，示例切换已禁用 */}
-        {(localStorage.getItem('token') ||
-          localStorage.getItem('github_token') ||
-          localStorage.getItem('github_user')) &&
-          !forceDemoSwitch && (
+        {localStorage.getItem('token') && !forceDemoSwitch && (
             <Alert
               title="已使用登录账户权限，示例切换已禁用"
               description={
@@ -260,13 +256,7 @@ const PermissionExample = () => {
                     type={roles.includes(role.code) ? 'primary' : 'default'}
                     onClick={() => switchRole(role.code)}
                     size={screens.xs ? 'small' : 'middle'}
-                    disabled={
-                      !!(
-                        localStorage.getItem('token') ||
-                        localStorage.getItem('github_token') ||
-                        localStorage.getItem('github_user')
-                      )
-                    }
+                    disabled={!!localStorage.getItem('token')}
                   >
                     切换
                   </Button>

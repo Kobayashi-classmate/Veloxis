@@ -268,17 +268,6 @@ const tryGetManualRolePermission = (): UserPermission | null => {
   return null
 }
 
-const tryGetGithubUserPermission = (): UserPermission | null => {
-  const githubUser = safeGetStorageItem('github_user')
-  const user = safeJsonParse<{ email?: string }>(githubUser)
-  if (!user) return null
-
-  if (user.email) {
-    return { ...mockUserPermissions['super_admin'] }
-  }
-  return null
-}
-
 const tryGetTokenRolePermission = (): UserPermission | null => {
   const tokenData = safeGetStorageItem('token')
   if (!tokenData) return null
@@ -304,11 +293,7 @@ export const mockGetUserPermissions = async (_userId?: string, _roleCode?: strin
   const manual = tryGetManualRolePermission()
   if (manual) return manual
 
-  // 2. GitHub 登录用户检查（优先级最高，因为 GitHub 用户总是超级管理员）
-  const github = tryGetGithubUserPermission()
-  if (github) return github
-
-  // 3. 根据测试账号 token 中的邮箱获取角色
+  // 2. 根据测试账号 token 中的邮箱获取角色
   const token = tryGetTokenRolePermission()
   if (token) return token
 

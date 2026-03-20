@@ -1,7 +1,6 @@
 import React from 'react'
 import SignIn from '@pages/signin'
 import SignUp from '@pages/signup'
-import { AuthCallback } from '@src/components/auth/AuthCallback'
 import { lazyComponents } from '../config/lazyLoad.config'
 
 /**
@@ -18,11 +17,6 @@ export const authRoutes = [
     path: 'signup',
     name: '注册',
     element: <SignUp />,
-  },
-  {
-    path: 'auth/callback',
-    name: 'OAuth Callback',
-    element: <AuthCallback />,
   },
   {
     path: 'terms',

@@ -45,7 +45,6 @@ class PermissionService {
   /**
    * 当前登录身份指纹（用于避免“切换账号/登出后仍复用旧权限缓存”）
    * - 测试账号：localStorage.token = { token: email }
-   * - GitHub OAuth：github_user / github_token
    * - 开发覆盖：user_role（会影响 mock 权限计算）
    */
   private safeReadStorage(key: string): string {
@@ -60,18 +59,6 @@ class PermissionService {
     return roleOverride ? `|role:${roleOverride}` : ''
   }
 
-  private parseGithubIdentifier(githubUserRaw: string): string {
-    try {
-      const obj = JSON.parse(githubUserRaw)
-      const email = obj?.email || ''
-      const login = obj?.login || ''
-      const id = obj?.id || ''
-      return email || login || id || githubUserRaw
-    } catch {
-      return githubUserRaw
-    }
-  }
-
   private parseTokenIdentifier(tokenRaw: string): string {
     try {
       const obj = JSON.parse(tokenRaw)
@@ -84,17 +71,6 @@ class PermissionService {
   private getCurrentAuthKey(): string {
     const roleOverride = this.safeReadStorage(this.STORAGE_KEYS.ROLE_OVERRIDE)
     const suffix = this.roleSuffix(roleOverride)
-
-    const githubUserRaw = this.safeReadStorage('github_user')
-    if (githubUserRaw) {
-      const identifier = this.parseGithubIdentifier(githubUserRaw)
-      return `github:${identifier}${suffix}`
-    }
-
-    const githubToken = this.safeReadStorage('github_token')
-    if (githubToken) {
-      return `githubToken:${githubToken}${suffix}`
-    }
 
     // 测试账号 token
     const rawToken = this.safeReadStorage('token')

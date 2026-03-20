@@ -133,7 +133,7 @@ const AuthRouterBase = (props) => {
     }
 
     const checkAuth = async () => {
-      const { token } = getLocalStorage('token') || getLocalStorage('github_token') || { token: null }
+      const { token } = getLocalStorage('token') || { token: null }
       const policyRoute = resolveRoutePolicy(pathname)
       const policyMeta = policyRoute?.meta || {}
       const isPolicyPublic = policyMeta.auth === false || isRouteConfigPublic(policyRoute)

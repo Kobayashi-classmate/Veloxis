@@ -21,7 +21,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   fallback,
 }) => {
   // Token 检查（保持原有逻辑）
-  const { token } = getLocalStorage('token') || getLocalStorage('github_token') || { token: null }
+  const { token } = getLocalStorage('token') || { token: null }
 
   // 如果没有传入权限/角色要求，直接渲染（保持向下兼容）
   const needCheck = !!permission || (roles && roles.length > 0)

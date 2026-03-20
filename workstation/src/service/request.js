@@ -605,11 +605,18 @@ const applyTimestampSuffix = (config) => {
   }
 }
 
-const readGithubToken = () => {
+const readTokenFromStorage = () => {
   try {
-    const tokenData = localStorage.getItem('github_token')
+    const tokenData = localStorage.getItem('token')
     if (!tokenData) return null
-    return JSON.parse(tokenData).token || null
+    const parsed = JSON.parse(tokenData)
+    if (parsed && typeof parsed === 'object' && typeof parsed.token === 'string') {
+      return parsed.token
+    }
+    if (typeof tokenData === 'string' && tokenData.length > 0) {
+      return tokenData
+    }
+    return null
   } catch (e) {
     logger.warn('读取 token 失败', e)
     return null
@@ -618,7 +625,7 @@ const readGithubToken = () => {
 
 const applyAuthorization = (config) => {
   if (config.headers.Authorization || config.needToken === false) return
-  const token = readGithubToken()
+  const token = readTokenFromStorage()
   if (!token) return
   config.headers.Authorization = `Bearer ${token}`
   logger.log('已添加 Authorization:', `Bearer ${token.substring(0, 20)}...`)
@@ -728,16 +735,11 @@ function handleUnauthorized(message) {
     console.warn('清理权限缓存失败:', e)
   }
 
-  localStorage.removeItem('token')
-  localStorage.removeItem('github_token')
-  localStorage.removeItem('github_user')
-
   const isAtSignIn = () => {
     const hash = String(window?.location?.hash || '')
     return hash === '#/signin' || hash.startsWith('#/signin?') || hash.startsWith('#/signin/')
   }
 
-  // 延迟跳转，确保消息显示
   globalThis.setTimeout(() => {
     // 项目使用 createHashRouter，必须使用 hash 跳转；否则静态部署下 /signin 会导致页面空白
     if (!isAtSignIn()) window.location.hash = '#/signin'

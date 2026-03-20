@@ -131,7 +131,7 @@ const AuthRouter = (props) => {
     }
 
     const checkAuth = async () => {
-      const { token } = getLocalStorage('token') || getLocalStorage('github_token') || { token: null }
+      const { token } = getLocalStorage('token') || { token: null }
       const policyRoute = resolveRoutePolicy(pathname)
       const policyMeta = policyRoute?.meta || {}
       const isPolicyPublic = policyMeta.auth === false || isRouteConfigPublic(policyRoute)
@@ -190,7 +190,7 @@ const AuthRouter = (props) => {
   // 当已登录但无权限时，通过 effect 一次性提示并返回上一页
   useEffect(() => {
     if (canAccess !== null && !canAccess) {
-      const { token } = getLocalStorage('token') || getLocalStorage('github_token') || { token: null }
+      const { token } = getLocalStorage('token') || { token: null }
       // 未登录会在渲染层由 Navigate 处理，这里只处理已登录但无权限的情况
       if (!token) return
 
@@ -212,7 +212,7 @@ const AuthRouter = (props) => {
 
   // 未登录或无权限
   if (!canAccess) {
-    const { token } = getLocalStorage('token') || getLocalStorage('github_token') || { token: null }
+    const { token } = getLocalStorage('token') || { token: null }
     if (!token) {
       return (
         <>
