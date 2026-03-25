@@ -8,8 +8,27 @@ import CryptoJS from 'crypto-js'
 import JSEncrypt from 'jsencrypt'
 
 // ==================== 1. 配置常量 ====================
+// 尝试从 webpack DefinePlugin 注入的全局变量读取（优先级最高）
+// 其次从 process.env 读取（通过 Vite 或 dotenv-webpack）
+// 最后使用硬编码的默认值
+const getAppBaseUrl = () => {
+  // 1. 检查 webpack 注入的全局变量
+  // eslint-disable-next-line no-undef
+  if (typeof __APP_CONFIG__ !== 'undefined' && __APP_CONFIG__?.APP_BASE_URL) {
+    // eslint-disable-next-line no-undef
+    return __APP_CONFIG__.APP_BASE_URL
+  }
+  // 2. 检查 process.env（Vite 环境）
+  if (typeof process !== 'undefined' && process.env?.APP_BASE_URL) {
+    return process.env.APP_BASE_URL
+  }
+  // 3. 默认值
+  return ''
+}
+
 const CONFIG = {
-  BASE_URL: getEnv('APP_BASE_URL', ''),
+  BASE_URL: getAppBaseUrl(),
+  API_PREFIX: '/api', // 全局 API 前置路径
   TIMEOUT: 60000,
   WITH_CREDENTIALS: true,
   RETRY_ATTEMPTS: 3,
@@ -558,6 +577,15 @@ let axiosInstance = axios.create({
   headers: { ...DEFAULT_HEADERS },
 })
 
+// 请求拦截器：添加全局 API 前置路径
+axiosInstance.interceptors.request.use((config) => {
+  // 为不以 http 开头的 URL 添加 API 前置路径
+  if (config.url && !config.url.startsWith('http') && CONFIG.API_PREFIX && !config.url.startsWith(CONFIG.API_PREFIX)) {
+    config.url = CONFIG.API_PREFIX + config.url
+  }
+  return config
+}, (error) => Promise.reject(error))
+
 // 导出配置方法
 export function setAxiosInstance(instance) {
   axiosInstance = instance
@@ -582,6 +610,11 @@ export function setTimeout(timeout) {
   CONFIG.TIMEOUT = timeout
   axiosInstance.defaults.timeout = timeout
   logger.info('请求超时时间已更新:', timeout)
+}
+
+export function setApiPrefix(prefix) {
+  CONFIG.API_PREFIX = prefix
+  logger.info('API 前置路径已更新:', prefix)
 }
 
 const ensureHeaders = (config) => {
@@ -957,6 +990,7 @@ const request = {
   setDefaultHeaders,
   setAxiosInstance,
   setTimeout,
+  setApiPrefix,
 
   // 获取配置
   getConfig: () => ({ ...CONFIG }),

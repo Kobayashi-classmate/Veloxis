@@ -74,7 +74,20 @@ switch (process.env.BUILD_GOAL) {
 // Ensure PUBLIC_URL (and other env vars) are available to this webpack config file.
 // Note: dotenv-webpack injects env vars into the bundle, but it doesn't affect the
 // Node.js process.env used while generating the webpack configuration.
-dotenv.config({ path: path.resolve(__dirname, '..', dotEnv) })
+const envPath = path.resolve(__dirname, '..', dotEnv)
+const dotenvResult = dotenv.config({ path: envPath })
+
+// 强制输出调试日志
+console.log(`\n========== WEBPACK CONFIG INIT ==========`)
+console.log(`BUILD_GOAL: ${process.env.BUILD_GOAL}`)
+console.log(`NODE_ENV: ${process.env.NODE_ENV}`)
+console.log(`Loading .env from: ${envPath}`)
+console.log(`File exists: ${fs.existsSync(envPath)}`)
+console.log(`dotenv.config() result:`, dotenvResult.error ? `ERROR: ${dotenvResult.error.message}` : 'OK')
+console.log(`APP_BASE_URL: ${process.env.APP_BASE_URL || 'NOT SET'}`)
+console.log(`VITE_API_BASE_URL: ${process.env.VITE_API_BASE_URL || 'NOT SET'}`)
+console.log(`REACT_APP_USE_MOCK: ${process.env.REACT_APP_USE_MOCK || 'NOT SET'}`)
+console.log(`=========================================\n`)
 
 // GitHub Pages typically serves the site under "/<repo>/".
 // When building in GitHub Actions and PUBLIC_URL isn't explicitly provided,
@@ -170,6 +183,20 @@ const config = {
   plugins: [
     new Dotenv({
       path: path.resolve(__dirname, '..', dotEnv),
+      systemvars: true,
+      safe: false,
+    }),
+    // 显式注入环境变量到 process.env
+    new webpack.DefinePlugin({
+      'process.env.APP_BASE_URL': JSON.stringify(process.env.APP_BASE_URL || ''),
+      'process.env.VITE_API_BASE_URL': JSON.stringify(process.env.VITE_API_BASE_URL || '/api'),
+      'process.env.REACT_APP_USE_MOCK': JSON.stringify(process.env.REACT_APP_USE_MOCK || 'false'),
+      'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
+      '__APP_CONFIG__': JSON.stringify({
+        APP_BASE_URL: process.env.APP_BASE_URL || '',
+        VITE_API_BASE_URL: process.env.VITE_API_BASE_URL || '/api',
+        REACT_APP_USE_MOCK: process.env.REACT_APP_USE_MOCK || 'false',
+      }),
     }),
     codeInspectorPlugin({
       bundler: 'webpack',

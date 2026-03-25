@@ -1,5 +1,6 @@
 import logger from '@/utils/logger'
 import { permissionService } from './permissionService'
+import request from '@/service/request'
 
 export interface User {
   id: number
@@ -8,6 +9,18 @@ export interface User {
   email: string
   avatar_url: string
   html_url: string
+}
+
+export interface LoginRequest {
+  email: string
+  password: string
+  totp?: string
+}
+
+export interface LoginResponse {
+  token: string
+  user: User
+  expiresIn: number
 }
 
 export interface AuthState {
@@ -159,8 +172,72 @@ class AuthService {
   }
 
   /**
+   * 真实登录：调用后端认证接口
+   */
+  async login(credentials: LoginRequest): Promise<User> {
+    // 防重入：正在登录中静默忽略，不对用户弹出报错
+    if (this.authState.isLoading) {
+      return Promise.reject(null)
+    }
+
+    try {
+      this.authState.isLoading = true
+      this.notifyListeners()
+
+      // Step 1: 调用 Directus /auth/login，获取 access_token
+      const loginResp = await request.post('/auth/login', credentials) as any
+      // Directus 响应格式: { data: { access_token, refresh_token, expires } }
+      const loginData = loginResp?.data ?? loginResp
+      const accessToken: string = loginData?.access_token ?? loginData?.token
+
+      if (!accessToken) {
+        throw new Error('Invalid login response: missing access_token')
+      }
+
+      // Step 2: 用 access_token 请求当前用户信息
+      const meResp = await request.get('/users/me', {}, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        needToken: false,
+      } as any) as any
+      const meData = meResp?.data ?? meResp
+
+      const user: User = {
+        id: meData?.id ?? 0,
+        login: meData?.email ?? meData?.id ?? '',
+        name: meData?.first_name ? `${meData.first_name} ${meData.last_name ?? ''}`.trim() : (meData?.email ?? ''),
+        email: meData?.email ?? '',
+        avatar_url: meData?.avatar ?? '',
+        html_url: '',
+      }
+
+      this.authState = {
+        user,
+        token: accessToken,
+        isAuthenticated: true,
+        isLoading: false,
+      }
+
+      this.saveToStorage()
+      this.notifyListeners()
+
+      try {
+        await permissionService.syncPermissions()
+      } catch (e) {
+        logger.warn('同步权限失败:', e)
+      }
+
+      return user
+    } catch (error) {
+      this.authState.isLoading = false
+      this.notifyListeners()
+      throw error
+    }
+  }
+
+  /**
    * 测试账号登录：将 demo 登录态也纳入 authService（避免 Header/菜单逻辑分裂）。
    * - 仅写入 localStorage.token
+   * @deprecated 仅用于开发阶段，生产环境应使用 login() 方法
    */
   async setTestAccountAuthenticated(email: string): Promise<void> {
     this.authState = {

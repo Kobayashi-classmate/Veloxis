@@ -166,6 +166,18 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 5173,
       open: false,
+      proxy: {
+        '/api': {
+          target: 'http://localhost:8080',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api/, ''),
+        },
+        '/faker': {
+          target: 'http://localhost:4000',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/faker/, ''),
+        },
+      },
     },
     preview: {
       port: 5174,
