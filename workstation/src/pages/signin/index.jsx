@@ -3,59 +3,16 @@ import React, { useEffect, useState, useRef } from 'react'
 import useSafeNavigate from '@app-hooks/useSafeNavigate'
 import { Form, Input, Button, Typography, Layout, Card, theme, App, Tag, Popover, Modal } from 'antd'
 import { useStore } from '@/store'
-import { UserOutlined, LockOutlined } from '@ant-design/icons'
-import { setLocalStorage } from '@utils/publicFn'
+import { UserOutlined, LockOutlined, LockFilled } from '@ant-design/icons'
 import { useAuth } from '@src/service/useAuth'
 import { authService } from '@src/service/authService'
 import { permissionService } from '@src/service/permissionService'
-import { testAccounts } from '@src/mock/permission'
 
 import SliderCaptcha from '@stateless/SliderCaptcha'
 import styles from './index.module.less'
 
 const { Title, Text, Paragraph } = Typography
 const { Content } = Layout
-
-const TEST_ACCOUNT_EMAILS = Object.keys(testAccounts)
-
-const generatePassword = () => {
-  try {
-    const arr = new Uint32Array(1)
-    globalThis.crypto?.getRandomValues?.(arr)
-    const value = (arr[0] ?? 0) % 1000000
-    return String(value).padStart(6, '0')
-  } catch {
-    return String(Date.now()).slice(-6).padStart(6, '0')
-  }
-}
-
-const loadOrInitPasswords = () => {
-  try {
-    const raw = localStorage.getItem('test_account_passwords')
-    const parsed = raw ? JSON.parse(raw) : {}
-    const next = typeof parsed === 'object' && parsed ? { ...parsed } : {}
-
-    let changed = false
-    TEST_ACCOUNT_EMAILS.forEach((email) => {
-      if (typeof next[email] !== 'string' || next[email].length === 0) {
-        next[email] = generatePassword()
-        changed = true
-      }
-    })
-
-    if (changed) {
-      localStorage.setItem('test_account_passwords', JSON.stringify(next))
-    }
-
-    return next
-  } catch {
-    const fallback = {}
-    TEST_ACCOUNT_EMAILS.forEach((email) => {
-      fallback[email] = generatePassword()
-    })
-    return fallback
-  }
-}
 
 const SignIn = () => {
   const { redirectTo } = useSafeNavigate()
@@ -64,45 +21,14 @@ const SignIn = () => {
   const { isAuthenticated } = useAuth()
   const [form] = Form.useForm()
   const isMobile = useStore((s) => s.isMobile)
-  const [accountPasswords, setAccountPasswords] = useState({})
   const [captchaOpen, setCaptchaOpen] = useState(false)
   const [captchaKey, setCaptchaKey] = useState(() => Date.now())
   const [submitting, setSubmitting] = useState(false)
+  const [totpVisible, setTotpVisible] = useState(false)
   const captchaVerifiedRef = useRef(false)
-
-  const isLikelyEmail = (value) => {
-    if (typeof value !== 'string') return false
-    if (value.length > 320) return false
-    if (value.includes(' ')) return false
-
-    const at = value.indexOf('@')
-    if (at <= 0 || at !== value.lastIndexOf('@')) return false
-
-    const dot = value.indexOf('.', at + 2)
-    if (dot === -1 || dot >= value.length - 1) return false
-
-    return true
-  }
+  const submittingRef = useRef(false) // 同步锁，比 useState 更快，防止并发重入
 
   const getErrorMessage = (error) => (error instanceof Error && error.message ? error.message : '未知错误')
-
-  const getExpectedPassword = (email) => {
-    if (accountPasswords?.[email]) return accountPasswords[email]
-    // 如果状态中没有，从 localStorage 读取（不触发 setState）
-    const stored = loadOrInitPasswords()
-    return stored[email] || ''
-  }
-
-  useEffect(() => {
-    let active = true
-    Promise.resolve().then(() => {
-      if (!active) return
-      setAccountPasswords(loadOrInitPasswords())
-    })
-    return () => {
-      active = false
-    }
-  }, [])
 
   useEffect(() => {
     const redirectIfLoggedIn = async () => {
@@ -122,28 +48,11 @@ const SignIn = () => {
   }, [isAuthenticated, redirectTo])
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem('token')
-      if (raw) {
-        let email = ''
-        try {
-          const obj = JSON.parse(raw)
-          email = obj.token || ''
-        } catch {
-          email = raw
-        }
-        if (!isLikelyEmail(email)) {
-          localStorage.removeItem('token')
-        }
-      }
-    } catch {
-      // 无操作
-    }
     form.resetFields()
   }, [form])
 
   const onFinish = async (values) => {
-    const { email, password } = values
+    const { email, password, totp } = values
 
     if (!captchaVerifiedRef.current) {
       captchaVerifiedRef.current = false
@@ -153,33 +62,24 @@ const SignIn = () => {
       return
     }
 
+    // 同步锁：ref 立即生效，彻底防止并发重入
+    if (submittingRef.current) return
+    submittingRef.current = true
+
     let hideLoading
     try {
       setSubmitting(true)
       hideLoading = message.loading('正在登录...', 0)
 
-      if (!testAccounts[email]) {
-        message.error('账号不存在')
-        return
-      }
-      if (getExpectedPassword(email) !== password) {
-        message.error('密码错误')
-        return
-      }
+      // 调用真实登录接口
+      await authService.login({ email, password, totp })
 
-      setLocalStorage('token', { token: email })
-      try {
-        localStorage.removeItem('user_role')
-      } catch {}
-
-      await authService.setTestAccountAuthenticated(email)
-      const routes = await permissionService.getAccessibleRoutes(true)
-
-      message.success(`登录成功！欢迎 ${testAccounts[email].name}`)
+      message.success('登录成功！')
 
       captchaVerifiedRef.current = false
       setCaptchaKey(Date.now())
 
+      const routes = await permissionService.getAccessibleRoutes(true)
       if (routes && routes.length > 0) {
         const safeRoutes = Array.isArray(routes) ? routes : []
         const targetRoute = safeRoutes.includes('/') ? '/' : safeRoutes[0]
@@ -188,9 +88,15 @@ const SignIn = () => {
         redirectTo('/403')
       }
     } catch (error) {
-      message.error(`权限同步失败：${getErrorMessage(error)}`)
-      redirectTo('/')
+      // null 表示 authService 静默拒绝的防重入，不弹错误
+      if (error !== null) {
+        message.error(`登录失败：${getErrorMessage(error)}`)
+        if (getErrorMessage(error).includes('TOTP') || getErrorMessage(error).includes('MFA')) {
+          setTotpVisible(true)
+        }
+      }
     } finally {
+      submittingRef.current = false
       setSubmitting(false)
       try {
         if (typeof hideLoading === 'function') hideLoading()
@@ -199,15 +105,6 @@ const SignIn = () => {
   }
 
   const onFinishFailed = () => {}
-
-  const fillAccount = (email) => {
-    form.setFieldsValue({
-      email,
-      password: getExpectedPassword(email),
-    })
-    captchaVerifiedRef.current = false
-    setCaptchaKey(Date.now())
-  }
 
   const handleLoginClick = async () => {
     try {
@@ -269,25 +166,7 @@ const SignIn = () => {
                 <Title level={2} className={styles.title}>
                   登录
                 </Title>
-                <Text type="secondary">选择测试账号快速填充，或输入凭据登录</Text>
-              </div>
-
-              <div className={styles.quickBox}>
-                <div className={styles.quickHeader}>
-                  <Text strong>测试账号</Text>
-                  <Text type="secondary">（点击填充）</Text>
-                </div>
-                <div className={styles.quickList}>
-                  {Object.entries(testAccounts).map(([email, account]) => (
-                    <button key={email} type="button" className={styles.quickItem} onClick={() => fillAccount(email)}>
-                      <div className={styles.quickLeft}>
-                        <span className={styles.quickTag}>{account.name}</span>
-                        <span className={styles.quickMeta}>{email}</span>
-                      </div>
-                      <span className={styles.quickPwd}>{accountPasswords[email] || ''}</span>
-                    </button>
-                  ))}
-                </div>
+                <Text type="secondary">输入邮箱和密码登录</Text>
               </div>
               <Form
                 form={form}
@@ -326,6 +205,20 @@ const SignIn = () => {
                   />
                 </Form.Item>
 
+                {totpVisible && (
+                  <Form.Item name="totp" rules={[{ required: true, message: '请输入两步验证码!' }]}>
+                    <Input
+                      prefix={
+                        <AnimatedIcon variant="spin" mode="hover">
+                          <LockFilled />
+                        </AnimatedIcon>
+                      }
+                      placeholder="两步验证码（6位数字）"
+                      maxLength={6}
+                    />
+                  </Form.Item>
+                )}
+
                 <Form.Item style={{ marginBottom: 8 }}>
                   {isMobile ? (
                     <>
@@ -336,7 +229,7 @@ const SignIn = () => {
                         centered
                         open={captchaOpen}
                         footer={null}
-                        maskClosable={false}
+                        closable={false}
                         onCancel={() => setCaptchaOpen(false)}
                         afterClose={() => {
                           setCaptchaKey(Date.now())
@@ -349,6 +242,7 @@ const SignIn = () => {
                         <SliderCaptcha
                           key={captchaKey}
                           onSuccess={() => {
+                            if (submittingRef.current) return
                             captchaVerifiedRef.current = true
                             setCaptchaOpen(false)
                             form.submit()
@@ -366,7 +260,7 @@ const SignIn = () => {
                     <Popover
                       open={captchaOpen}
                       placement="top"
-                      trigger="click"
+                      trigger={[]}
                       arrow
                       onOpenChange={(open) => {
                         if (!open) {
@@ -380,6 +274,7 @@ const SignIn = () => {
                           <SliderCaptcha
                             key={captchaKey}
                             onSuccess={() => {
+                              if (submittingRef.current) return
                               captchaVerifiedRef.current = true
                               setCaptchaOpen(false)
                               form.submit()

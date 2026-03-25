@@ -31,6 +31,10 @@ scripts/node_modules/
 V1.md
 GEMINI.md
 Veloxis_React_Workstation_V1.md
+API_HEALTH_CHECK_REPORT.md
+FRONTEND_API_SUMMARY.md
+INTEGRATION_CHECKLIST.md
+INTERFACE_LOGIC_REVIEW.md
 
 # Ignore temporary patches and scripts
 patch_*.js
