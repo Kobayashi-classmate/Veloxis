@@ -177,9 +177,8 @@ services:
       - veloxis_network
 
   data-worker:
-    build: 
-      context: ./worker 
-    image: node:18-alpine
+    build:
+      context: ./worker
     container_name: veloxis_data_worker
     environment:
       - S3_ENDPOINT=http://seaweedfs:8333
@@ -197,7 +196,6 @@ services:
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
     volumes:
       - ./conf/cube:/cube/conf
-    command: npm start
     depends_on:
       - redis
       - doris-fe
