@@ -9,31 +9,37 @@ export const uiRoutes = [
   {
     path: 'qrcode',
     name: 'QrGenerate',
+    i18nKey: 'menu.qrGenerate',
     element: <lazyComponents.QrCode />,
   },
   {
     path: 'tilt',
     name: 'React Tilt',
+    i18nKey: 'menu.reactTilt',
     element: <lazyComponents.ReactTilt />,
   },
   {
     path: 'music',
     name: 'React Music',
+    i18nKey: 'menu.music',
     element: <lazyComponents.ReactMusic />,
   },
   {
     path: 'crypto',
     name: 'React Crypto',
+    i18nKey: 'menu.crypto',
     element: <lazyComponents.MyCrypto />,
   },
   {
     path: 'chatgpt',
     name: 'ChatGPT Markmap',
+    i18nKey: 'menu.chatgpt',
     element: <lazyComponents.ChatGpt />,
   },
   {
     path: 'prism',
     name: 'Prism Render',
+    i18nKey: 'menu.prismRender',
     element: <lazyComponents.PrismRender />,
   },
   {
@@ -44,16 +50,19 @@ export const uiRoutes = [
   {
     path: 'print',
     name: 'Print',
+    i18nKey: 'menu.print',
     element: <lazyComponents.Print />,
   },
   {
     path: 'profile',
     name: 'Profile',
+    i18nKey: 'menu.profile',
     element: <lazyComponents.Profile />,
   },
   {
     path: 'contact',
     name: 'Contact',
+    i18nKey: 'menu.contact',
     element: <lazyComponents.Contact />,
   },
   {

@@ -1,7 +1,10 @@
 import React, { createContext, useContext, useState, useMemo, useCallback } from 'react'
 import PropTypes from 'prop-types'
 import useSafeNavigate from '@app-hooks/useSafeNavigate'
-import Home from '@src/pages/home'
+import loadable from '@loadable/component'
+
+// 用懒加载打断 proTabsContext → Workbench → FixTabPanel → proTabsContext 的循环依赖
+const Workbench = loadable(() => import('@src/pages/workbench'))
 
 const defaultValue = {
   activeKey: '',
@@ -13,10 +16,10 @@ const defaultValue = {
 
 const initialPanes = [
   {
-    title: '首页',
+    title: '工作台',
     i18nKey: 'home',
     key: '/',
-    content: <Home />,
+    content: <Workbench />,
     closable: false,
     path: '/',
   },

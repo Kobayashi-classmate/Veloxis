@@ -14,16 +14,19 @@ export const chartRoutes = [
   {
     path: 'echarts',
     name: 'React Echarts',
+    i18nKey: 'menu.echarts',
     element: <lazyComponents.Echarts />,
   },
   {
     path: 'topology',
     name: 'Topology',
+    i18nKey: 'menu.topology',
     element: <lazyComponents.Topology />,
   },
   {
     path: 'mermaid',
     name: 'Mermaid',
+    i18nKey: 'menu.mermaid',
     element: <lazyComponents.Mermaid />,
   },
 ]

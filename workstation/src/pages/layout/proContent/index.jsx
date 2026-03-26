@@ -2,11 +2,10 @@ import React, { useState, useEffect } from 'react'
 import { Layout, theme, Space } from 'antd'
 import { useLocation } from 'react-router-dom'
 import { getKeyName } from '@utils/publicFn'
-import ProBreadcrumb from './breadcrumb'
 import ProTabs from '../proTabs'
 import styles from './index.module.less'
 
-const { Content, Header, Footer } = Layout
+const { Content, Footer } = Layout
 
 const ProContent = () => {
   const [tabActiveKey, setTabActiveKey] = useState('home')
@@ -20,7 +19,7 @@ const ProContent = () => {
   })
   const { pathname, search } = useLocation()
   const {
-    token: { colorBgContainer, colorBgLayout },
+    token: { colorBgContainer },
   } = theme.useToken()
   useEffect(() => {
     // pass full path (including search) so getKeyName can consider query params
@@ -56,12 +55,6 @@ const ProContent = () => {
 
   return (
     <Layout className={styles.layout} id="fullScreen">
-      <Header className="layout-header" style={{ backgroundColor: colorBgLayout }}>
-        <section className="flex items-center justify-between">
-          <ProBreadcrumb />
-          {/* <ClockFace /> */}
-        </section>
-      </Header>
       <Content className="layout-content" id="fullScreenContent" style={{ backgroundColor: colorBgContainer }}>
         <ProTabs panesItem={panesItem} tabActiveKey={tabActiveKey} />
       </Content>

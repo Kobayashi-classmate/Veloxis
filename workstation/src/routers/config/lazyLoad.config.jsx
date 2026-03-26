@@ -2,7 +2,6 @@ import React from 'react'
 import loadable from '@loadable/component'
 import Loading from '@stateless/Loading'
 
-import Home from '@pages/home'
 import Layout from '@pages/layout'
 
 /**
@@ -64,8 +63,17 @@ export const lazyComponents = {
   Privacy: lazyLoad(() => import('@pages/privacy')),
 
   // 业务页面
-  // Home: lazyLoad(() => import('@pages/home'), { preload: true }),
-  Home, // 首页改为同步加载，避免首屏白屏闪烁
+  Workbench: lazyLoad(() => import('@pages/workbench'), { preload: true }), // 工作台首页
+  Workspaces: lazyLoad(() => import('@pages/workspaces'), { preload: true }), // 项目大厅
+  ProjectLayout: lazyLoad(() => import('@pages/project'), { preload: true }),
+  ProjectOverview: lazyLoad(() => import('@pages/project/overview'), { preload: true }),
+  ProjectModels: lazyLoad(() => import('@pages/project/models'), { preload: true }),
+  ProjectWorkbooks: lazyLoad(() => import('@pages/project/workbooks'), { preload: true }),
+  ProjectRecipes: lazyLoad(() => import('@pages/project/recipes'), { preload: true }),
+  ProjectMembers: lazyLoad(() => import('@pages/project/members'), { preload: true }),
+  ProjectSettings: lazyLoad(() => import('@pages/project/settings'), { preload: true }),
+  Home: lazyLoad(() => import('@pages/home'), { preload: true }), // 原首页，现作为演示页
+  GlobalConsole: lazyLoad(() => import('@pages/globalConsole'), { preload: true }),
   Demo: lazyLoad(() => import('@pages/demo'), { preload: true }),
   Business: lazyLoad(() => import('@pages/business')),
   ZustandDemo: lazyLoad(() => import('@pages/zustand'), { preload: true }),

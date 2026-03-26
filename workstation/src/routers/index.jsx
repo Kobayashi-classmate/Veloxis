@@ -13,6 +13,7 @@
 import { mainLayoutRoute, layoutRoutes } from './modules/layout.routes'
 import { authRoutes } from './modules/auth.routes'
 import { businessRoutes } from './modules/business.routes'
+import { projectRoutes } from './modules/project.routes'
 import { uiRoutes } from './modules/ui.routes'
 import { chartRoutes } from './modules/chart.routes'
 import { nestedRoutes } from './modules/nested.routes'
@@ -26,6 +27,7 @@ import { permissionService } from '@src/service/permissionService'
 mainLayoutRoute.children = [
   ...mainLayoutRoute.children,
   ...businessRoutes,
+  ...projectRoutes,
   ...uiRoutes,
   ...chartRoutes,
   ...nestedRoutes,
