@@ -5,7 +5,20 @@
 
 import { UserPermission, PermissionCode, Role, PermissionCheckResult } from '../types/permission'
 import * as permissionAPI from './api/permission'
-import { routePermissionMap } from '../mock/permission'
+
+/** 路由权限映射 — 仅作路由 meta.permission 未配置时的最终兜底 */
+const routePermissionMap: Partial<Record<string, PermissionCode>> = {
+  '/': 'workbench:read',
+  '/workbench': 'workbench:read',
+  '/workspaces': 'workspaces:read',
+  '/demo': 'demo:read',
+  '/global-console': 'global-console:read',
+  '/project/*': 'workbench:read',
+  '/signin': 'system:read',
+  '/signup': 'system:read',
+  '/403': 'error:read',
+  '/404': 'error:read',
+}
 
 class PermissionService {
   private static instance: PermissionService
@@ -204,11 +217,24 @@ class PermissionService {
         new Promise<UserPermission>((_, reject) => {
           setTimeout(() => {
             reject(new Error('获取权限超时'))
-          }, 3000) // 3秒超时
+          }, 10000) // 10秒超时
         }),
       ]).catch((error) => {
         console.error('获取权限失败:', error)
-        // 如果有缓存，返回缓存（即使过期）
+
+        /** 401 / 未授权错误：重新抛出，不降级为空权限。
+         *  request.js 的 handleUnauthorized 已经 dispatch veloxis:unauthorized 事件，
+         *  authService 会执行 logout()，这里继续 throw 让 ProtectedRoute 感知到登录态失效。*/
+        const msg: string = (error as any)?.message ?? ''
+        const isAuthError =
+          msg.includes('未授权') || msg.includes('Token') || msg.includes('token') ||
+          (error as any)?.status === 401 || (error as any)?.code === 401
+        if (isAuthError) {
+          this.loadingPromise = null
+          throw error
+        }
+
+        // 非授权错误：如果有缓存，返回缓存（即使过期）
         if (this.userPermissions) {
           console.warn('使用过期缓存权限')
           return this.userPermissions
@@ -229,6 +255,17 @@ class PermissionService {
         return permissions
       } catch (error) {
         console.error('获取权限出错:', error)
+        
+        // 检查是否为授权错误
+        const msg: string = (error as any)?.message ?? ''
+        const isAuthError =
+          msg.includes('未授权') || msg.includes('Token') || msg.includes('token') ||
+          (error as any)?.status === 401 || (error as any)?.code === 401
+        
+        if (isAuthError) {
+          throw error
+        }
+
         // 如果出错且有缓存，返回缓存
         if (this.userPermissions) {
           return this.userPermissions
@@ -410,13 +447,13 @@ class PermissionService {
       const findPermissionForRoute = (path: string): PermissionCode | null => {
         if (!routePermissionMap) return null
         // 直接精确匹配
-        if (routePermissionMap[path]) return routePermissionMap[path]
+        if (routePermissionMap[path]) return routePermissionMap[path] ?? null
         // 否则尝试使用 pattern 匹配（支持 :param 风格）
         const keys = Object.keys(routePermissionMap)
         for (const key of keys) {
           if (key === '*') continue
           const regex = makeRouteRegexFromPattern(key)
-          if (regex?.test(path)) return routePermissionMap[key]
+          if (regex?.test(path)) return routePermissionMap[key] ?? null
         }
 
         // 兜底规则（如 '*'）
@@ -497,7 +534,17 @@ class PermissionService {
    */
   async syncPermissions(userId?: string): Promise<void> {
     this.clearCache()
-    await this.getPermissions(true, userId)
+    try {
+      await this.getPermissions(true, userId)
+    } catch (error) {
+      console.warn('同步权限失败:', error)
+      // 继续向外抛出授权相关的错误，供 authService 等调用者感知
+      const msg: string = (error as any)?.message ?? ''
+      const isAuthError =
+        msg.includes('未授权') || msg.includes('Token') || msg.includes('token') ||
+        (error as any)?.status === 401 || (error as any)?.code === 401
+      if (isAuthError) throw error
+    }
   }
 }
 

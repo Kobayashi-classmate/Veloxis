@@ -15,6 +15,9 @@ export type Resource =
   | 'user'
   | 'role'
   | 'dashboard'
+  | 'global-console'
+  | 'workbench'
+  | 'workspaces'
   | 'system'
   | 'business'
   | 'chart'
@@ -74,6 +77,7 @@ export interface UserPermission {
   roles: Role[]
   permissions: PermissionCode[]
   routes: string[]
+  tenant?: string
 }
 
 /**

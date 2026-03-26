@@ -3,12 +3,13 @@ import { permissionService } from './permissionService'
 import request from '@/service/request'
 
 export interface User {
-  id: number
+  id: string
   login: string
   name: string
   email: string
   avatar_url: string
   html_url: string
+  tenant?: string
 }
 
 export interface LoginRequest {
@@ -26,6 +27,7 @@ export interface LoginResponse {
 export interface AuthState {
   user: User | null
   token: string | null
+  refreshToken: string | null
   isAuthenticated: boolean
   isLoading: boolean
 }
@@ -48,12 +50,13 @@ function buildTestAccountUser(email: string): User {
   // 用于“测试账号登录”展示；不代表真实用户
   const login = email
   return {
-    id: 0,
+    id: '',
     login,
     name: login,
     email,
     avatar_url: '',
     html_url: '',
+    tenant: '集团本部',
   }
 }
 
@@ -82,6 +85,7 @@ class AuthService {
   private authState: AuthState = {
     user: null,
     token: null,
+    refreshToken: null,
     isAuthenticated: false,
     isLoading: false,
   }
@@ -89,6 +93,15 @@ class AuthService {
 
   private constructor() {
     this.loadFromStorage()
+    /** 监听 request.js 触发的 token 失效事件（避免循环依赖）
+     *  request.js → dispatchEvent('veloxis:unauthorized') → authService.logout()
+     */
+    if (typeof window !== 'undefined') {
+      window.addEventListener('veloxis:unauthorized', () => {
+        /** 触发登出，清除所有状态并跳转 */
+        this.logout()
+      })
+    }
   }
 
   static getInstance(): AuthService {
@@ -101,11 +114,14 @@ class AuthService {
   private loadFromStorage() {
     try {
       const tokenData = localStorage.getItem('token')
+      const refreshTokenData = localStorage.getItem('refreshToken')
       const token = parseToken(tokenData)
+      const refreshToken = parseToken(refreshTokenData)
 
       if (token && isLikelyEmail(token)) {
         this.authState = {
           token,
+          refreshToken,
           user: buildTestAccountUser(token),
           isAuthenticated: true,
           isLoading: false,
@@ -119,8 +135,12 @@ class AuthService {
   private saveToStorage() {
     if (this.authState.token && this.authState.user) {
       localStorage.setItem('token', JSON.stringify({ token: this.authState.token }))
+      if (this.authState.refreshToken) {
+        localStorage.setItem('refreshToken', JSON.stringify({ token: this.authState.refreshToken }))
+      }
     } else {
       localStorage.removeItem('token')
+      localStorage.removeItem('refreshToken')
     }
   }
 
@@ -139,7 +159,7 @@ class AuthService {
     return { ...this.authState }
   }
 
-  async setAuthenticated(isAuthenticated: boolean, user?: User | null, token?: string | null): Promise<void> {
+  async setAuthenticated(isAuthenticated: boolean, user?: User | null, token?: string | null, refreshToken?: string | null): Promise<void> {
     this.authState.isAuthenticated = isAuthenticated
 
     if (user !== undefined) {
@@ -150,9 +170,14 @@ class AuthService {
       this.authState.token = token
     }
 
+    if (refreshToken !== undefined) {
+      this.authState.refreshToken = refreshToken
+    }
+
     if (!isAuthenticated) {
       this.authState.user = null
       this.authState.token = null
+      this.authState.refreshToken = null
     }
 
     this.saveToStorage()
@@ -162,8 +187,12 @@ class AuthService {
     if (isAuthenticated) {
       try {
         await permissionService.syncPermissions()
-      } catch (e) {
+      } catch (e: any) {
         logger.warn('同步权限失败:', e)
+        // 如果获取权限报 401/403，说明登录态有问题，直接清理
+        if (e?.isUnauthorized || e?.status === 401 || e?.status === 403 || e?.code === 401) {
+          this.logout()
+        }
       }
     }
 
@@ -189,30 +218,33 @@ class AuthService {
       // Directus 响应格式: { data: { access_token, refresh_token, expires } }
       const loginData = loginResp?.data ?? loginResp
       const accessToken: string = loginData?.access_token ?? loginData?.token
+      const refreshToken: string = loginData?.refresh_token
 
       if (!accessToken) {
         throw new Error('Invalid login response: missing access_token')
       }
 
       // Step 2: 用 access_token 请求当前用户信息
-      const meResp = await request.get('/users/me', {}, {
+      const meResp = await request.get('/users/me', { fields: 'id,email,first_name,last_name,avatar,tenant' }, {
         headers: { Authorization: `Bearer ${accessToken}` },
         needToken: false,
       } as any) as any
       const meData = meResp?.data ?? meResp
 
       const user: User = {
-        id: meData?.id ?? 0,
+        id: meData?.id ?? '',
         login: meData?.email ?? meData?.id ?? '',
         name: meData?.first_name ? `${meData.first_name} ${meData.last_name ?? ''}`.trim() : (meData?.email ?? ''),
         email: meData?.email ?? '',
         avatar_url: meData?.avatar ?? '',
         html_url: '',
+        tenant: meData?.tenant ?? '',
       }
 
       this.authState = {
         user,
         token: accessToken,
+        refreshToken,
         isAuthenticated: true,
         isLoading: false,
       }
@@ -222,8 +254,12 @@ class AuthService {
 
       try {
         await permissionService.syncPermissions()
-      } catch (e) {
+      } catch (e: any) {
         logger.warn('同步权限失败:', e)
+        // 如果获取权限报 401/403，说明登录态有问题，直接清理
+        if (e?.isUnauthorized || e?.status === 401 || e?.status === 403 || e?.code === 401) {
+          this.logout()
+        }
       }
 
       return user
@@ -243,6 +279,7 @@ class AuthService {
     this.authState = {
       user: buildTestAccountUser(email),
       token: email,
+      refreshToken: null, // 测试账号没有refresh token
       isAuthenticated: true,
       isLoading: false,
     }
@@ -270,32 +307,101 @@ class AuthService {
     this.authState = {
       user: null,
       token: null,
+      refreshToken: null,
       isAuthenticated: false,
       isLoading: false,
     }
-    // 登出时清理权限相关缓存与覆盖，避免下次登录残留旧权限
+
+    // Step 1: 首先清除所有 localStorage 键（确保存储层清洁）
+    try {
+      localStorage.removeItem('token')
+      localStorage.removeItem('refreshToken')
+      // 清除权限相关的键
+      localStorage.removeItem('user_permissions')
+      localStorage.removeItem('permissions_fetch_time')
+      localStorage.removeItem('permissions_auth_key')
+      // 清除演示/覆盖相关的键
+      localStorage.removeItem('user_role')
+      localStorage.removeItem('force_demo_switch')
+    } catch (e) {
+      logger.warn('移除本地存储键失败:', e)
+    }
+
+    // Step 2: 清除权限服务的内存缓存
     try {
       permissionService.logoutCleanup()
     } catch (e) {
       logger.warn('清除权限相关缓存失败:', e)
     }
 
-    // 清除所有相关的 localStorage 键（token 等）
-    try {
-      localStorage.removeItem('token')
-    } catch (e) {
-      logger.warn('移除本地存储键失败:', e)
-    }
+    // Step 3: 保存空的认证状态
     this.saveToStorage()
+
+    // Step 4: 通知所有监听者状态已变化
     this.notifyListeners()
-    // SPA 跳转到登录页
+
+    // Step 5: SPA 跳转到登录页（确保所有清理工作已完成）
     if (typeof window !== 'undefined') {
-      window.location.href = '#/signin'
+      // 使用短延迟确保所有状态更新已完成
+      setTimeout(() => {
+        window.location.href = '#/signin'
+      }, 50)
     }
   }
 
   getToken(): string | null {
     return this.authState.token
+  }
+
+  getRefreshToken(): string | null {
+    return this.authState.refreshToken
+  }
+
+  /**
+   * 刷新访问令牌
+   */
+  async refreshToken(): Promise<boolean> {
+    if (!this.authState.refreshToken) {
+      logger.warn('No refresh token available')
+      return false
+    }
+
+    try {
+      // 调用 Directus /auth/refresh
+      // 添加 _isRefreshRequest 标记，防止refresh请求本身返回401导致循环
+      const refreshResp = await request.post('/auth/refresh', {
+        refresh_token: this.authState.refreshToken
+      }, {
+        needToken: false,
+        _isRefreshRequest: true, // 标记这是刷新请求，避免二次处理
+        showError: false, // 不显示刷新失败的错误提示
+      }) as any
+
+      const refreshData = refreshResp?.data ?? refreshResp
+      const newAccessToken: string = refreshData?.access_token ?? refreshData?.token
+      const newRefreshToken: string = refreshData?.refresh_token
+
+      if (!newAccessToken) {
+        throw new Error('Invalid refresh response: missing access_token')
+      }
+
+      // 更新状态
+      this.authState.token = newAccessToken
+      if (newRefreshToken) {
+        this.authState.refreshToken = newRefreshToken
+      }
+      this.saveToStorage()
+      this.notifyListeners()
+
+      logger.info('Token refreshed successfully')
+      return true
+    } catch (error) {
+      logger.error('Failed to refresh token:', error)
+      // 如果刷新失败，且不是因为网络取消等原因，执行登出
+      // Invalid user credentials 等业务错误会走到这里
+      this.logout()
+      return false
+    }
   }
 
   isAuthenticated(): boolean {

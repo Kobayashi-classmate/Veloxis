@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
-import { getLocalStorage } from '@utils/publicFn'
 import { permissionService } from '@src/service/permissionService'
+import { authService } from '@src/service/authService'
 import type { PermissionCode } from '@src/types/permission'
 
 interface ProtectedRouteProps {
@@ -20,8 +20,17 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   requireAll = false,
   fallback,
 }) => {
-  // Token 检查（保持原有逻辑）
-  const { token } = getLocalStorage('token') || { token: null }
+  /** 订阅 authService 状态（响应式）— 避免 logout 后因 localStorage 快照过时而不跳转 */
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    () => authService.getState().isAuthenticated,
+  )
+
+  useEffect(() => {
+    const unsubscribe = authService.subscribe((state) => {
+      setIsAuthenticated(state.isAuthenticated)
+    })
+    return unsubscribe
+  }, [])
 
   // 如果没有传入权限/角色要求，直接渲染（保持向下兼容）
   const needCheck = !!permission || (roles && roles.length > 0)
@@ -84,8 +93,8 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     }
   }, [permission, roles, requireAll, needCheck])
 
-  // 登录态检查：在保证 hooks 顺序不变的前提下，若无 token 则跳转登录
-  if (!token) {
+  /** 登录态检查（响应式）：isAuthenticated 变为 false 时立即跳转 */
+  if (!isAuthenticated) {
     return <Navigate to="/signin" replace />
   }
 
