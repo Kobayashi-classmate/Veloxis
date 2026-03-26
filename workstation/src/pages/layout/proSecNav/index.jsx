@@ -81,7 +81,7 @@ const resolvePageModuleKey = (() => {
   }
 })()
 
-import { mainLayoutMenu } from '@src/config/menu.config'
+import { mainLayoutMenu, projectMenu } from '@src/config/menu.config'
 
 let lazyComponentsCache = null
 let lazyComponentsPromise = null
@@ -104,6 +104,9 @@ const loadLazyComponents = () => {
 const ProSecNav = ({ mode = 'inline', theme = 'light', onMenuClick }) => {
   const { pathname } = useLocation()
   const { redirectTo } = useSafeNavigate()
+
+  const isProjectRoute = pathname.startsWith('/project/')
+  const projectId = isProjectRoute ? pathname.split('/')[2] : null
 
   const { t } = useTranslation()
   const [messageApi, contextHolder] = message.useMessage()
@@ -253,7 +256,26 @@ const ProSecNav = ({ mode = 'inline', theme = 'light', onMenuClick }) => {
     }
 
     // 使用配置文件的菜单，并进行翻译；同时规范化每项的 path 字段
-    const allMenuItems = (Array.isArray(mainLayoutMenu) ? mainLayoutMenu : []).map(translateItem).filter(Boolean)
+    const baseMenu = isProjectRoute ? projectMenu : mainLayoutMenu
+
+    const processItem = (item) => {
+      const newItem = { ...item }
+      if (isProjectRoute && projectId) {
+        if (newItem.path?.includes(':id')) {
+          newItem.path = newItem.path.replace(':id', projectId)
+        }
+        if (newItem.key?.includes(':id')) {
+          newItem.key = newItem.key.replace(':id', projectId)
+        }
+      }
+      if (newItem.children) {
+        newItem.children = newItem.children.map(processItem)
+      }
+      return newItem
+    }
+
+    const processedMenu = baseMenu.map(processItem)
+    const allMenuItems = (Array.isArray(processedMenu) ? processedMenu : []).map(translateItem).filter(Boolean)
 
     const hasAccessSafely = (p) => {
       try {

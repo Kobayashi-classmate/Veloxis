@@ -1,9 +1,9 @@
 const zh = {
   demo: '演示',
   lang: 'ZH',
-  home: '首页',
+  home: '工作台',
   nav: {
-    home: '首页',
+    home: '工作台',
     dashboard: '多路由设置',
     portfolio: '我的作品集',
   },
@@ -72,10 +72,14 @@ const zh = {
     },
   },
   menu: {
+    globalConsole: '全局控制台',
+    workbench: '我的工作台',
+    workspaces: '项目大厅',
     motion: '动效',
     mermaid: 'Mermaid',
     topology: '拓扑图',
     dependencies: '项目依赖分析',
+    textEditor: '文本编辑器',
     permissionExample: '权限示例',
     chatgpt: 'ChatGPT',
     reactTilt: 'React Tilt',
@@ -92,6 +96,16 @@ const zh = {
 
     error: '错误',
     errorBoundary: '错误边界',
+
+    project: {
+      overview:  '项目概览',
+      models:    '数据模型',
+      workbooks: '可视化工作台',
+      recipes:   '数据配方 (ETL)',
+      members:   '成员管理',
+      settings:  '项目设置',
+      back:      '返回大厅',
+    },
   },
   svp: {
     ariaPlaybackSettings: '播放设置',

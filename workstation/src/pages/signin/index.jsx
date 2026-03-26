@@ -1,5 +1,6 @@
 import AnimatedIcon from '@stateless/AnimatedIcon'
 import React, { useEffect, useState, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import useSafeNavigate from '@app-hooks/useSafeNavigate'
 import { Form, Input, Button, Typography, Layout, Card, theme, App, Tag, Popover, Modal } from 'antd'
 import { useStore } from '@/store'
@@ -16,6 +17,7 @@ const { Content } = Layout
 
 const SignIn = () => {
   const { redirectTo } = useSafeNavigate()
+  const navigate = useNavigate()
   const { message } = App.useApp()
   const { token } = theme.useToken()
   const { isAuthenticated } = useAuth()
@@ -32,20 +34,21 @@ const SignIn = () => {
 
   useEffect(() => {
     const redirectIfLoggedIn = async () => {
-      if (!isAuthenticated) return
       try {
-        const routes = await permissionService.getAccessibleRoutes()
-        let target = '/'
-        if (Array.isArray(routes) && routes.length > 0) {
-          target = (routes || []).includes('/') ? '/' : routes[0]
+        const currentState = authService.getState()
+        if (!currentState.isAuthenticated || !currentState.token) {
+          permissionService.logoutCleanup()
+          return
         }
-        redirectTo(target, { replace: true })
-      } catch {
-        redirectTo('/', { replace: true })
+        /** 已登录 → 直接导航到首页，不经过 canAccessRoute 二次权限校验
+         *  （登录成功后权限数据可能尚未缓存完毕，canAccessRoute 可能误返回 false） */
+        navigate('/', { replace: true })
+      } catch (error) {
+        try { permissionService.logoutCleanup() } catch (e) { /* ignore */ }
       }
     }
     redirectIfLoggedIn()
-  }, [isAuthenticated, redirectTo])
+  }, [isAuthenticated, navigate])
 
   useEffect(() => {
     form.resetFields()
@@ -79,14 +82,9 @@ const SignIn = () => {
       captchaVerifiedRef.current = false
       setCaptchaKey(Date.now())
 
-      const routes = await permissionService.getAccessibleRoutes(true)
-      if (routes && routes.length > 0) {
-        const safeRoutes = Array.isArray(routes) ? routes : []
-        const targetRoute = safeRoutes.includes('/') ? '/' : safeRoutes[0]
-        redirectTo(targetRoute)
-      } else {
-        redirectTo('/403')
-      }
+      /** 登录成功后直接跳首页，不经过 canAccessRoute 权限二次校验
+       *  （权限同步在 authService.login 内部已完成，但 canAccessRoute 结果仍可能有缓存延迟） */
+      navigate('/')
     } catch (error) {
       // null 表示 authService 静默拒绝的防重入，不弹错误
       if (error !== null) {

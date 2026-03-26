@@ -1,9 +1,9 @@
 const en = {
   demo: 'Demo',
   lang: 'En',
-  home: 'Home',
+  home: 'Workbench',
   nav: {
-    home: 'Home',
+    home: 'Workbench',
     dashboard: 'Dashboard',
     portfolio: 'My Portfolio',
   },
@@ -72,6 +72,9 @@ const en = {
     },
   },
   menu: {
+    globalConsole: 'Global Console',
+    workbench: 'My Workbench',
+    workspaces: 'Project Hub',
     motion: 'Motion',
     mermaid: 'Mermaid',
     topology: 'Topology',
@@ -93,6 +96,16 @@ const en = {
 
     error: 'Error',
     errorBoundary: 'ErrorBoundary',
+
+    project: {
+      overview:  'Project Overview',
+      models:    'Data Models',
+      workbooks: 'Workbooks',
+      recipes:   'Recipes (ETL)',
+      members:   'Members',
+      settings:  'Project Settings',
+      back:      'Back to Hub',
+    },
   },
   svp: {
     ariaPlaybackSettings: 'Playback settings',

@@ -37,23 +37,49 @@ import {
   SafetyCertificateOutlined,
   NodeIndexOutlined,
   PlayCircleOutlined,
+  ControlOutlined,
+  FolderOpenOutlined,
+  DashboardOutlined,
+  TeamOutlined,
+  SettingOutlined,
+  ArrowLeftOutlined,
 } from '@ant-design/icons'
 
 // 静态菜单配置
 // 这里的 path 对应路由 path
 const rawMainLayoutMenu = [
   {
-    label: 'home',
-    i18nKey: 'home',
+    label: '我的工作台',
+    i18nKey: 'menu.workbench',
     path: '/',
     icon: (
       <AnimatedIcon variant="spin" mode="hover">
-        <HomeOutlined />
+        <AppstoreOutlined />
       </AnimatedIcon>
     ),
   },
   {
-    label: 'demo',
+    label: '项目大厅',
+    i18nKey: 'menu.workspaces',
+    path: '/workspaces',
+    icon: (
+      <AnimatedIcon variant="spin" mode="hover">
+        <FolderOpenOutlined />
+      </AnimatedIcon>
+    ),
+  },
+  {
+    label: '全局控制台',
+    i18nKey: 'menu.globalConsole',
+    path: '/global-console',
+    icon: (
+      <AnimatedIcon variant="spin" mode="hover">
+        <ControlOutlined />
+      </AnimatedIcon>
+    ),
+  },
+  {
+    label: '演示',
     i18nKey: 'demo',
     path: '/demo',
     icon: (
@@ -239,3 +265,79 @@ function normalizeMenu(items) {
 }
 
 export const mainLayoutMenu = normalizeMenu(rawMainLayoutMenu)
+
+// 项目内部专用的菜单配置
+const rawProjectMenu = [
+  {
+    label: '项目概览',
+    i18nKey: 'menu.project.overview',
+    path: '/project/:id',
+    icon: (
+      <AnimatedIcon variant="spin" mode="hover">
+        <DashboardOutlined />
+      </AnimatedIcon>
+    ),
+  },
+  {
+    label: '数据模型',
+    i18nKey: 'menu.project.models',
+    path: '/project/:id/models',
+    icon: (
+      <AnimatedIcon variant="spin" mode="hover">
+        <DatabaseOutlined />
+      </AnimatedIcon>
+    ),
+  },
+  {
+    label: '可视化工作台',
+    i18nKey: 'menu.project.workbooks',
+    path: '/project/:id/workbooks',
+    icon: (
+      <AnimatedIcon variant="spin" mode="hover">
+        <BarChartOutlined />
+      </AnimatedIcon>
+    ),
+  },
+  {
+    label: '数据配方 (ETL)',
+    i18nKey: 'menu.project.recipes',
+    path: '/project/:id/recipes',
+    icon: (
+      <AnimatedIcon variant="spin" mode="hover">
+        <ThunderboltOutlined />
+      </AnimatedIcon>
+    ),
+  },
+  {
+    label: '成员管理',
+    i18nKey: 'menu.project.members',
+    path: '/project/:id/members',
+    icon: (
+      <AnimatedIcon variant="spin" mode="hover">
+        <TeamOutlined />
+      </AnimatedIcon>
+    ),
+  },
+  {
+    label: '项目设置',
+    i18nKey: 'menu.project.settings',
+    path: '/project/:id/settings',
+    icon: (
+      <AnimatedIcon variant="spin" mode="hover">
+        <SettingOutlined />
+      </AnimatedIcon>
+    ),
+  },
+  {
+    label: '返回大厅',
+    i18nKey: 'menu.project.back',
+    path: '/workspaces',
+    icon: (
+      <AnimatedIcon variant="spin" mode="hover">
+        <ArrowLeftOutlined />
+      </AnimatedIcon>
+    ),
+  },
+]
+
+export const projectMenu = normalizeMenu(rawProjectMenu)
