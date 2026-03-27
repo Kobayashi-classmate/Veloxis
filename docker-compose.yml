@@ -9,9 +9,14 @@ services:
     ports:
       - "8080:80"
     volumes:
-      - ./conf/nginx/nginx.conf:/etc/nginx/templates/default.conf.template:ro
+      - ./conf/nginx/nginx.conf:/etc/nginx/nginx.conf.template:ro
+    command:
+      - sh
+      - -c
+      - "envsubst '$$ADMIN_BASE_PATH' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && nginx -t && nginx -g 'daemon off;'"
     depends_on:
-      - directus
+      directus:
+        condition: service_healthy
     networks:
       - veloxis_network
 
@@ -37,6 +42,13 @@ services:
       CACHE_ENABLED: 'true'
       CACHE_STORE: 'redis'
       REDIS: 'redis://redis:6379/0'
+      # 写操作（POST/PATCH/DELETE）后自动清除相关缓存，防止返回过期数据
+      CACHE_AUTO_PURGE: 'true'
+      # 系统级接口不进行缓存（权限、用户信息等实时性要求高）
+      CACHE_SYSTEM_TTL: '0'
+      # 业务数据缓存 TTL：10 秒，平衡性能与一致性
+      # 删除/更新后 auto_purge 会立即使缓存失效，此值仅影响纯读取场景
+      CACHE_TTL: '10s'
       PUBLIC_URL: "http://localhost:8080${ADMIN_BASE_PATH}"
       PROJECT_NAME: "Veloxis Analytics Platform"
       PROJECT_DESCRIPTOR: "Self-hosted Data Analytics"
@@ -48,6 +60,16 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "require('http').get('http://localhost:8055/server/health', r => { let d=''; r.on('data',c=>d+=c); r.on('end',()=>{ try{process.exit(JSON.parse(d).status==='ok'?0:1)}catch(e){process.exit(1)} }) }).on('error',()=>process.exit(1))"
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 30s
     networks:
       - veloxis_network
 
