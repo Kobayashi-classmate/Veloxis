@@ -79,18 +79,18 @@ const PermissionExample = () => {
         <Divider />
         {/* 登录时提示：已使用登录账户权限，示例切换已禁用 */}
         {localStorage.getItem('token') && !forceDemoSwitch && (
-            <Alert
-              title="已使用登录账户权限，示例切换已禁用"
-              description={
-                <div>
-                  如需临时启用示例切换（仅用于开发），可在下方启用“开发强制开关”。启用后示例切换会覆盖当前页面权限视图，但不会修改后端用户数据。
-                </div>
-              }
-              type="warning"
-              showIcon
-              style={{ marginBottom: 16 }}
-            />
-          )}
+          <Alert
+            title="已使用登录账户权限，示例切换已禁用"
+            description={
+              <div>
+                如需临时启用示例切换（仅用于开发），可在下方启用“开发强制开关”。启用后示例切换会覆盖当前页面权限视图，但不会修改后端用户数据。
+              </div>
+            }
+            type="warning"
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+        )}
 
         {/* 开发强制开关，仅在非生产或 localhost 显示 */}
         {(process.env.NODE_ENV !== 'production' || window.location.hostname.includes('localhost')) && (

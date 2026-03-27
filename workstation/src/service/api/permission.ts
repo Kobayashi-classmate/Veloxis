@@ -68,79 +68,88 @@ export const getUserPermissions = async (_userId?: string): Promise<UserPermissi
       return { userId: '', username: '', roles: [], permissions: [], routes: [] }
     }
 
-  const roleId: string = typeof me.role === 'string' ? me.role : (me.role?.id ?? '')
+    const roleId: string = typeof me.role === 'string' ? me.role : (me.role?.id ?? '')
 
-  // Step 3: 管理员直接授予超级权限，无需查 permissions 表
-  if (isAdmin) {
+    // Step 3: 管理员直接授予超级权限，无需查 permissions 表
+    if (isAdmin) {
+      const frontendRoles: Role[] = roleId
+        ? [
+            {
+              id: roleId,
+              name: 'Administrator',
+              code: 'super_admin',
+              description: 'Administrator',
+              permissions: ['*:*'],
+              isDefault: false,
+            },
+          ]
+        : []
+
+      return {
+        userId: me.id,
+        username: me.email,
+        roles: frontendRoles,
+        permissions: ['*:*'],
+        routes: ['*'],
+        tenant: me.tenant,
+      }
+    }
+
+    // Step 4: 普通角色 — 获取角色名称
+    let roleName = roleId
+    if (roleId) {
+      try {
+        const roleResp = (await request.get(`/roles/${roleId}`, { fields: 'id,name' })) as any
+        const roleData = roleResp?.data ?? roleResp
+        roleName = roleData?.name ?? roleId
+      } catch {
+        // 忽略，使用 roleId 作为名称
+      }
+    }
+
     const frontendRoles: Role[] = roleId
-      ? [{ id: roleId, name: 'Administrator', code: 'super_admin', description: 'Administrator', permissions: ['*:*'], isDefault: false }]
+      ? [{ id: roleId, name: roleName, code: roleId, description: roleName, permissions: [], isDefault: true }]
       : []
+
+    // Step 5: 查询当前用户可见的 permissions 条目
+    let permissionCodes: PermissionCode[] = []
+    try {
+      const permResp = (await request.get('/permissions', {
+        limit: -1,
+        fields: 'collection,action',
+      })) as any
+
+      const permList: DirectusPermission[] = permResp?.data ?? permResp ?? []
+
+      permissionCodes = Array.isArray(permList)
+        ? permList
+            .filter((p) => p.collection && !p.collection.startsWith('directus_'))
+            .map((p) => toPermissionCode(p.collection, p.action))
+        : []
+    } catch (e) {
+      console.warn('[permission] 获取权限条目失败:', e)
+    }
+
+    // Step 6: 从权限码推导可访问的前端路由
+    const collectionSet = new Set(permissionCodes.map((code) => code.split(':')[0]))
+    const routes: string[] = ['/', ...Array.from(collectionSet).map((c) => `/${c}`)]
 
     return {
       userId: me.id,
       username: me.email,
       roles: frontendRoles,
-      permissions: ['*:*'],
-      routes: ['*'],
+      permissions: permissionCodes,
+      routes,
       tenant: me.tenant,
     }
-  }
-
-  // Step 4: 普通角色 — 获取角色名称
-  let roleName = roleId
-  if (roleId) {
-    try {
-      const roleResp = (await request.get(`/roles/${roleId}`, { fields: 'id,name' })) as any
-      const roleData = roleResp?.data ?? roleResp
-      roleName = roleData?.name ?? roleId
-    } catch {
-      // 忽略，使用 roleId 作为名称
+  } catch (error: any) {
+    // 增加对授权错误的处理逻辑，确保 request.js 能够识别并触发 refresh/logout
+    if (error?.response?.status === 401 || error?.response?.status === 403) {
+      error.isUnauthorized = true
+      error.canRetry = !error.config?._isRefreshRequest
     }
+    throw error
   }
-
-  const frontendRoles: Role[] = roleId
-    ? [{ id: roleId, name: roleName, code: roleId, description: roleName, permissions: [], isDefault: true }]
-    : []
-
-  // Step 5: 查询当前用户可见的 permissions 条目
-  let permissionCodes: PermissionCode[] = []
-  try {
-    const permResp = (await request.get('/permissions', {
-      limit: -1,
-      fields: 'collection,action',
-    })) as any
-
-    const permList: DirectusPermission[] = permResp?.data ?? permResp ?? []
-
-    permissionCodes = Array.isArray(permList)
-      ? permList
-          .filter((p) => p.collection && !p.collection.startsWith('directus_'))
-          .map((p) => toPermissionCode(p.collection, p.action))
-      : []
-  } catch (e) {
-    console.warn('[permission] 获取权限条目失败:', e)
-  }
-
-  // Step 6: 从权限码推导可访问的前端路由
-  const collectionSet = new Set(permissionCodes.map((code) => code.split(':')[0]))
-  const routes: string[] = ['/', ...Array.from(collectionSet).map((c) => `/${c}`)]
-
-  return {
-    userId: me.id,
-    username: me.email,
-    roles: frontendRoles,
-    permissions: permissionCodes,
-    routes,
-    tenant: me.tenant,
-  }
-} catch (error: any) {
-  // 增加对授权错误的处理逻辑，确保 request.js 能够识别并触发 refresh/logout
-  if (error?.response?.status === 401 || error?.response?.status === 403) {
-    error.isUnauthorized = true;
-    error.canRetry = !error.config?._isRefreshRequest;
-  }
-  throw error;
-}
 }
 
 /**

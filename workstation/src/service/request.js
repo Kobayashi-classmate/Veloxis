@@ -578,13 +578,21 @@ let axiosInstance = axios.create({
 })
 
 // 请求拦截器：添加全局 API 前置路径
-axiosInstance.interceptors.request.use((config) => {
-  // 为不以 http 开头的 URL 添加 API 前置路径
-  if (config.url && !config.url.startsWith('http') && CONFIG.API_PREFIX && !config.url.startsWith(CONFIG.API_PREFIX)) {
-    config.url = CONFIG.API_PREFIX + config.url
-  }
-  return config
-}, (error) => Promise.reject(error))
+axiosInstance.interceptors.request.use(
+  (config) => {
+    // 为不以 http 开头的 URL 添加 API 前置路径
+    if (
+      config.url &&
+      !config.url.startsWith('http') &&
+      CONFIG.API_PREFIX &&
+      !config.url.startsWith(CONFIG.API_PREFIX)
+    ) {
+      config.url = CONFIG.API_PREFIX + config.url
+    }
+    return config
+  },
+  (error) => Promise.reject(error)
+)
 
 // 导出配置方法
 export function setAxiosInstance(instance) {
@@ -760,33 +768,38 @@ function handleUnauthorized(message) {
 
   return new Promise((resolve, reject) => {
     // 动态导入 authService 以避免循环依赖
-    import('./authService').then(({ authService }) => {
-      // 如果有刷新令牌，先尝试刷新
-      if (authService.getRefreshToken()) {
-        authService.refreshToken().then((success) => {
-          if (success) {
-            logger.info('令牌刷新成功')
-            resolve(true) // 刷新成功
-          } else {
-            logger.warn('令牌刷新失败，执行登出')
-            performLogout()
-            resolve(false) // 刷新失败，需要登出
-          }
-        }).catch((error) => {
-          logger.error('刷新令牌过程中出错:', error)
+    import('./authService')
+      .then(({ authService }) => {
+        // 如果有刷新令牌，先尝试刷新
+        if (authService.getRefreshToken()) {
+          authService
+            .refreshToken()
+            .then((success) => {
+              if (success) {
+                logger.info('令牌刷新成功')
+                resolve(true) // 刷新成功
+              } else {
+                logger.warn('令牌刷新失败，执行登出')
+                performLogout()
+                resolve(false) // 刷新失败，需要登出
+              }
+            })
+            .catch((error) => {
+              logger.error('刷新令牌过程中出错:', error)
+              performLogout()
+              resolve(false) // 出错，需要登出
+            })
+        } else {
+          // 没有刷新令牌，直接登出
           performLogout()
-          resolve(false) // 出错，需要登出
-        })
-      } else {
-        // 没有刷新令牌，直接登出
+          resolve(false) // 需要登出
+        }
+      })
+      .catch((error) => {
+        logger.error('导入authService失败:', error)
         performLogout()
-        resolve(false) // 需要登出
-      }
-    }).catch((error) => {
-      logger.error('导入authService失败:', error)
-      performLogout()
-      resolve(false) // 出错，需要登出
-    })
+        resolve(false) // 出错，需要登出
+      })
   })
 }
 
@@ -796,7 +809,9 @@ function performLogout() {
    *  通过自定义事件通知 authService 登出，规避 request ← authService ← request 循环依赖。*/
   if (typeof window !== 'undefined') {
     setTimeout(() => {
-      window.dispatchEvent(new CustomEvent('veloxis:unauthorized', { detail: { message: 'Token expired and refresh failed' } }))
+      window.dispatchEvent(
+        new CustomEvent('veloxis:unauthorized', { detail: { message: 'Token expired and refresh failed' } })
+      )
     }, 0)
   }
 }
@@ -904,7 +919,7 @@ axiosInstance.interceptors.response.use(
     if (error.isUnauthorized && error.canRetry) {
       logger.warn('检测到业务层401错误，尝试刷新令牌:', error.message)
       const config = error.config
-      
+
       if (config) {
         // 检查重试次数
         const retryCount = config._retryCount || 0
@@ -913,22 +928,24 @@ axiosInstance.interceptors.response.use(
             logger.info('尝试刷新令牌...')
             // 动态导入 authService
             const { authService } = await import('./authService')
-            
+
             // 检查是否有刷新令牌
             if (authService.getRefreshToken()) {
               const refreshSuccess = await authService.refreshToken()
               if (refreshSuccess) {
-                logger.info(`令牌刷新成功，重试请求 (${retryCount + 1}/${CONFIG.RETRY_ATTEMPTS}): ${config.method?.toUpperCase()} ${config.url}`)
-                
+                logger.info(
+                  `令牌刷新成功，重试请求 (${retryCount + 1}/${CONFIG.RETRY_ATTEMPTS}): ${config.method?.toUpperCase()} ${config.url}`
+                )
+
                 // 增加重试计数
                 config._retryCount = retryCount + 1
-                
+
                 // 重要：清除旧的 Authorization 头，以便请求拦截器重新从存储中读取新令牌
                 if (config.headers) {
                   delete config.headers.Authorization
                   delete config.headers.authorization
                 }
-                
+
                 // 延迟重试
                 return RequestUtils.delay(CONFIG.RETRY_DELAY).then(() => {
                   return axiosInstance(config)
@@ -938,7 +955,7 @@ axiosInstance.interceptors.response.use(
           } catch (refreshError) {
             logger.error('刷新令牌失败:', refreshError)
           }
-          
+
           // 刷新失败
           logger.warn('令牌刷新失败，执行登出')
           performLogout()
@@ -958,7 +975,9 @@ axiosInstance.interceptors.response.use(
         // 检查重试次数
         const retryCount = config._retryCount || 0
         if (retryCount < CONFIG.RETRY_ATTEMPTS) {
-          logger.info(`令牌已刷新，重试请求 (${retryCount + 1}/${CONFIG.RETRY_ATTEMPTS}): ${config.method?.toUpperCase()} ${config.url}`)
+          logger.info(
+            `令牌已刷新，重试请求 (${retryCount + 1}/${CONFIG.RETRY_ATTEMPTS}): ${config.method?.toUpperCase()} ${config.url}`
+          )
 
           // 增加重试计数
           config._retryCount = retryCount + 1
@@ -995,7 +1014,7 @@ axiosInstance.interceptors.response.use(
       if ((status === 401 || status === 403) && !error.config?._isRefreshRequest) {
         logger.warn('检测到HTTP层401/403错误，尝试刷新令牌:', errorMessage)
         const config = error.config
-        
+
         if (config) {
           // 检查重试次数
           const retryCount = config._retryCount || 0
@@ -1004,22 +1023,24 @@ axiosInstance.interceptors.response.use(
               logger.info('尝试刷新令牌...')
               // 动态导入 authService
               const { authService } = await import('./authService')
-              
+
               // 检查是否有刷新令牌
               if (authService.getRefreshToken()) {
                 const refreshSuccess = await authService.refreshToken()
                 if (refreshSuccess) {
-                  logger.info(`令牌刷新成功，重试请求 (${retryCount + 1}/${CONFIG.RETRY_ATTEMPTS}): ${config.method?.toUpperCase()} ${config.url}`)
-                  
+                  logger.info(
+                    `令牌刷新成功，重试请求 (${retryCount + 1}/${CONFIG.RETRY_ATTEMPTS}): ${config.method?.toUpperCase()} ${config.url}`
+                  )
+
                   // 增加重试计数
                   config._retryCount = retryCount + 1
-                  
+
                   // 重要：清除旧的 Authorization 头，以便请求拦截器重新从存储中读取新令牌
                   if (config.headers) {
                     delete config.headers.Authorization
                     delete config.headers.authorization
                   }
-                  
+
                   // 延迟重试
                   return RequestUtils.delay(CONFIG.RETRY_DELAY).then(() => {
                     return axiosInstance(config)
@@ -1030,7 +1051,7 @@ axiosInstance.interceptors.response.use(
               logger.error('刷新令牌失败:', refreshError)
             }
           }
-          
+
           // 刷新失败或是重试次数耗尽
           logger.warn('令牌刷新失败或重试次数耗尽，执行登出')
           performLogout()

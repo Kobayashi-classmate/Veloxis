@@ -21,16 +21,16 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   fallback,
 }) => {
   /** 订阅 authService 状态（响应式）— 避免 logout 后因 localStorage 快照过时而不跳转 */
-  const [isAuthenticated, setIsAuthenticated] = useState(
-    () => authService.getState().isAuthenticated,
-  )
+  const [authState, setAuthState] = useState(() => authService.getState())
 
   useEffect(() => {
     const unsubscribe = authService.subscribe((state) => {
-      setIsAuthenticated(state.isAuthenticated)
+      setAuthState(state)
     })
     return unsubscribe
   }, [])
+
+  const { isAuthenticated, isLoading } = authState
 
   // 如果没有传入权限/角色要求，直接渲染（保持向下兼容）
   const needCheck = !!permission || (roles && roles.length > 0)
@@ -94,6 +94,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }, [permission, roles, requireAll, needCheck])
 
   /** 登录态检查（响应式）：isAuthenticated 变为 false 时立即跳转 */
+  if (isLoading) {
+    return null // 或者显示 Loading 界面
+  }
+
   if (!isAuthenticated) {
     return <Navigate to="/signin" replace />
   }

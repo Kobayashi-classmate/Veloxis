@@ -18,6 +18,7 @@ const routePermissionMap: Partial<Record<string, PermissionCode>> = {
   '/signup': 'system:read',
   '/403': 'error:read',
   '/404': 'error:read',
+  '*': 'workbench:read', // 兜底权限
 }
 
 class PermissionService {
@@ -227,8 +228,11 @@ class PermissionService {
          *  authService 会执行 logout()，这里继续 throw 让 ProtectedRoute 感知到登录态失效。*/
         const msg: string = (error as any)?.message ?? ''
         const isAuthError =
-          msg.includes('未授权') || msg.includes('Token') || msg.includes('token') ||
-          (error as any)?.status === 401 || (error as any)?.code === 401
+          msg.includes('未授权') ||
+          msg.includes('Token') ||
+          msg.includes('token') ||
+          (error as any)?.status === 401 ||
+          (error as any)?.code === 401
         if (isAuthError) {
           this.loadingPromise = null
           throw error
@@ -255,13 +259,16 @@ class PermissionService {
         return permissions
       } catch (error) {
         console.error('获取权限出错:', error)
-        
+
         // 检查是否为授权错误
         const msg: string = (error as any)?.message ?? ''
         const isAuthError =
-          msg.includes('未授权') || msg.includes('Token') || msg.includes('token') ||
-          (error as any)?.status === 401 || (error as any)?.code === 401
-        
+          msg.includes('未授权') ||
+          msg.includes('Token') ||
+          msg.includes('token') ||
+          (error as any)?.status === 401 ||
+          (error as any)?.code === 401
+
         if (isAuthError) {
           throw error
         }
@@ -470,18 +477,19 @@ class PermissionService {
       // 内部函数：使用给定权限列表检查路由
       const matchWithRoutes = (routes: string[] | undefined) => {
         if (!routes || !Array.isArray(routes)) return false
+
+        // 1. 如果包含 '*' 通配符，则允许访问任何路径
+        if (routes.includes('*')) {
+          return true
+        }
+
         return routes.some((route) => {
-          // 精确匹配
+          // 2. 精确匹配
           if (route === normalizedRoutePath) {
             return true
           }
 
-          // 通配符：允许 routes 列表中存在 '*' 作为全量
-          if (route === '*') {
-            return true
-          }
-
-          // 通配符匹配（如 /coupons/edit/:id）
+          // 3. 通配符匹配（支持 /coupons/* 风格或 /coupons/edit/:id 风格）
           const regex = makeRouteRegexFromPattern(route)
           return !!regex?.test(normalizedRoutePath)
         })
@@ -541,8 +549,11 @@ class PermissionService {
       // 继续向外抛出授权相关的错误，供 authService 等调用者感知
       const msg: string = (error as any)?.message ?? ''
       const isAuthError =
-        msg.includes('未授权') || msg.includes('Token') || msg.includes('token') ||
-        (error as any)?.status === 401 || (error as any)?.code === 401
+        msg.includes('未授权') ||
+        msg.includes('Token') ||
+        msg.includes('token') ||
+        (error as any)?.status === 401 ||
+        (error as any)?.code === 401
       if (isAuthError) throw error
     }
   }
