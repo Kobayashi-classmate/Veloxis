@@ -78,9 +78,7 @@ const buildUserMenuItems = ({ t, isAuthenticated, user }) => [
           label: (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '2px 0' }}>
               <span style={{ fontWeight: 600 }}>{user.name || user.login || user.email}</span>
-              {user.email && user.name ? (
-                <span style={{ fontSize: 12, opacity: 0.6 }}>{user.email}</span>
-              ) : null}
+              {user.email && user.name ? <span style={{ fontSize: 12, opacity: 0.6 }}>{user.email}</span> : null}
             </div>
           ),
           disabled: true,
@@ -127,13 +125,7 @@ const buildUserMenuItems = ({ t, isAuthenticated, user }) => [
   },
 ]
 
-const buildMobileMoreItems = ({
-  t,
-  primaryNavItems,
-  onSettingClick,
-  redirectGithub,
-  redirectWiki,
-}) => [
+const buildMobileMoreItems = ({ t, primaryNavItems, onSettingClick, redirectGithub, redirectWiki }) => [
   ...(Array.isArray(primaryNavItems) ? primaryNavItems : []).map((it) => ({
     ...it,
     label: it?.i18nKey ? t(it.i18nKey) : it?.label,
@@ -390,10 +382,7 @@ const ProHeader = ({ layout, onSettingClick, children, onMobileMenuClick }) => {
 
   const { isAuthenticated, user } = useAuth()
 
-  const items = React.useMemo(
-    () => buildUserMenuItems({ t, isAuthenticated, user }),
-    [t, isAuthenticated, user]
-  )
+  const items = React.useMemo(() => buildUserMenuItems({ t, isAuthenticated, user }), [t, isAuthenticated, user])
 
   const mobileMoreItems = React.useMemo(
     () =>

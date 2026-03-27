@@ -7,12 +7,19 @@ import { lazyComponents } from '../config/lazyLoad.config'
 export const projectRoutes = [
   {
     path: 'project/:id',
+    name: '项目概览',
+    i18nKey: 'menu.project.overview',
     element: <lazyComponents.ProjectLayout />,
     children: [
       {
         index: true,
         i18nKey: 'menu.project.overview',
         element: <lazyComponents.ProjectOverview />,
+      },
+      {
+        path: 'datasets',
+        i18nKey: 'menu.project.datasets',
+        element: <lazyComponents.ProjectDatasets />,
       },
       {
         path: 'models',

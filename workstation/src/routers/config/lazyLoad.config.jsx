@@ -67,6 +67,7 @@ export const lazyComponents = {
   Workspaces: lazyLoad(() => import('@pages/workspaces'), { preload: true }), // 项目大厅
   ProjectLayout: lazyLoad(() => import('@pages/project'), { preload: true }),
   ProjectOverview: lazyLoad(() => import('@pages/project/overview'), { preload: true }),
+  ProjectDatasets: lazyLoad(() => import('@pages/project/datasets'), { preload: true }),
   ProjectModels: lazyLoad(() => import('@pages/project/models'), { preload: true }),
   ProjectWorkbooks: lazyLoad(() => import('@pages/project/workbooks'), { preload: true }),
   ProjectRecipes: lazyLoad(() => import('@pages/project/recipes'), { preload: true }),

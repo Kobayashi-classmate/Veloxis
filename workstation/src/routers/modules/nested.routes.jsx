@@ -13,5 +13,4 @@ import RouterErrorElement from '@/components/RouterErrorElement'
  */
 export const nestedRoutes = [
   // 前端技术栈模块（嵌套路由）
-  
 ]

@@ -279,12 +279,22 @@ const rawProjectMenu = [
     ),
   },
   {
+    label: '数据源管理',
+    i18nKey: 'menu.project.datasets',
+    path: '/project/:id/datasets',
+    icon: (
+      <AnimatedIcon variant="spin" mode="hover">
+        <DatabaseOutlined />
+      </AnimatedIcon>
+    ),
+  },
+  {
     label: '数据模型',
     i18nKey: 'menu.project.models',
     path: '/project/:id/models',
     icon: (
       <AnimatedIcon variant="spin" mode="hover">
-        <DatabaseOutlined />
+        <NodeIndexOutlined />
       </AnimatedIcon>
     ),
   },

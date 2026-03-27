@@ -101,5 +101,4 @@ export class HashRouterUtils {
 
     return result
   }
-
 }

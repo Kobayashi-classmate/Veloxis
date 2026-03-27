@@ -104,11 +104,11 @@
   &.guestCard {
     background-color: #fafafa;
     border-style: dashed;
-    
+
     .cardAccent {
       opacity: 0.5;
     }
-    
+
     .metricRow {
       background-color: #f0f0f0;
     }
@@ -224,20 +224,27 @@
 .listView {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .projectRow {
   display: flex;
   background: white;
-  border-radius: 8px;
+  border-radius: 10px;
   border: 1px solid #e2e8f0;
-  transition: all 0.2s;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
+  cursor: pointer;
 
   &:hover {
     border-color: @primary-color;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.08);
+    transform: translateX(2px);
+  }
+
+  &.guestRow {
+    background: #fafafa;
+    border-style: dashed;
   }
 }
 
@@ -264,8 +271,9 @@
 
 .rowMetrics {
   display: flex;
-  gap: 32px;
+  gap: 28px;
   flex: 3;
+  align-items: center;
 }
 
 .rowMetricItem {
@@ -285,7 +293,7 @@
   .dashboardDivider {
     display: none;
   }
-  
+
   .tenantDashboard {
     .ant-space {
       flex-wrap: wrap;
