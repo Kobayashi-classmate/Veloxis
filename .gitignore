@@ -21,12 +21,14 @@ yarn-error.log
 
 # Compilation and build output
 dist/
+dist-vite/
 build/
 coverage/
 docs/
 
 # Script temporary product
 scripts/node_modules/
+scripts/sample_sales.csv
 
 # Ignore project files
 GEMINI.md
