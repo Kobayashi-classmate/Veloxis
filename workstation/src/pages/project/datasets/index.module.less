@@ -1,0 +1,187 @@
+/** 页面容器 **/
+.page {
+  padding: 24px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/** 页头区域 **/
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+  flex-shrink: 0;
+}
+
+.headerLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/** 状态 Tag — processing 行整行淡高亮 **/
+.rowProcessing {
+  background: #fffbeb;
+}
+
+/** 上传中行淡蓝高亮 **/
+.rowUploading {
+  background: #f0f8ff;
+}
+
+/** 存储列名冲突行高亮（行级） **/
+.conflictRow {
+  background: #fff1f0;
+}
+
+/** 规范化按钮区 **/
+.normalizeBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+}
+
+/** 双行表头预览 **/
+.headerPreview {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.headerPreviewRow {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  gap: 8px;
+  border-bottom: 1px solid #f1f5f9;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.headerPreviewRowStorage {
+  background: #eff6ff;
+}
+
+.headerPreviewRowLabel {
+  background: #f0fdf4;
+}
+
+.headerPreviewRole {
+  width: 80px;
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.headerPreviewCells {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.headerPreviewCell {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  font-family: monospace;
+}
+
+/** 版本历史状态列 **/
+.versionStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/** 已锁定警告区 **/
+.lockAlert {
+  margin-bottom: 12px;
+}
+
+/** 数据类型 select 宽度 **/
+.typeSelect {
+  width: 130px;
+}
+
+/** 空状态容器 **/
+.emptyWrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/** 已选文件信息条 **/
+.fileInfo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 6px;
+}
+
+/** 解析操作栏 **/
+.parseBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+}
+
+/** 解析中 loading 区 **/
+.parseLoading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px 0;
+  color: #64748b;
+}
+
+/** 未解析空提示 **/
+.parseEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 0;
+  color: #94a3b8;
+}
+
+/** 数据源名称单元格 **/
+.nameCell {
+  cursor: default;
+
+  .nameCellEdit {
+    opacity: 0;
+    color: #94a3b8;
+    transition: opacity 0.15s;
+    cursor: pointer;
+
+    &:hover {
+      color: #1677ff;
+    }
+  }
+
+  &:hover .nameCellEdit {
+    opacity: 1;
+  }
+}
