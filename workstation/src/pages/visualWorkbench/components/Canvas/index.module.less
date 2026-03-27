@@ -1,0 +1,48 @@
+.canvas {
+  position: relative;
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
+  background-color: #f8fafc;
+  /** dot grid **/
+  background-image: radial-gradient(circle, #cbd5e1 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.emptyGuide {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.emptyIcon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #e0f2fe;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  color: #0ea5e9;
+  border: 2px dashed #7dd3fc;
+}
+
+.emptyTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: #94a3b8 !important;
+}
+
+.emptyDesc {
+  font-size: 13px;
+  color: #cbd5e1 !important;
+  max-width: 280px;
+  text-align: center;
+  line-height: 1.6;
+}

@@ -32,6 +32,12 @@ export const projectRoutes = [
         element: <lazyComponents.ProjectWorkbooks />,
       },
       {
+        // 全屏可视化编辑器：position:fixed 覆盖视口，脱离 ProjectLayout 视觉框架
+        path: 'workbooks/:workbookId',
+        i18nKey: 'menu.project.visualWorkbench',
+        element: <lazyComponents.VisualWorkbench />,
+      },
+      {
         path: 'recipes',
         i18nKey: 'menu.project.recipes',
         element: <lazyComponents.ProjectRecipes />,

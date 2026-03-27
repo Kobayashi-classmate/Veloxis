@@ -1,0 +1,60 @@
+/** 右侧固定图表工具栏 **/
+.palette {
+  width: 56px;
+  flex-shrink: 0;
+  background: #fff;
+  border-left: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 0 8px;
+  gap: 4px;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.04);
+}
+
+.paletteTitle {
+  font-size: 10px !important;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  writing-mode: horizontal-tb;
+  margin-bottom: 8px;
+  color: #94a3b8 !important;
+}
+
+.paletteGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 0 6px;
+}
+
+.paletteItem {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  cursor: grab;
+  transition: background 0.15s, border-color 0.15s;
+  border: 1px solid transparent;
+  user-select: none;
+
+  &:hover {
+    background: #f0f5ff;
+    border-color: #bfdbfe;
+  }
+
+  &:active {
+    cursor: grabbing;
+    background: #dbeafe;
+    border-color: #93c5fd;
+  }
+}
+
+.paletteIcon {
+  font-size: 22px;
+  line-height: 1;
+}

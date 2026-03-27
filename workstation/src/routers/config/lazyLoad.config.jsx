@@ -70,6 +70,7 @@ export const lazyComponents = {
   ProjectDatasets: lazyLoad(() => import('@pages/project/datasets'), { preload: true }),
   ProjectModels: lazyLoad(() => import('@pages/project/models'), { preload: true }),
   ProjectWorkbooks: lazyLoad(() => import('@pages/project/workbooks'), { preload: true }),
+  VisualWorkbench: lazyLoad(() => import('@pages/visualWorkbench'), { preload: true }),
   ProjectRecipes: lazyLoad(() => import('@pages/project/recipes'), { preload: true }),
   ProjectMembers: lazyLoad(() => import('@pages/project/members'), { preload: true }),
   ProjectSettings: lazyLoad(() => import('@pages/project/settings'), { preload: true }),
