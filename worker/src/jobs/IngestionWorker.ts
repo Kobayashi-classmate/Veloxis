@@ -143,10 +143,12 @@ export const initIngestionWorker = async () => {
                 }
                 
                 if (!isTest) {
-                    await axios.patch(`${config.directus.url}/items/dataset_versions/${versionId}`, 
+                    await axios.patch(`${config.directus.url}/items/dataset_versions/${versionId}`,
+                        { status: 'ready' }, { headers });
+                    await axios.patch(`${config.directus.url}/items/datasets/${datasetId}`,
                         { status: 'ready' }, { headers });
                 }
-                
+
                 console.log(`[Job ${job.id}] 🏆 Done! ${tableName} is now live in Doris.`);
                 
             } catch (error: any) {
@@ -158,7 +160,9 @@ export const initIngestionWorker = async () => {
                             password: config.directus.password
                         });
                         const refreshHeaders = { Authorization: `Bearer ${authRes.data.data.access_token}` };
-                        await axios.patch(`${config.directus.url}/items/dataset_versions/${versionId}`, 
+                        await axios.patch(`${config.directus.url}/items/dataset_versions/${versionId}`,
+                            { status: 'failed' }, { headers: refreshHeaders });
+                        await axios.patch(`${config.directus.url}/items/datasets/${datasetId}`,
                             { status: 'failed' }, { headers: refreshHeaders });
                     } catch (e) {}
                 }

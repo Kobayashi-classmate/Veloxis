@@ -22,9 +22,17 @@ const ingestionQueue = new Queue('ingestion-queue', { connection: connection as 
 app.post('/webhooks/ingestion', async (req, res) => {
     const payload = req.body;
     console.log('[Webhook] Received Directus event for:', payload.collection);
+    console.log('[Webhook] Raw payload:', JSON.stringify(payload).slice(0, 500));
 
     if (payload.collection === 'dataset_versions' && payload.event.includes('create')) {
-        const { id, dataset_id, file_id } = payload.payload;
+        // Directus v11 Flow $trigger: 新建记录的 id 在 payload.key，内容字段在 payload.payload
+        const versionId = payload.key ?? payload.payload?.id;
+        const { dataset_id, file_id } = payload.payload ?? {};
+
+        if (!versionId || !dataset_id || !file_id) {
+            console.error('[Webhook] Missing required fields:', { versionId, dataset_id, file_id });
+            return res.status(200).json({ status: 'error', reason: 'missing fields' });
+        }
         
         // Simple table name mapping: remove hyphens
         const tableName = `ds_${dataset_id.replace(/-/g, '_')}`;
@@ -68,15 +76,15 @@ app.post('/webhooks/ingestion', async (req, res) => {
         
         await ingestionQueue.add('ingest-from-directus', {
             datasetId: dataset_id,
-            versionId: id,
+            versionId: versionId,
             fileId: file_id,
             tableName: tableName,
             extension: extension,
             storageSource: 'directus',
             projectId: projectId
         });
-        
-        return res.status(200).json({ status: 'queued', jobId: id });
+
+        return res.status(200).json({ status: 'queued', jobId: versionId });
     }
 
     res.status(200).json({ status: 'ignored' });
