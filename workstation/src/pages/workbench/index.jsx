@@ -184,10 +184,7 @@ const useTodos = () => {
     [todos, update]
   )
 
-  const remove = useCallback(
-    (id) => update(todos.filter((t) => t.id !== id)),
-    [todos, update]
-  )
+  const remove = useCallback((id) => update(todos.filter((t) => t.id !== id)), [todos, update])
 
   const add = useCallback(
     (text) => {
@@ -268,8 +265,7 @@ const QuickActions = ({ onNavigate }) => (
 const RecentReports = ({ onNavigate }) => {
   const [reports, setReports] = useState(RECENT_REPORTS)
 
-  const toggleStar = (id) =>
-    setReports((prev) => prev.map((r) => (r.id === id ? { ...r, starred: !r.starred } : r)))
+  const toggleStar = (id) => setReports((prev) => prev.map((r) => (r.id === id ? { ...r, starred: !r.starred } : r)))
 
   const typeColorMap = {
     销售分析: 'blue',
@@ -307,12 +303,7 @@ const RecentReports = ({ onNavigate }) => {
                   onClick={() => toggleStar(item.id)}
                 />
               </Tooltip>,
-              <Button
-                key="open"
-                type="link"
-                size="small"
-                onClick={() => onNavigate('/dashboard')}
-              >
+              <Button key="open" type="link" size="small" onClick={() => onNavigate('/dashboard')}>
                 打开
               </Button>,
             ]}
@@ -340,7 +331,13 @@ const RecentReports = ({ onNavigate }) => {
               }
               description={
                 item.status === 'syncing' ? (
-                  <Progress percent={item.progress} size="small" strokeColor="#1677ff" showInfo={false} style={{ marginTop: 4, maxWidth: 180 }} />
+                  <Progress
+                    percent={item.progress}
+                    size="small"
+                    strokeColor="#1677ff"
+                    showInfo={false}
+                    style={{ marginTop: 4, maxWidth: 180 }}
+                  />
                 ) : (
                   <Text type="secondary" style={{ fontSize: 11 }}>
                     <ClockCircleOutlined style={{ marginRight: 4 }} />

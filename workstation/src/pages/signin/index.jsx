@@ -36,6 +36,8 @@ const SignIn = () => {
     const redirectIfLoggedIn = async () => {
       try {
         const currentState = authService.getState()
+        // isLoading 期间不做任何跳转决策——等待 loadFromStorage 完成
+        if (currentState.isLoading) return
         if (!currentState.isAuthenticated || !currentState.token) {
           permissionService.logoutCleanup()
           return
@@ -44,7 +46,11 @@ const SignIn = () => {
          *  （登录成功后权限数据可能尚未缓存完毕，canAccessRoute 可能误返回 false） */
         navigate('/', { replace: true })
       } catch (error) {
-        try { permissionService.logoutCleanup() } catch (e) { /* ignore */ }
+        try {
+          permissionService.logoutCleanup()
+        } catch (e) {
+          /* ignore */
+        }
       }
     }
     redirectIfLoggedIn()

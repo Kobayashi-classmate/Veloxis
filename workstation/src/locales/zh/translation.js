@@ -98,13 +98,14 @@ const zh = {
     errorBoundary: '错误边界',
 
     project: {
-      overview:  '项目概览',
-      models:    '数据模型',
+      overview: '项目概览',
+      datasets: '数据源管理',
+      models: '数据模型',
       workbooks: '可视化工作台',
-      recipes:   '数据配方 (ETL)',
-      members:   '成员管理',
-      settings:  '项目设置',
-      back:      '返回大厅',
+      recipes: '数据配方 (ETL)',
+      members: '成员管理',
+      settings: '项目设置',
+      back: '返回大厅',
     },
   },
   svp: {

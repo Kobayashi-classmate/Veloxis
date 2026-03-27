@@ -12,7 +12,7 @@ import i18n from '@/i18n/i18n'
 // 确保 process.env 中的变量对浏览器代码可用
 // 这是 Webpack DefinePlugin 注入的值的备份，以防万一
 if (typeof process === 'undefined' || !process.env) {
-  (globalThis as any).process = {
+  ;(globalThis as any).process = {
     env: {
       APP_BASE_URL: (globalThis as any).__APP_BASE_URL__ || '',
       VITE_API_BASE_URL: (globalThis as any).__VITE_API_BASE_URL__ || '/api',

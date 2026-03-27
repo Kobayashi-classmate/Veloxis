@@ -98,13 +98,14 @@ const en = {
     errorBoundary: 'ErrorBoundary',
 
     project: {
-      overview:  'Project Overview',
-      models:    'Data Models',
+      overview: 'Project Overview',
+      datasets: 'Data Sources',
+      models: 'Data Models',
       workbooks: 'Workbooks',
-      recipes:   'Recipes (ETL)',
-      members:   'Members',
-      settings:  'Project Settings',
-      back:      'Back to Hub',
+      recipes: 'Recipes (ETL)',
+      members: 'Members',
+      settings: 'Project Settings',
+      back: 'Back to Hub',
     },
   },
   svp: {
