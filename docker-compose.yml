@@ -201,6 +201,7 @@ services:
   data-worker:
     build:
       context: ./worker
+      network: host
     container_name: veloxis_data_worker
     environment:
       - S3_ENDPOINT=http://seaweedfs:8333
@@ -216,6 +217,13 @@ services:
       - ADMIN_BASE_PATH=${ADMIN_BASE_PATH}
       - ADMIN_EMAIL=${ADMIN_EMAIL}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - CAPTCHA_PROVIDER=${CAPTCHA_PROVIDER}
+      - CAPTCHA_FAIL_CLOSED=${CAPTCHA_FAIL_CLOSED}
+      - CAPTCHA_CHALLENGE_TTL_SECONDS=${CAPTCHA_CHALLENGE_TTL_SECONDS}
+      - CAPTCHA_TICKET_TTL_SECONDS=${CAPTCHA_TICKET_TTL_SECONDS}
+      - CAPTCHA_TICKET_SECRET=${CAPTCHA_TICKET_SECRET}
+      - CAPTCHA_TURNSTILE_SITE_KEY=${CAPTCHA_TURNSTILE_SITE_KEY}
+      - CAPTCHA_TURNSTILE_SECRET=${CAPTCHA_TURNSTILE_SECRET}
     volumes:
       - ./conf/cube:/cube/conf
     depends_on:
