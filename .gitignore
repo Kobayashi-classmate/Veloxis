@@ -5,6 +5,12 @@ data/
 .DS_Store
 .idea/
 .vscode/
+.claude/
+.opencode/
+.agents/
+.codex
+.codex/
+AGENTS.md
 
 # Ignore environment variables and sensitive configurations
 .env
