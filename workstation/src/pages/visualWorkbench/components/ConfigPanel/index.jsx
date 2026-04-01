@@ -1,12 +1,29 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import ReactDOM from 'react-dom'
 import {
-  Typography, Button, Tabs, Switch, Divider, Input,
-  InputNumber, Table, Tooltip, Tag,
+  Typography,
+  Button,
+  Tabs,
+  Switch,
+  Divider,
+  Input,
+  InputNumber,
+  Table,
+  Tooltip,
+  Tag,
+  Space,
 } from 'antd'
 import {
-  CloseOutlined, PlusOutlined, DeleteOutlined, DatabaseOutlined,
-  EditOutlined, ApiOutlined, TableOutlined,
+  CloseOutlined,
+  PlusOutlined,
+  DeleteOutlined,
+  DatabaseOutlined,
+  EditOutlined,
+  ApiOutlined,
+  TableOutlined,
+  BgColorsOutlined,
+  SettingOutlined,
+  DotChartOutlined,
 } from '@ant-design/icons'
 import useWorkbenchState, { CHART_META, COLOR_THEMES, CHART_DEFAULTS } from '../../hooks/useWorkbenchState'
 import { useConfigPanelDrag } from '../../hooks/useChartDrag'
@@ -14,82 +31,150 @@ import styles from './index.module.less'
 
 const { Text, Title } = Typography
 
-// ── 图表类型选择 Tab ──────────────────────────────────────────────────────────
+const getChartMetaByType = (type) => CHART_META.find((item) => item.type === type) ?? null
+
+const buildRowsFromChart = (chart) => {
+  if (!chart) return []
+
+  if (chart.type === 'pie') {
+    const source = chart.option?.series?.[0]?.data
+    if (Array.isArray(source) && source.length > 0) {
+      return source.slice(0, 12).map((item, index) => ({
+        key: String(index + 1),
+        x: item?.name ?? `类别 ${index + 1}`,
+        y: Number(item?.value) || 0,
+      }))
+    }
+  } else if (chart.type === 'scatter') {
+    const source = chart.option?.series?.[0]?.data
+    if (Array.isArray(source) && source.length > 0) {
+      return source.slice(0, 12).map((item, index) => ({
+        key: String(index + 1),
+        x: item?.[0] ?? 0,
+        y: Number(item?.[1]) || 0,
+      }))
+    }
+  } else {
+    const xList = Array.isArray(chart.option?.xAxis?.data) ? chart.option.xAxis.data : []
+    const yList = Array.isArray(chart.option?.series?.[0]?.data) ? chart.option.series[0].data : []
+    const len = Math.min(Math.max(xList.length, yList.length), 12)
+    if (len > 0) {
+      return Array.from({ length: len }).map((_, index) => ({
+        key: String(index + 1),
+        x: xList[index] ?? `类别 ${index + 1}`,
+        y: Number(yList[index]) || 0,
+      }))
+    }
+  }
+
+  return [
+    { key: '1', x: '类别 A', y: 120 },
+    { key: '2', x: '类别 B', y: 280 },
+    { key: '3', x: '类别 C', y: 190 },
+    { key: '4', x: '类别 D', y: 340 },
+  ]
+}
+
+const Section = ({ title, desc, children, compact = false }) => (
+  <div className={`${styles.sectionCard} ${compact ? styles.sectionCardCompact : ''}`}>
+    <div className={styles.sectionHead}>
+      <Text className={styles.sectionTitle}>{title}</Text>
+      {desc && <Text className={styles.sectionDesc}>{desc}</Text>}
+    </div>
+    {children}
+  </div>
+)
+
 const TypeTab = ({ chart }) => {
   const { updateChartConfig } = useWorkbenchState()
+  const currentMeta = getChartMetaByType(chart.type)
 
   const handleChangeType = (type) => {
     updateChartConfig(chart.id, {
       type,
-      title: CHART_META.find((m) => m.type === type)?.label ?? type,
+      title: getChartMetaByType(type)?.label ?? type,
       option: CHART_DEFAULTS[type],
     })
   }
 
   return (
     <div className={styles.tabContent}>
-      <Text type="secondary" className={styles.sectionLabel}>选择图表类型</Text>
-      <div className={styles.typeGrid}>
-        {CHART_META.map((meta) => (
-          <div
-            key={meta.type}
-            className={`${styles.typeCard} ${chart.type === meta.type ? styles.typeCardActive : ''}`}
-            onClick={() => handleChangeType(meta.type)}
-          >
-            <span className={styles.typeIcon}>{meta.icon}</span>
-            <Text className={styles.typeLabel}>{meta.label}</Text>
-          </div>
-        ))}
-      </div>
+      <Section
+        title="图表类型"
+        desc={currentMeta ? `当前：${currentMeta.label} · ${currentMeta.group}` : '选择一种图表类型'}
+      >
+        <div className={styles.typeGrid}>
+          {CHART_META.map((meta) => (
+            <button
+              key={meta.type}
+              type="button"
+              className={`${styles.typeCard} ${chart.type === meta.type ? styles.typeCardActive : ''}`}
+              onClick={() => handleChangeType(meta.type)}
+            >
+              <span className={styles.typeIcon}>{meta.icon}</span>
+              <span className={styles.typeTextWrap}>
+                <Text className={styles.typeLabel}>{meta.label}</Text>
+                <Text className={styles.typeGroup}>{meta.group}</Text>
+              </span>
+            </button>
+          ))}
+        </div>
+      </Section>
     </div>
   )
 }
 
-// ── 数据配置 Tab ──────────────────────────────────────────────────────────────
 const DATA_SOURCES = [
-  { value: 'mock',   label: '虚拟数据',    icon: <DatabaseOutlined /> },
-  { value: 'manual', label: '手动输入',    icon: <EditOutlined /> },
-  { value: 'api',    label: 'API 接口',    icon: <ApiOutlined />, disabled: true },
+  { value: 'mock', label: '虚拟数据', icon: <DatabaseOutlined /> },
+  { value: 'manual', label: '手动输入', icon: <EditOutlined /> },
+  { value: 'api', label: 'API 接口', icon: <ApiOutlined />, disabled: true },
   { value: 'dataset', label: '项目数据集', icon: <TableOutlined />, disabled: true },
-]
-
-const DEFAULT_MANUAL_ROWS = [
-  { key: '1', x: '类别 A', y: 120 },
-  { key: '2', x: '类别 B', y: 280 },
-  { key: '3', x: '类别 C', y: 190 },
-  { key: '4', x: '类别 D', y: 340 },
 ]
 
 const DataTab = ({ chart }) => {
   const { updateChartOption } = useWorkbenchState()
-  const [dataSource, setDataSource] = useState('mock')
-  const [manualRows, setManualRows] = useState(DEFAULT_MANUAL_ROWS)
+  const [dataSource, setDataSource] = useState('manual')
+  const [manualRows, setManualRows] = useState(() => buildRowsFromChart(chart))
 
-  // 手动数据变更时实时更新图表 option
   const applyManualData = (rows) => {
-    const xData = rows.map((r) => r.x)
-    const yData = rows.map((r) => Number(r.y) || 0)
+    const nextRows = rows.length > 0 ? rows : [{ key: String(Date.now()), x: '类别 A', y: 0 }]
+    const xData = nextRows.map((row) => row.x)
+    const yData = nextRows.map((row) => Number(row.y) || 0)
 
     if (chart.type === 'pie') {
       updateChartOption(chart.id, {
-        series: [{ ...chart.option?.series?.[0], data: rows.map((r) => ({ name: r.x, value: Number(r.y) || 0 })) }],
+        series: [
+          {
+            ...chart.option?.series?.[0],
+            data: nextRows.map((row) => ({ name: row.x, value: Number(row.y) || 0 })),
+          },
+        ],
       })
-    } else if (chart.type === 'scatter') {
-      updateChartOption(chart.id, {
-        series: [{ ...chart.option?.series?.[0], data: rows.map((r) => [Number(r.x) || 0, Number(r.y) || 0]) }],
-      })
-    } else {
-      updateChartOption(chart.id, {
-        xAxis: { ...chart.option?.xAxis, data: xData },
-        series: chart.option?.series?.map((s, i) =>
-          i === 0 ? { ...s, data: yData } : s
-        ) ?? [{ type: chart.type === 'area' ? 'line' : chart.type, data: yData }],
-      })
+      return
     }
+
+    if (chart.type === 'scatter') {
+      updateChartOption(chart.id, {
+        series: [
+          {
+            ...chart.option?.series?.[0],
+            data: nextRows.map((row) => [Number(row.x) || 0, Number(row.y) || 0]),
+          },
+        ],
+      })
+      return
+    }
+
+    updateChartOption(chart.id, {
+      xAxis: { ...chart.option?.xAxis, data: xData },
+      series:
+        chart.option?.series?.map((series, index) => (index === 0 ? { ...series, data: yData } : series)) ??
+        [{ type: chart.type === 'area' ? 'line' : chart.type, data: yData }],
+    })
   }
 
   const handleRowChange = (key, field, value) => {
-    const updated = manualRows.map((r) => r.key === key ? { ...r, [field]: value } : r)
+    const updated = manualRows.map((row) => (row.key === key ? { ...row, [field]: value } : row))
     setManualRows(updated)
     applyManualData(updated)
   }
@@ -103,7 +188,8 @@ const DataTab = ({ chart }) => {
   }
 
   const handleDeleteRow = (key) => {
-    const updated = manualRows.filter((r) => r.key !== key)
+    if (manualRows.length <= 1) return
+    const updated = manualRows.filter((row) => row.key !== key)
     setManualRows(updated)
     applyManualData(updated)
   }
@@ -115,11 +201,11 @@ const DataTab = ({ chart }) => {
       title: isScatter ? 'X 值' : '类别 / X 轴',
       dataIndex: 'x',
       key: 'x',
-      render: (val, record) => (
+      render: (value, record) => (
         <Input
           size="small"
-          value={val}
-          onChange={(e) => handleRowChange(record.key, 'x', e.target.value)}
+          value={value}
+          onChange={(event) => handleRowChange(record.key, 'x', event.target.value)}
           className={styles.tableCell}
         />
       ),
@@ -128,11 +214,11 @@ const DataTab = ({ chart }) => {
       title: isScatter ? 'Y 值' : '数值 / Y 轴',
       dataIndex: 'y',
       key: 'y',
-      render: (val, record) => (
+      render: (value, record) => (
         <InputNumber
           size="small"
-          value={val}
-          onChange={(v) => handleRowChange(record.key, 'y', v ?? 0)}
+          value={value}
+          onChange={(nextValue) => handleRowChange(record.key, 'y', nextValue ?? 0)}
           className={styles.tableCell}
           controls={false}
         />
@@ -158,44 +244,42 @@ const DataTab = ({ chart }) => {
 
   return (
     <div className={styles.tabContent}>
-      {/* 数据源选择 */}
-      <Text type="secondary" className={styles.sectionLabel}>数据来源</Text>
-      <div className={styles.dataSourceGrid}>
-        {DATA_SOURCES.map((ds) => (
-          <Tooltip key={ds.value} title={ds.disabled ? '即将推出' : ds.label}>
-            <div
-              className={`${styles.dataSourceCard} ${dataSource === ds.value ? styles.dataSourceCardActive : ''} ${ds.disabled ? styles.dataSourceCardDisabled : ''}`}
-              onClick={() => !ds.disabled && setDataSource(ds.value)}
-            >
-              <span className={styles.dataSourceIcon}>{ds.icon}</span>
-              <Text className={styles.dataSourceLabel}>{ds.label}</Text>
-              {ds.disabled && <Tag className={styles.comingTag}>即将</Tag>}
-            </div>
-          </Tooltip>
-        ))}
-      </div>
-
-      <Divider style={{ margin: '10px 0' }} />
-
-      {/* 虚拟数据模式 */}
-      {dataSource === 'mock' && (
-        <div className={styles.mockDataBanner}>
-          <DatabaseOutlined style={{ color: '#f59e0b', marginRight: 6 }} />
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            当前使用内置虚拟数据。切换「手动输入」可自定义数据。
-          </Text>
+      <Section title="数据来源" desc="优先支持虚拟数据和手动输入">
+        <div className={styles.dataSourceGrid}>
+          {DATA_SOURCES.map((source) => (
+            <Tooltip key={source.value} title={source.disabled ? '即将推出' : source.label}>
+              <button
+                type="button"
+                className={[
+                  styles.dataSourceCard,
+                  dataSource === source.value ? styles.dataSourceCardActive : '',
+                  source.disabled ? styles.dataSourceCardDisabled : '',
+                ].join(' ')}
+                onClick={() => !source.disabled && setDataSource(source.value)}
+              >
+                <span className={styles.dataSourceIcon}>{source.icon}</span>
+                <Text className={styles.dataSourceLabel}>{source.label}</Text>
+                {source.disabled && <Tag className={styles.comingTag}>即将</Tag>}
+              </button>
+            </Tooltip>
+          ))}
         </div>
+      </Section>
+
+      {dataSource === 'mock' && (
+        <Section compact title="虚拟数据模式" desc="当前使用默认演示数据，适合快速预览布局">
+          <div className={styles.mockDataBanner}>
+            <DatabaseOutlined />
+            <Text type="secondary">切换到「手动输入」后可实时编辑图表数据。</Text>
+          </div>
+        </Section>
       )}
 
-      {/* 手动输入模式 */}
       {dataSource === 'manual' && (
-        <div className={styles.manualDataSection}>
-          <div className={styles.manualHeader}>
-            <Text className={styles.sectionLabel}>数据输入</Text>
-            <Text type="secondary" style={{ fontSize: 11 }}>
-              {manualRows.length} 行
-            </Text>
-          </div>
+        <Section
+          title="手动数据输入"
+          desc={`共 ${manualRows.length} 行，最多 12 行。改动会实时同步到图表。`}
+        >
           <Table
             dataSource={manualRows}
             columns={columns}
@@ -203,7 +287,7 @@ const DataTab = ({ chart }) => {
             pagination={false}
             className={styles.dataTable}
             rowKey="key"
-            scroll={{ y: 200 }}
+            scroll={{ y: 216 }}
           />
           <Button
             type="dashed"
@@ -214,91 +298,94 @@ const DataTab = ({ chart }) => {
             disabled={manualRows.length >= 12}
             className={styles.addRowBtn}
           >
-            添加行 ({manualRows.length}/12)
+            添加数据行 ({manualRows.length}/12)
           </Button>
-        </div>
+        </Section>
       )}
 
-      {/* API / Dataset 占位 */}
       {(dataSource === 'api' || dataSource === 'dataset') && (
-        <div className={styles.comingSoonBox}>
-          <Text type="secondary" style={{ fontSize: 12 }}>此功能将在后续版本中支持</Text>
-        </div>
+        <Section compact title="敬请期待">
+          <div className={styles.comingSoonBox}>
+            <Text type="secondary">该数据接入方式将在后续版本开放。</Text>
+          </div>
+        </Section>
       )}
     </div>
   )
 }
 
-// ── 样式配置 Tab ──────────────────────────────────────────────────────────────
 const StyleTab = ({ chart }) => {
   const { updateChartConfig } = useWorkbenchState()
 
   return (
     <div className={styles.tabContent}>
-      <Text type="secondary" className={styles.sectionLabel}>配色方案</Text>
-      <div className={styles.themeList}>
-        {COLOR_THEMES.map((theme) => (
-          <div
-            key={theme.id}
-            className={`${styles.themeItem} ${chart.colorTheme === theme.id ? styles.themeItemActive : ''}`}
-            onClick={() => updateChartConfig(chart.id, { colorTheme: theme.id })}
-          >
-            <div className={styles.themeSwatches}>
-              {theme.colors.slice(0, 5).map((c, i) => (
-                <span key={i} className={styles.swatch} style={{ background: c }} />
-              ))}
-            </div>
-            <Text style={{ fontSize: 12 }}>{theme.label}</Text>
-          </div>
-        ))}
-      </div>
-
-      <Divider style={{ margin: '12px 0' }} />
-
-      <div className={styles.switchRow}>
-        <Text style={{ fontSize: 13 }}>显示图例</Text>
-        <Switch
-          size="small"
-          checked={chart.showLegend !== false}
-          onChange={(v) => updateChartConfig(chart.id, { showLegend: v })}
-        />
-      </div>
-
-      <Divider style={{ margin: '12px 0' }} />
-
-      <div className={styles.switchRow}>
-        <div>
-          <Text style={{ fontSize: 13 }}>允许叠加</Text>
-          <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
-            允许本图表叠加在其他图表上方
-          </Text>
+      <Section title="配色主题" desc="切换当前图表的调色方案">
+        <div className={styles.themeList}>
+          {COLOR_THEMES.map((theme) => (
+            <button
+              key={theme.id}
+              type="button"
+              className={`${styles.themeItem} ${chart.colorTheme === theme.id ? styles.themeItemActive : ''}`}
+              onClick={() => updateChartConfig(chart.id, { colorTheme: theme.id })}
+            >
+              <div className={styles.themeSwatches}>
+                {theme.colors.slice(0, 5).map((color, index) => (
+                  <span key={index} className={styles.swatch} style={{ background: color }} />
+                ))}
+              </div>
+              <Text className={styles.themeLabel}>{theme.label}</Text>
+            </button>
+          ))}
         </div>
-        <Switch
+      </Section>
+
+      <Section title="显示与布局">
+        <div className={styles.switchRow}>
+          <div className={styles.switchLabelBlock}>
+            <Text className={styles.switchLabel}>显示图例</Text>
+            <Text className={styles.switchHint}>控制图例区域展示</Text>
+          </div>
+          <Switch
+            size="small"
+            checked={chart.showLegend !== false}
+            onChange={(value) => updateChartConfig(chart.id, { showLegend: value })}
+          />
+        </div>
+
+        <Divider className={styles.inlineDivider} />
+
+        <div className={styles.switchRow}>
+          <div className={styles.switchLabelBlock}>
+            <Text className={styles.switchLabel}>允许叠加</Text>
+            <Text className={styles.switchHint}>允许当前图表覆盖在其他图表上层</Text>
+          </div>
+          <Switch
+            size="small"
+            checked={chart.allowOverlap === true}
+            onChange={(value) => updateChartConfig(chart.id, { allowOverlap: value })}
+          />
+        </div>
+      </Section>
+
+      <Section title="图表标题">
+        <Input
           size="small"
-          checked={chart.allowOverlap !== false}
-          onChange={(v) => updateChartConfig(chart.id, { allowOverlap: v })}
+          value={chart.title}
+          onChange={(event) => updateChartConfig(chart.id, { title: event.target.value })}
+          placeholder="输入图表标题"
+          className={styles.titleInput}
         />
-      </div>
-
-      <Divider style={{ margin: '12px 0' }} />
-
-      <Text type="secondary" className={styles.sectionLabel}>图表标题</Text>
-      <Input
-        size="small"
-        value={chart.title}
-        onChange={(e) => updateChartConfig(chart.id, { title: e.target.value })}
-        placeholder="输入图表标题"
-      />
+      </Section>
     </div>
   )
 }
 
-// ── 主面板 ────────────────────────────────────────────────────────────────────
 const ConfigPanel = () => {
   const { configPanel, charts, closeConfigPanel, moveConfigPanel } = useWorkbenchState()
   const { visible, chartId, x, y } = configPanel
 
-  const chart = charts.find((ch) => ch.id === chartId)
+  const chart = charts.find((item) => item.id === chartId)
+  const chartMeta = useMemo(() => getChartMetaByType(chart?.type), [chart?.type])
 
   const { onDragStart } = useConfigPanelDrag({
     x,
@@ -306,11 +393,10 @@ const ConfigPanel = () => {
     onMove: moveConfigPanel,
   })
 
-  // Esc 关闭
   useEffect(() => {
     if (!visible) return
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') closeConfigPanel()
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') closeConfigPanel()
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
@@ -319,34 +405,68 @@ const ConfigPanel = () => {
   if (!visible || !chart) return null
 
   const tabItems = [
-    { key: 'type', label: '图表类型', children: <TypeTab chart={chart} /> },
-    { key: 'data', label: '数据配置', children: <DataTab chart={chart} /> },
-    { key: 'style', label: '样式',     children: <StyleTab chart={chart} /> },
+    {
+      key: 'type',
+      label: (
+        <Space size={6}>
+          <DotChartOutlined />
+          <span>类型</span>
+        </Space>
+      ),
+      children: <TypeTab chart={chart} />,
+    },
+    {
+      key: 'data',
+      label: (
+        <Space size={6}>
+          <DatabaseOutlined />
+          <span>数据</span>
+        </Space>
+      ),
+      children: <DataTab chart={chart} />,
+    },
+    {
+      key: 'style',
+      label: (
+        <Space size={6}>
+          <BgColorsOutlined />
+          <span>样式</span>
+        </Space>
+      ),
+      children: <StyleTab chart={chart} />,
+    },
   ]
 
   return ReactDOM.createPortal(
-    <div
-      className={styles.panel}
-      style={{ left: x, top: y }}
-    >
-      {/* 标题栏（可拖移）*/}
+    <div className={styles.panel} style={{ left: x, top: y }}>
       <div className={styles.panelHeader} onMouseDown={onDragStart}>
-        <Title level={5} style={{ margin: 0, fontSize: 13, color: '#1e293b' }}>
-          ⚙ 图表配置
-        </Title>
+        <div className={styles.headerLeft}>
+          <div className={styles.headerIcon}>
+            <SettingOutlined />
+          </div>
+          <div className={styles.headerText}>
+            <Title level={5} className={styles.headerTitle}>
+              图表配置
+            </Title>
+            <Text className={styles.headerSub}>
+              {chartMeta ? `${chartMeta.icon} ${chartMeta.label} · ${chartMeta.group}` : chart.type}
+            </Text>
+          </div>
+        </div>
+
         <Button
           type="text"
           size="small"
           icon={<CloseOutlined />}
           className={styles.closeBtn}
           onClick={closeConfigPanel}
-          onMouseDown={(e) => e.stopPropagation()}
+          onMouseDown={(event) => event.stopPropagation()}
         />
       </div>
 
-      {/* Tab 内容 */}
       <div className={styles.panelBody}>
         <Tabs
+          key={`${chart.id}-${chart.type}`}
           defaultActiveKey="type"
           size="small"
           items={tabItems}

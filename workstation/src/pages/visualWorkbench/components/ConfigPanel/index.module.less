@@ -1,59 +1,120 @@
 .panel {
   position: fixed;
   z-index: 2000;
-  width: 320px;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18), 0 2px 8px rgba(0, 0, 0, 0.08);
-  border: 1px solid #e2e8f0;
+  width: 356px;
+  max-height: 620px;
   display: flex;
   flex-direction: column;
-  max-height: 560px;
   overflow: hidden;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.26);
+  background: linear-gradient(180deg, #fcfdff 0%, #f8fbff 100%);
+  box-shadow: 0 16px 44px rgba(15, 23, 42, 0.18), 0 2px 12px rgba(15, 23, 42, 0.1);
+  backdrop-filter: blur(6px);
 }
 
 .panelHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 14px;
-  background: linear-gradient(135deg, #f8fafc, #eff6ff);
-  border-bottom: 1px solid #e2e8f0;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+  background: linear-gradient(130deg, #eef6ff 0%, #f5fbff 100%);
   cursor: grab;
   user-select: none;
-  flex-shrink: 0;
-  border-radius: 12px 12px 0 0;
 
   &:active {
     cursor: grabbing;
   }
 }
 
+.headerLeft {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.headerIcon {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  color: #0369a1;
+  background: linear-gradient(140deg, #dbeafe 0%, #bae6fd 100%);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  flex-shrink: 0;
+}
+
+.headerText {
+  min-width: 0;
+}
+
+.headerTitle {
+  margin: 0 !important;
+  font-size: 14px !important;
+  line-height: 1.2 !important;
+  color: #0f172a !important;
+}
+
+.headerSub {
+  margin-top: 2px;
+  display: block;
+  font-size: 11px;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .closeBtn {
-  width: 24px !important;
-  height: 24px !important;
+  width: 26px !important;
+  height: 26px !important;
   padding: 0 !important;
-  color: #94a3b8 !important;
+  border-radius: 8px !important;
+  color: #64748b !important;
+  flex-shrink: 0;
 
   &:hover {
-    color: #ef4444 !important;
     background: #fee2e2 !important;
+    color: #dc2626 !important;
   }
 }
 
 .panelBody {
   flex: 1;
   overflow-y: auto;
-  padding: 0 4px 8px;
+  padding: 0 6px 10px;
 
-  :global {
-    .ant-tabs-nav {
-      padding: 0 10px;
-      margin-bottom: 0;
-    }
-    .ant-tabs-content-holder {
-      padding: 0 6px;
-    }
+  :global(.ant-tabs-nav) {
+    margin: 0;
+    padding: 8px 8px 0;
+  }
+
+  :global(.ant-tabs-tab) {
+    border-radius: 999px !important;
+    padding: 5px 10px !important;
+    transition: all 0.15s ease;
+  }
+
+  :global(.ant-tabs-tab + .ant-tabs-tab) {
+    margin-left: 6px !important;
+  }
+
+  :global(.ant-tabs-tab-active) {
+    background: #e0f2fe !important;
+  }
+
+  :global(.ant-tabs-ink-bar) {
+    display: none;
+  }
+
+  :global(.ant-tabs-content-holder) {
+    padding: 8px 8px 2px;
   }
 }
 
@@ -62,20 +123,43 @@
 }
 
 .tabContent {
-  padding: 12px 4px 4px;
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
-.sectionLabel {
-  font-size: 11px !important;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
+.sectionCard {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.85);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-/** 图表类型选择 **/
+.sectionCardCompact {
+  padding-top: 9px;
+  padding-bottom: 9px;
+}
+
+.sectionHead {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sectionTitle {
+  font-size: 12px !important;
+  font-weight: 700;
+  color: #0f172a !important;
+}
+
+.sectionDesc {
+  font-size: 11px !important;
+  color: #64748b !important;
+}
+
 .typeGrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -83,152 +167,154 @@
 }
 
 .typeCard {
+  border: 1px solid #dbe4f1;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 8px 7px;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 10px 6px;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
+  gap: 8px;
   cursor: pointer;
-  transition: all 0.15s;
-  background: #fafafa;
+  transition: all 0.16s ease;
+}
 
-  &:hover {
-    border-color: #93c5fd;
-    background: #eff6ff;
-  }
+.typeCard:hover {
+  border-color: #7dd3fc;
+  background: #f0f9ff;
 }
 
 .typeCardActive {
-  border-color: #1677ff !important;
-  background: #dbeafe !important;
-  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.15);
+  border-color: #0ea5e9 !important;
+  background: #ecfeff !important;
+  box-shadow: inset 0 0 0 1px rgba(14, 165, 233, 0.18);
 }
 
 .typeIcon {
-  font-size: 22px;
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.typeTextWrap {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 
 .typeLabel {
-  font-size: 11px;
-  color: #374151;
+  font-size: 11px !important;
+  color: #1e293b !important;
 }
 
-/** 数据配置 — 数据来源卡片 **/
+.typeGroup {
+  font-size: 10px !important;
+  color: #64748b !important;
+}
+
 .dataSourceGrid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 6px;
-}
-
-.dataSourceCard {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 8px 4px 6px;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
-  cursor: pointer;
-  transition: all 0.15s;
-  background: #fafafa;
-  position: relative;
-
-  &:hover {
-    border-color: #93c5fd;
-    background: #eff6ff;
-  }
-}
-
-.dataSourceCardActive {
-  border-color: #1677ff !important;
-  background: #dbeafe !important;
-}
-
-.dataSourceCardDisabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-
-  &:hover {
-    border-color: #e2e8f0 !important;
-    background: #fafafa !important;
-  }
-}
-
-.dataSourceIcon {
-  font-size: 16px;
-  color: #64748b;
-}
-
-.dataSourceLabel {
-  font-size: 11px;
-  color: #374151;
-}
-
-.comingTag {
-  font-size: 9px !important;
-  padding: 0 3px !important;
-  line-height: 14px !important;
-  height: 14px !important;
-  color: #94a3b8 !important;
-  border-color: #e2e8f0 !important;
-  background: #f8fafc !important;
-  position: absolute;
-  top: 3px;
-  right: 3px;
-}
-
-/** 虚拟数据提示 **/
-.mockDataBanner {
-  background: #fefce8;
-  border: 1px solid #fef08a;
-  border-radius: 6px;
-  padding: 8px 10px;
-  display: flex;
-  align-items: flex-start;
-  gap: 4px;
-}
-
-/** 手动输入 **/
-.manualDataSection {
-  display: flex;
-  flex-direction: column;
   gap: 8px;
 }
 
-.manualHeader {
+.dataSourceCard {
+  position: relative;
+  border: 1px solid #dbe4f1;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 9px 6px 8px;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
+  gap: 4px;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.dataSourceCard:hover {
+  border-color: #7dd3fc;
+  background: #f0f9ff;
+}
+
+.dataSourceCardActive {
+  border-color: #0ea5e9 !important;
+  background: #ecfeff !important;
+}
+
+.dataSourceCardDisabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.dataSourceIcon {
+  font-size: 15px;
+  color: #475569;
+}
+
+.dataSourceLabel {
+  font-size: 11px !important;
+  color: #334155 !important;
+}
+
+.comingTag {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  height: 14px !important;
+  line-height: 13px !important;
+  font-size: 9px !important;
+  padding: 0 4px !important;
+  border-radius: 999px !important;
+  color: #64748b !important;
+  border-color: #e2e8f0 !important;
+  background: #f8fafc !important;
+}
+
+.mockDataBanner {
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #78350f;
+  font-size: 12px;
+  padding: 8px 10px;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+
+  :global(.ant-typography) {
+    font-size: 12px !important;
+    color: #78350f !important;
+  }
 }
 
 .dataTable {
-  :global {
-    .ant-table {
-      font-size: 11px;
-    }
-    .ant-table-cell {
-      padding: 3px 4px !important;
-    }
-    .ant-table-thead .ant-table-cell {
-      font-size: 10px;
-      background: #f8fafc;
-      color: #94a3b8;
-      font-weight: 600;
-    }
+  :global(.ant-table) {
+    font-size: 11px;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  :global(.ant-table-cell) {
+    padding: 4px 5px !important;
+  }
+
+  :global(.ant-table-thead .ant-table-cell) {
+    background: #f8fafc;
+    color: #64748b;
+    font-weight: 600;
+    font-size: 10px;
   }
 }
 
 .tableCell {
-  font-size: 11px;
   width: 100%;
 
   :global(.ant-input),
   :global(.ant-input-number-input) {
     font-size: 11px !important;
-    padding: 1px 4px !important;
-    height: 22px !important;
+    height: 24px !important;
+    padding: 2px 6px !important;
   }
 
   :global(.ant-input-number) {
@@ -240,69 +326,47 @@
   width: 22px !important;
   height: 22px !important;
   padding: 0 !important;
-  font-size: 10px !important;
 }
 
 .addRowBtn {
+  height: 28px;
   font-size: 11px;
-  height: 26px;
-  border-style: dashed;
-  color: #64748b !important;
-
-  &:hover {
-    color: #1677ff !important;
-  }
 }
 
 .comingSoonBox {
-  padding: 16px;
   text-align: center;
+  border: 1px dashed #dbe4f1;
+  border-radius: 8px;
   background: #f8fafc;
-  border-radius: 6px;
-  border: 1px dashed #e2e8f0;
+  padding: 16px 10px;
 }
 
-/** 占位符（老版本兼容）**/
-.fieldRow {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.fieldLabel {
-  font-size: 11px !important;
-}
-
-.fieldInput {
-  font-size: 12px;
-}
-
-/** 样式配置 **/
 .themeList {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 7px;
 }
 
 .themeItem {
+  border: 1px solid #dbe4f1;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 8px 9px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  border-radius: 6px;
-  border: 1px solid #e2e8f0;
+  gap: 9px;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.16s ease;
+}
 
-  &:hover {
-    border-color: #93c5fd;
-    background: #f0f9ff;
-  }
+.themeItem:hover {
+  border-color: #7dd3fc;
+  background: #f0f9ff;
 }
 
 .themeItemActive {
-  border-color: #1677ff !important;
-  background: #eff6ff !important;
+  border-color: #0ea5e9 !important;
+  background: #ecfeff !important;
 }
 
 .themeSwatches {
@@ -315,12 +379,44 @@
   height: 14px;
   border-radius: 3px;
   display: inline-block;
-  flex-shrink: 0;
+}
+
+.themeLabel {
+  font-size: 12px !important;
+  color: #1e293b !important;
 }
 
 .switchRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
 }
 
+.switchLabelBlock {
+  min-width: 0;
+}
+
+.switchLabel {
+  font-size: 12px !important;
+  font-weight: 600;
+  color: #1e293b !important;
+}
+
+.switchHint {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px !important;
+  color: #64748b !important;
+}
+
+.inlineDivider {
+  margin: 10px 0 !important;
+}
+
+.titleInput {
+  :global(.ant-input) {
+    font-size: 12px !important;
+    border-radius: 8px;
+  }
+}
