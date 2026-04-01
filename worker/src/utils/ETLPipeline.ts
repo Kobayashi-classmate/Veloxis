@@ -1,7 +1,6 @@
 import fs from 'fs';
 import { parse } from 'csv-parse';
 import { stringify } from 'csv-stringify';
-import { pipeline } from 'stream/promises';
 
 export interface ETLOperator {
     type: 'rename' | 'filter' | 'uppercase' | 'lowercase';
@@ -31,75 +30,84 @@ export class ETLPipeline {
                 trim: true
             });
 
-            let isFirstRow = true;
             let outputHeaders: string[] = [];
+            let headersResolved = false;
 
             const stringifier = stringify({
-                header: true // Automatically infers columns from the first object keys
+                header: true
             });
 
             const inputStream = fs.createReadStream(inputPath);
             const outputStream = fs.createWriteStream(outputPath);
 
-            parser.on('error', reject);
-            stringifier.on('error', reject);
-            inputStream.on('error', reject);
-            outputStream.on('error', reject);
+            const onError = (err: Error) => reject(err);
+            parser.on('error', onError);
+            stringifier.on('error', onError);
+            inputStream.on('error', onError);
+            outputStream.on('error', onError);
 
             outputStream.on('finish', () => resolve(outputHeaders));
+            stringifier.pipe(outputStream);
 
-            inputStream.pipe(parser);
-
-            parser.on('readable', function() {
-                let record;
-                while ((record = parser.read()) !== null) {
-                    
-                    let processRow = { ...record };
-                    let dropRow = false;
-
-                    // 1. Apply Operators Sequentially
-                    for (const op of operators) {
-                        if (op.type === 'rename' && op.from && op.to) {
-                            if (processRow[op.from] !== undefined) {
-                                processRow[op.to] = processRow[op.from];
-                                delete processRow[op.from];
-                            }
-                        }
-                        else if (op.type === 'uppercase' && op.field) {
-                            if (processRow[op.field]) {
-                                processRow[op.field] = String(processRow[op.field]).toUpperCase();
-                            }
-                        }
-                        else if (op.type === 'lowercase' && op.field) {
-                            if (processRow[op.field]) {
-                                processRow[op.field] = String(processRow[op.field]).toLowerCase();
-                            }
-                        }
-                        else if (op.type === 'filter' && op.field) {
-                            if (!processRow[op.field] || processRow[op.field] === '') {
-                                dropRow = true;
-                            }
-                        }
+            // Use 'data' event (flowing mode) — compatible with pipe-driven input streams.
+            // 'readable' + parser.read() conflicts with pipe's flowing mode and causes
+            // the readable event to never fire, leaving outputHeaders empty.
+            parser.on('data', (record: Record<string, string>) => {
+                // Build a rename map: originalKey -> newKey
+                // We preserve insertion order by rebuilding the row object in the
+                // original column sequence — delete+re-insert in JS moves the key
+                // to the end, which corrupts the column order for Doris.
+                const renameMap: Record<string, string> = {};
+                for (const op of operators) {
+                    if (op.type === 'rename' && op.from && op.to) {
+                        renameMap[op.from] = op.to;
                     }
-
-                    if (dropRow) continue;
-
-                    // Rebuild the object to ensure keys are in a stable order if needed, 
-                    // though Object.keys will handle it. We just let stringifier infer.
-                    if (isFirstRow) {
-                        outputHeaders = Object.keys(processRow);
-                        isFirstRow = false;
-                    }
-
-                    stringifier.write(processRow);
                 }
+
+                // Rebuild the row with keys in original order, applying renames
+                const processRow: Record<string, string> = {};
+                for (const origKey of Object.keys(record)) {
+                    const newKey = renameMap[origKey] ?? origKey;
+                    processRow[newKey] = record[origKey];
+                }
+
+                // Apply non-rename operators on the already-renamed row
+                let dropRow = false;
+                for (const op of operators) {
+                    const targetKey = op.field ? (renameMap[op.field] ?? op.field) : undefined;
+                    if (op.type === 'uppercase' && targetKey) {
+                        if (processRow[targetKey]) processRow[targetKey] = String(processRow[targetKey]).toUpperCase();
+                    } else if (op.type === 'lowercase' && targetKey) {
+                        if (processRow[targetKey]) processRow[targetKey] = String(processRow[targetKey]).toLowerCase();
+                    } else if (op.type === 'filter' && targetKey) {
+                        if (!processRow[targetKey] || processRow[targetKey] === '') dropRow = true;
+                    }
+                }
+
+                if (dropRow) return;
+
+                if (!headersResolved) {
+                    outputHeaders = Object.keys(processRow);
+                    headersResolved = true;
+                }
+
+                stringifier.write(processRow);
             });
 
             parser.on('end', () => {
+                // If all rows were dropped (or file was header-only), derive headers
+                // from the rename operators so the caller still gets a valid column list.
+                if (!headersResolved) {
+                    const renameOps = operators.filter(op => op.type === 'rename' && op.to);
+                    if (renameOps.length > 0) {
+                        outputHeaders = renameOps.map(op => op.to!);
+                    }
+                }
                 stringifier.end();
             });
 
-            stringifier.pipe(outputStream);
+            inputStream.pipe(parser);
         });
     }
 }
+

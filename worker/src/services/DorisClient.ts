@@ -63,74 +63,93 @@ export class DorisClient {
     async streamLoad(tableName: string, data: Buffer | Readable, options?: { columnSeparator?: string, headers?: string[], projectId?: string }) {
         const feUrl = `${this.httpBase}/api/${config.doris.database}/${tableName}/_stream_load`;
         const label = `veloxis_ingest_${tableName}_${Date.now()}`;
-        
-        console.log(`[Doris] Step 1: Requesting Stream Load from FE: ${feUrl}`);
 
-        let targetUrl = feUrl;
-        
-        // Build the columns mapping if projectId is provided
-        let columnsHeader = undefined;
-        if (options?.headers && options?.projectId) {
-            // Map the native headers, and inject project_id
+        // Build the columns mapping: inject project_id as a literal for multi-tenant isolation
+        let columnsHeader: string | undefined;
+        if (options?.headers && options.headers.length > 0 && options?.projectId) {
             const baseColumns = options.headers.map(h => `\`${h}\``).join(',');
             columnsHeader = `${baseColumns}, project_id='${options.projectId}'`;
         }
 
-        // Step 1: Handle FE to BE redirection (Doris FE redirects to a specific BE for the load)
-        try {
-            // We send a small empty request or just use axios with maxRedirects: 0 to catch the 307
-            const redirectRes = await axios.put(feUrl, null, {
-                headers: {
-                    'Authorization': this.authHeader,
-                    'Expect': '100-continue',
-                    'label': label
-                },
-                maxRedirects: 0,
-                validateStatus: (status) => status === 307 || (status >= 200 && status < 300)
-            });
-
-            if (redirectRes.status === 307) {
-                targetUrl = redirectRes.headers.location;
-                console.log(`[Doris] Step 2: Redirected to BE: ${targetUrl}`);
-            }
-
-        } catch (error: any) {
-            console.error(`[Doris] FE Request Failed:`, error.response?.data || error.message);
-            throw error;
-        }
-
-        // Step 3: Perform the actual load to the BE
-        console.log(`[Doris] Step 3: Pushing data to target...`);
-        
-        const headersToPass: any = {
+        const requestHeaders: Record<string, string> = {
             'Authorization': this.authHeader,
             'format': 'csv',
             'column_separator': options?.columnSeparator || ',',
             'label': label,
             'Expect': '100-continue',
-            'skip_header': '1' // Always skip CSV header row
+            'skip_header': '1',
         };
-
         if (columnsHeader) {
-            headersToPass['columns'] = columnsHeader;
+            requestHeaders['columns'] = columnsHeader;
+        }
+
+        /**
+         * Doris Stream Load redirect pattern (stream-safe):
+         *
+         * Problem: Doris FE always returns 307 redirect to the actual BE node.
+         * If we send a ReadStream body to FE first, the stream gets fully consumed
+         * before the 307 response arrives — leaving nothing to send to BE (0 rows).
+         *
+         * Solution: Two-phase approach
+         *  1. PROBE: Send an empty-body PUT to FE to discover the BE URL (307 redirect).
+         *  2. LOAD:  Send the real data stream directly to BE.
+         *
+         * If FE responds with 200 directly (single-node, FE==BE), skip the probe and
+         * send data straight to FE.
+         */
+        console.log(`[Doris] Initiating Stream Load to FE: ${feUrl} (label: ${label})`);
+
+        // Phase 1: Probe FE with empty body to get the BE redirect URL
+        let targetUrl = feUrl;
+        let isSingleNode = false;
+
+        try {
+            const probeResponse = await axios.put(feUrl, '', {
+                headers: requestHeaders,
+                maxRedirects: 0,
+                maxBodyLength: Infinity,
+                maxContentLength: Infinity,
+                validateStatus: (s) => s === 307 || (s >= 200 && s < 300),
+            });
+
+            if (probeResponse.status === 307 && probeResponse.headers?.location) {
+                targetUrl = probeResponse.headers.location;
+            } else {
+                // FE returned 200 directly (single-node deployment: FE == BE)
+                isSingleNode = true;
+            }
+        } catch (err: any) {
+            if (err.response?.status === 307 && err.response?.headers?.location) {
+                targetUrl = err.response.headers.location;
+            } else {
+                console.error(`[Doris] FE probe failed:`, err.response?.data || err.message);
+                throw err;
+            }
+        }
+
+        // Phase 2: Send the real data stream to the resolved target URL
+        if (isSingleNode) {
+            // Single-node: send directly to FE
+            console.log(`[Doris] Single-node deployment, sending data directly to FE.`);
+        } else {
+            console.log(`[Doris] Redirected to BE: ${targetUrl}`);
         }
 
         try {
             const response = await axios.put(targetUrl, data, {
-                headers: headersToPass,
+                headers: requestHeaders,
                 maxBodyLength: Infinity,
-                maxContentLength: Infinity
+                maxContentLength: Infinity,
             });
 
-            if (response.data && response.data.Status === 'Success') {
+            if (response.data?.Status === 'Success') {
                 console.log(`[Doris] ✅ Load Successful: ${response.data.NumberLoadedRows} rows.`);
                 return response.data;
-            } else {
-                console.error(`[Doris] ❌ Load Failed:`, response.data);
-                throw new Error(response.data.Message || 'Stream Load Failed');
             }
+            console.error(`[Doris] ❌ Load Failed:`, response.data);
+            throw new Error(response.data?.Message || response.data?.msg || 'Stream Load Failed');
         } catch (error: any) {
-            console.error(`[Doris] BE Data Push Failed:`, error.response?.data || error.message);
+            console.error(`[Doris] BE data push failed:`, error.response?.data || error.message);
             throw error;
         }
     }
