@@ -81,7 +81,7 @@ export function useLeaveInterception() {
         colorTheme: ch.colorTheme ?? 'default',
         showLegend: ch.showLegend ?? true,
         showLabel: ch.showLabel ?? false,
-        allowOverlap: ch.allowOverlap ?? true,
+        allowOverlap: ch.allowOverlap ?? false,
         order: ch.order ?? 0,
       }))
 

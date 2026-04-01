@@ -15,7 +15,7 @@ import { rectsOverlap, findLegalPosition } from '../utils/collisionUtils'
  * @param {number}   params.y          当前 y 坐标（画布坐标系，未缩放）
  * @param {number}   params.w          当前宽度
  * @param {number}   params.h          当前高度
- * @param {boolean}  params.allowOverlap 是否允许叠加到其他图表上方（默认 true）
+ * @param {boolean}  params.allowOverlap 是否允许叠加到其他图表上方（默认 false）
  * @param {Function} params.onMoveEnd   (x, y) => void  — mouseup 时调一次
  * @param {Function} params.onResizeEnd (w, h) => void  — mouseup 时调一次
  *
@@ -23,7 +23,7 @@ import { rectsOverlap, findLegalPosition } from '../utils/collisionUtils'
  *   itemRef 由 hook 内部创建，调用方把它挂到根 DOM 节点即可
  */
 
-export function useChartDrag({ chartId, x, y, w, h, allowOverlap = true, onMoveEnd, onResizeEnd }) {
+export function useChartDrag({ chartId, x, y, w, h, allowOverlap = false, onMoveEnd, onResizeEnd }) {
   // hook 自己持有 DOM ref，避免 react-hooks/immutability 报错
   const itemRef = useRef(null)
   const dragState = useRef(null)

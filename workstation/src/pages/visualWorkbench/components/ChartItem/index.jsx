@@ -42,7 +42,7 @@ const ChartItem = ({ chart, canvasRef }) => {
     y: chart.y,
     w: chart.w,
     h: chart.h,
-    allowOverlap: chart.allowOverlap ?? true,
+    allowOverlap: chart.allowOverlap ?? false,
     onMoveEnd,
     onResizeEnd,
   })

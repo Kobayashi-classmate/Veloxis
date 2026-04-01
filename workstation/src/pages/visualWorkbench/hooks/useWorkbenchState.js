@@ -111,7 +111,7 @@ function normalizeSnapshot(snap) {
     colorTheme: snap.colorTheme ?? 'default',
     showLegend: snap.showLegend ?? true,
     showLabel: snap.showLabel ?? false,
-    allowOverlap: snap.allowOverlap ?? true,
+    allowOverlap: snap.allowOverlap ?? false,
     order: snap.order ?? 0,
   }
 }
@@ -577,6 +577,66 @@ const useWorkbenchState = create((set, get) => ({
     await Promise.all(patches.map(({ id, index }) => updateCanvasGroup(id, { order: index })))
   },
 
+  reorderTopLevel: async (categoryId, orderedTopLevelIds) => {
+    const { groups, canvases } = get()
+    const categoryGroups = groups.filter((g) => g.categoryId === categoryId)
+    const categoryUngroupedCanvases = canvases.filter((cv) => cv.categoryId === categoryId && !cv.groupId)
+
+    const groupIdSet = new Set(categoryGroups.map((g) => g.id))
+    const canvasIdSet = new Set(categoryUngroupedCanvases.map((cv) => cv.id))
+
+    const seen = new Set()
+    const validOrder = orderedTopLevelIds.filter((id) => {
+      if (seen.has(id)) return false
+      if (!groupIdSet.has(id) && !canvasIdSet.has(id)) return false
+      seen.add(id)
+      return true
+    })
+
+    const missing = [
+      ...categoryUngroupedCanvases.map((cv) => cv.id),
+      ...categoryGroups.map((g) => g.id),
+    ].filter((id) => !seen.has(id))
+
+    const finalOrder = [...validOrder, ...missing]
+    const nextOrderMap = new Map(finalOrder.map((id, index) => [id, index]))
+
+    const groupOrderMap = new Map(categoryGroups.map((g) => [g.id, g.order ?? 0]))
+    const canvasOrderMap = new Map(categoryUngroupedCanvases.map((cv) => [cv.id, cv.order ?? 0]))
+
+    const updatedGroups = groups.map((g) => {
+      if (g.categoryId !== categoryId) return g
+      const nextOrder = nextOrderMap.get(g.id)
+      return typeof nextOrder === 'number' ? { ...g, order: nextOrder } : g
+    })
+
+    const updatedCanvases = canvases.map((cv) => {
+      if (cv.categoryId !== categoryId || cv.groupId) return cv
+      const nextOrder = nextOrderMap.get(cv.id)
+      return typeof nextOrder === 'number' ? { ...cv, order: nextOrder } : cv
+    })
+
+    set(() => ({
+      groups: updatedGroups,
+      canvases: updatedCanvases,
+    }))
+
+    const groupPatches = finalOrder
+      .filter((id) => groupIdSet.has(id))
+      .map((id) => ({ id, order: nextOrderMap.get(id) }))
+      .filter(({ id, order }) => groupOrderMap.get(id) !== order)
+
+    const canvasPatches = finalOrder
+      .filter((id) => canvasIdSet.has(id))
+      .map((id) => ({ id, order: nextOrderMap.get(id) }))
+      .filter(({ id, order }) => canvasOrderMap.get(id) !== order)
+
+    await Promise.all([
+      ...groupPatches.map(({ id, order }) => updateCanvasGroup(id, { order })),
+      ...canvasPatches.map(({ id, order }) => updateCanvas(id, { order })),
+    ])
+  },
+
   /**
    * 复制画布：纯内存操作，克隆本地图表 + 创建新画布记录（无 snapshot_json 写入，
    * 由后续 useFormalSave 负责正式落盘）
@@ -651,7 +711,7 @@ const useWorkbenchState = create((set, get) => ({
       colorTheme: 'default',
       showLegend: true,
       showLabel: false,
-      allowOverlap: true,
+      allowOverlap: false,
       order,
     }
     set((s) => ({ charts: [...s.charts, chart], isDirty: true }))

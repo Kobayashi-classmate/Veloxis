@@ -196,10 +196,25 @@
 .addTabWrapper {
   display: flex;
   align-items: center;
+  gap: 2px;
   flex-shrink: 0;
 }
 
 .addTabBtn {
+  flex-shrink: 0;
+  width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  border-radius: 8px !important;
+  color: #475569 !important;
+
+  &:hover {
+    background: #eff6ff !important;
+    color: #1d4ed8 !important;
+  }
+}
+
+.settingsBtn {
   flex-shrink: 0;
   width: 32px !important;
   height: 32px !important;
@@ -305,4 +320,3 @@
   transform: scale(1.04);
   cursor: grabbing;
 }
-

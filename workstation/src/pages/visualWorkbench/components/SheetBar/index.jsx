@@ -1,7 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useMemo } from 'react'
 import { Typography, Input, Button, Dropdown, Modal, Tooltip, Select, Space } from 'antd'
 import {
   PlusOutlined,
+  SettingOutlined,
   CloseOutlined,
   EditOutlined,
   DeleteOutlined,
@@ -33,14 +34,14 @@ const { Text } = Typography
 
 // ── 可拖拽标签页 ─────────────────────────────────────────────────────────────
 
-const SortableTab = ({
+const SortableTabItem = ({
   canvas,
   isActive,
   onClick,
   groups,
   chartCount,
   accentColor,
-  isDragOverlay = false,
+  activeTabStyle,
 }) => {
   const {
     attributes,
@@ -51,21 +52,14 @@ const SortableTab = ({
     isDragging,
   } = useSortable({
     id: canvas.id,
-    disabled: isDragOverlay,
     data: { type: 'canvas', groupId: canvas.groupId },
   })
 
-  const style = isDragOverlay
-    ? {}
-    : {
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.3 : 1,
-      }
-
-  const activeTabStyle = isActive
-    ? { boxShadow: `0 -2px 0 ${accentColor} inset` }
-    : {}
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.3 : 1,
+  }
 
   return (
     <TabContent
@@ -78,8 +72,51 @@ const SortableTab = ({
       activeTabStyle={activeTabStyle}
       nodeRef={setNodeRef}
       style={style}
-      dragAttributes={isDragOverlay ? {} : attributes}
-      dragListeners={isDragOverlay ? {} : listeners}
+      dragAttributes={attributes}
+      dragListeners={listeners}
+    />
+  )
+}
+
+const SortableTab = ({
+  canvas,
+  isActive,
+  onClick,
+  groups,
+  chartCount,
+  accentColor,
+  isDragOverlay = false,
+}) => {
+  const activeTabStyle = isActive
+    ? { boxShadow: `0 -2px 0 ${accentColor} inset` }
+    : {}
+
+  if (isDragOverlay) {
+    return (
+      <TabContent
+        canvas={canvas}
+        isActive={isActive}
+        onClick={onClick}
+        groups={groups}
+        chartCount={chartCount}
+        accentColor={accentColor}
+        activeTabStyle={activeTabStyle}
+        style={{}}
+        dragAttributes={{}}
+        dragListeners={{}}
+      />
+    )
+  }
+
+  return (
+    <SortableTabItem
+      canvas={canvas}
+      isActive={isActive}
+      onClick={onClick}
+      groups={groups}
+      chartCount={chartCount}
+      accentColor={accentColor}
+      activeTabStyle={activeTabStyle}
     />
   )
 }
@@ -117,7 +154,8 @@ const TabContent = ({
   }
 
   const handleDelete = (e) => {
-    e.stopPropagation()
+    const domEvent = e?.domEvent ?? e
+    domEvent?.stopPropagation?.()
     Modal.confirm({
       title: `删除"${canvas.name}"？`,
       content: '画布上的所有图表将一同删除，无法恢复。',
@@ -140,18 +178,21 @@ const TabContent = ({
       key: 'new-group',
       label: '新建分组...',
       onClick: () => {
+        let groupName = ''
         Modal.confirm({
           title: '新建画布分组',
           content: (
             <Input
-              id="new-group-input"
               placeholder="输入分组名称"
               autoFocus
               maxLength={20}
+              onChange={(e) => {
+                groupName = e.target.value
+              }}
             />
           ),
           onOk: async () => {
-            const val = document.getElementById('new-group-input')?.value
+            const val = groupName
             if (val?.trim()) {
               const gid = await addGroup(canvas.categoryId, val.trim())
               if (gid) moveCanvasToGroup(canvas.id, gid)
@@ -240,11 +281,15 @@ const SheetBar = () => {
     addCanvas,
     addGroup,
     moveCanvasToGroup,
+    renameGroup,
+    removeGroup,
     reorderCanvas,
     reorderGroup,
+    reorderTopLevel,
   } = useWorkbenchState()
 
   const [addMenuOpen, setAddMenuOpen] = useState(false)
+  const [settingsMenuOpen, setSettingsMenuOpen] = useState(false)
   const [orderModalOpen, setOrderModalOpen] = useState(false)
   const [orderModalKey, setOrderModalKey] = useState(0)
   const [activeId, setActiveId] = useState(null)
@@ -256,16 +301,31 @@ const SheetBar = () => {
     })
   )
 
-  const categoryCanvases = canvases
-    .filter((cv) => cv.categoryId === activeCategoryId)
-    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-  const categoryGroups = groups
-    .filter((g) => g.categoryId === activeCategoryId)
-    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+  const categoryCanvases = useMemo(
+    () =>
+      canvases
+        .filter((cv) => cv.categoryId === activeCategoryId)
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
+    [canvases, activeCategoryId]
+  )
+  const categoryGroups = useMemo(
+    () =>
+      groups
+        .filter((g) => g.categoryId === activeCategoryId)
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
+    [groups, activeCategoryId]
+  )
   const activeCategory = categories.find((c) => c.id === activeCategoryId)
   const accentColor = activeCategory?.color ?? '#1677ff'
 
-  const getChartCount = (canvasId) => charts.filter((ch) => ch.canvasId === canvasId).length
+  const chartCountMap = useMemo(() => {
+    return charts.reduce((acc, chart) => {
+      acc[chart.canvasId] = (acc[chart.canvasId] ?? 0) + 1
+      return acc
+    }, {})
+  }, [charts])
+
+  const getChartCount = (canvasId) => chartCountMap[canvasId] ?? 0
 
   const draggingCanvas = activeId && activeType === 'canvas'
     ? categoryCanvases.find((cv) => cv.id === activeId)
@@ -284,57 +344,13 @@ const SheetBar = () => {
     if (orderA !== orderB) return orderA - orderB
     return a.id.localeCompare(b.id)
   })
-  const ungroupedIds = topLevelItems
-    .filter((item) => !groupIdSet.has(item.id))
-    .map((item) => item.id)
-  const groupIds = topLevelItems
-    .filter((item) => groupIdSet.has(item.id))
-    .map((item) => item.id)
   const allSortableIds = topLevelItems.map((item) => item.id)
 
   /**
-   * 自定义碰撞检测：
-   * - 拖画布：全范围 closestCenter（可命中分组头部触发"移入分组"）
-   * - 拖分组：仅在分组 id 范围内寻找 over 目标，避免因画布节点更近而误命中画布
+   * 顶层仅包含：未分组画布 + 分组。
+   * 统一使用 closestCenter，可稳定命中画布与分组，支持互换排序。
    */
-  const activeTypeRef = useRef(activeType)
-  useEffect(() => { activeTypeRef.current = activeType }, [activeType])
-
-  // groupIds 需在 useCallback 内访问，用 ref 保持稳定
-  const groupIdsRef = useRef(groupIds)
-  useEffect(() => { groupIdsRef.current = groupIds }, [groupIds])
-
-  const isPointerWithin = (pointer, rect) =>
-    pointer?.x >= rect.left && pointer?.x <= rect.right &&
-    pointer?.y >= rect.top && pointer?.y <= rect.bottom
-
-  const collisionDetection = (args) => {
-    if (activeTypeRef.current === 'group') {
-      return closestCenter(args)
-    }
-
-    const canvasContainers = args.droppableContainers.filter(
-      (c) => !groupIdsRef.current.includes(c.id)
-    )
-    const groupContainers = args.droppableContainers.filter((c) =>
-      groupIdsRef.current.includes(c.id)
-    )
-
-    const pointerGroupTargets = groupContainers.filter((container) =>
-      isPointerWithin(args.pointerCoordinates, container.rect)
-    )
-    if (pointerGroupTargets.length > 0) {
-      return closestCenter({
-        ...args,
-        droppableContainers: pointerGroupTargets,
-      })
-    }
-
-    return closestCenter({
-      ...args,
-      droppableContainers: canvasContainers,
-    })
-  }
+  const collisionDetection = closestCenter
 
   // ── 拖拽结束处理 ────────────────────────────────────────────────────────────
   const handleDragEnd = async ({ active, over }) => {
@@ -350,32 +366,62 @@ const SheetBar = () => {
       const activeCanvas = categoryCanvases.find((cv) => cv.id === active.id)
       if (!activeCanvas) return
 
-      // 画布拖到分组头部 → 移入分组
-      if (overData?.type === 'group') {
-        await moveCanvasToGroup(active.id, over.id)
+      // 画布拖到分组头部 → 顶层互换排序（不再直接移入分组）
+      if (overData?.type === 'group' || groupIdSet.has(over.id)) {
+        const oldIndex = allSortableIds.indexOf(active.id)
+        const newIndex = allSortableIds.indexOf(over.id)
+        if (oldIndex === -1 || newIndex === -1) return
+        await reorderTopLevel(activeCategoryId, arrayMove(allSortableIds, oldIndex, newIndex))
         return
       }
 
       // 画布拖到另一画布 → 重排序（含跨分组）
       const overCanvas = categoryCanvases.find((cv) => cv.id === over.id)
       if (!overCanvas) return
+      const targetGroupId = overCanvas.groupId ?? null
+      const sourceGroupId = activeCanvas.groupId ?? null
 
-      if (activeCanvas.groupId !== overCanvas.groupId) {
-        await moveCanvasToGroup(active.id, overCanvas.groupId)
+      // 顶层（未分组）画布排序：与分组共享同一顺序序列
+      if (sourceGroupId === null && targetGroupId === null) {
+        const oldIndex = allSortableIds.indexOf(active.id)
+        const newIndex = allSortableIds.indexOf(over.id)
+        if (oldIndex === -1 || newIndex === -1) return
+        await reorderTopLevel(activeCategoryId, arrayMove(allSortableIds, oldIndex, newIndex))
+        return
       }
 
-      const scopeCanvases = categoryCanvases.filter(
-        (cv) => cv.groupId === (overCanvas.groupId ?? null)
-      )
+      if (sourceGroupId !== targetGroupId) {
+        await moveCanvasToGroup(active.id, targetGroupId)
+      }
+
+      // 拖入未分组：插入顶层序列（可与分组互换位置）
+      if (targetGroupId === null) {
+        const nextTopLevel = allSortableIds.filter((id) => id !== active.id)
+        const targetIndex = nextTopLevel.indexOf(over.id)
+        if (targetIndex === -1) return
+        nextTopLevel.splice(targetIndex, 0, active.id)
+        await reorderTopLevel(activeCategoryId, nextTopLevel)
+        return
+      }
+
+      // 分组内排序（含跨分组后定位）
+      const latestCategoryCanvases = useWorkbenchState
+        .getState()
+        .canvases
+        .filter((cv) => cv.categoryId === activeCategoryId)
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+
+      const scopeCanvases = latestCategoryCanvases.filter((cv) => cv.groupId === targetGroupId)
       const scopeIds = scopeCanvases.map((cv) => cv.id)
       const oldIndex = scopeIds.indexOf(active.id)
       const newIndex = scopeIds.indexOf(over.id)
       if (oldIndex === -1 || newIndex === -1) return
 
-      const otherIds = categoryCanvases
+      const otherIds = latestCategoryCanvases
         .filter((cv) => !scopeIds.includes(cv.id))
         .map((cv) => cv.id)
       await reorderCanvas(activeCategoryId, [...otherIds, ...arrayMove(scopeIds, oldIndex, newIndex)])
+      return
     }
 
     if (activeData.type === 'group') {
@@ -385,8 +431,7 @@ const SheetBar = () => {
       if (oldIndex === -1 || newIndex === -1) return
 
       const nextIds = arrayMove(combinedIds, oldIndex, newIndex)
-      await reorderGroup(activeCategoryId, nextIds.filter((id) => groupIds.includes(id)))
-      await reorderCanvas(activeCategoryId, nextIds.filter((id) => ungroupedIds.includes(id)))
+      await reorderTopLevel(activeCategoryId, nextIds)
     }
   }
 
@@ -418,6 +463,38 @@ const SheetBar = () => {
     await reorderCanvas(activeCategoryId, orderedCanvasIds)
   }
 
+  const openOrderManager = () => {
+    setOrderModalKey((prev) => prev + 1)
+    setOrderModalOpen(true)
+  }
+
+  const openCreateGroupModal = (onAfterCreate) => {
+    let groupName = ''
+    Modal.confirm({
+      title: '新建画布分组',
+      content: (
+        <Input
+          placeholder="输入分组名称"
+          autoFocus
+          maxLength={20}
+          onChange={(e) => {
+            groupName = e.target.value
+          }}
+        />
+      ),
+      onOk: async () => {
+        const val = groupName.trim()
+        if (!val) return
+        const gid = await addGroup(activeCategoryId, val)
+        if (gid && typeof onAfterCreate === 'function') {
+          await onAfterCreate(gid)
+        }
+      },
+      okText: '创建',
+      cancelText: '取消',
+    })
+  }
+
   const addMenuItems = [
     {
       key: 'canvas',
@@ -429,25 +506,26 @@ const SheetBar = () => {
       key: 'group',
       label: '新建分组',
       icon: <FolderAddOutlined />,
-      onClick: () => {
-        Modal.confirm({
-          title: '新建画布分组',
-          content: (
-            <Input
-              id="new-sheetbar-group-input"
-              placeholder="输入分组名称"
-              autoFocus
-              maxLength={20}
-            />
-          ),
-          onOk: async () => {
-            const val = document.getElementById('new-sheetbar-group-input')?.value
-            if (val?.trim()) await addGroup(activeCategoryId, val.trim())
-          },
-          okText: '创建',
-          cancelText: '取消',
-        })
-      },
+      onClick: () => openCreateGroupModal(),
+    },
+  ]
+
+  const activeCanvas = categoryCanvases.find((cv) => cv.id === activeCanvasId)
+  const activeGroup = activeCanvas?.groupId
+    ? categoryGroups.find((g) => g.id === activeCanvas.groupId) ?? null
+    : null
+
+  const settingsMenuItems = [
+    {
+      key: 'manage-order',
+      label: '管理分组与画布顺序',
+      onClick: openOrderManager,
+    },
+    { type: 'divider' },
+    {
+      key: 'more-coming',
+      label: '更多管理功能（预留）',
+      disabled: true,
     },
   ]
 
@@ -462,37 +540,9 @@ const SheetBar = () => {
       key: 'new-group',
       label: '新建分组',
       icon: <FolderAddOutlined />,
-      onClick: () => {
-        Modal.confirm({
-          title: '新建画布分组',
-          content: (
-            <Input
-              id="new-sheetbar-blank-group-input"
-              placeholder="输入分组名称"
-              autoFocus
-              maxLength={20}
-            />
-          ),
-          onOk: async () => {
-            const val = document.getElementById('new-sheetbar-blank-group-input')?.value
-            if (val?.trim()) await addGroup(activeCategoryId, val.trim())
-          },
-          okText: '创建',
-          cancelText: '取消',
-        })
-      },
-    },
-    {
-      key: 'manage-order',
-      label: '管理分组与画布顺序',
-      onClick: () => {
-        setOrderModalKey((prev) => prev + 1)
-        setOrderModalOpen(true)
-      },
+      onClick: () => openCreateGroupModal(),
     },
   ]
-
-  const activeCanvas = categoryCanvases.find((cv) => cv.id === activeCanvasId)
 
   const renderTabs = () => {
     const result = []
@@ -586,6 +636,21 @@ const SheetBar = () => {
                     />
                   </Tooltip>
                 </Dropdown>
+                <Dropdown
+                  menu={{ items: settingsMenuItems }}
+                  trigger={['click']}
+                  placement="topRight"
+                  onOpenChange={(open) => setSettingsMenuOpen(open)}
+                >
+                  <Tooltip title="工作台管理" placement="left" open={settingsMenuOpen ? false : undefined}>
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<SettingOutlined />}
+                      className={styles.settingsBtn}
+                    />
+                  </Tooltip>
+                </Dropdown>
               </div>
             </div>
           </Dropdown>
@@ -676,9 +741,12 @@ const OrderManagerModal = ({ open, onClose, groups, canvases, onSave }) => {
 
   const handleSave = async () => {
     setSaving(true)
-    await onSave({ groupOrder, canvasLayout })
-    setSaving(false)
-    onClose()
+    try {
+      await onSave({ groupOrder, canvasLayout })
+      onClose()
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -818,6 +886,7 @@ const SortableGroupSection = ({
     id: group.id,
     data: { type: 'group' },
   })
+  const { addCanvas, renameGroup, removeGroup } = useWorkbenchState()
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -831,6 +900,62 @@ const SortableGroupSection = ({
     onClick: () => setActiveCanvas(cv.id),
   }))
 
+  const manageMenuItems = [
+    {
+      key: 'add-canvas',
+      label: '新建画布',
+      icon: <PlusOutlined />,
+      onClick: () => addCanvas(group.categoryId, '新画布', group.id),
+    },
+    {
+      key: 'rename-group',
+      label: '重命名分组',
+      icon: <EditOutlined />,
+      onClick: () => {
+        let nextName = group.name
+        Modal.confirm({
+          title: '重命名分组',
+          content: (
+            <Input
+              defaultValue={group.name}
+              autoFocus
+              maxLength={20}
+              onChange={(e) => {
+                nextName = e.target.value
+              }}
+            />
+          ),
+          onOk: async () => {
+            const val = nextName.trim()
+            if (!val || val === group.name) return
+            await renameGroup(group.id, val)
+          },
+          okText: '保存',
+          cancelText: '取消',
+        })
+      },
+    },
+    { type: 'divider' },
+    {
+      key: 'delete-group',
+      label: '删除分组',
+      icon: <DeleteOutlined />,
+      danger: true,
+      onClick: (e) => {
+        const domEvent = e?.domEvent ?? e
+        domEvent?.stopPropagation?.()
+        Modal.confirm({
+          title: `删除分组"${group.name}"？`,
+          content: '分组会被删除，组内画布会变为未分组。',
+          okText: '删除',
+          okType: 'danger',
+          cancelText: '取消',
+          onOk: () => removeGroup(group.id),
+        })
+      },
+    },
+  ]
+
   const activeInGroup = activeCanvas?.groupId === group.id ? activeCanvas.name : null
 
   return (
@@ -842,28 +967,31 @@ const SortableGroupSection = ({
       }}
       className={styles.groupSection}
     >
-      <Dropdown
-        menu={{
-          items: groupMenuItems,
-          selectedKeys: activeCanvasId && inGroup.some((cv) => cv.id === activeCanvasId)
-            ? [activeCanvasId]
-            : [],
-        }}
-        trigger={['click', 'contextMenu']}
-        placement="bottomLeft"
-      >
-        <div
-          className={styles.groupHeader}
-          onContextMenu={(e) => e.stopPropagation()}
-          {...attributes}
-          {...listeners}
-        >
-          <FolderOutlined />
-          <span>{group.name}</span>
-          {activeInGroup && (
-            <span className={styles.groupActiveCanvas}>{activeInGroup}</span>
-          )}
-          <span className={styles.groupCount}>{inGroup.length}</span>
+      <Dropdown menu={{ items: manageMenuItems }} trigger={['contextMenu']} placement="bottomLeft">
+        <div onContextMenu={(e) => e.stopPropagation()}>
+          <Dropdown
+            menu={{
+              items: groupMenuItems,
+              selectedKeys: activeCanvasId && inGroup.some((cv) => cv.id === activeCanvasId)
+                ? [activeCanvasId]
+                : [],
+            }}
+            trigger={['click']}
+            placement="bottomLeft"
+          >
+            <div
+              className={styles.groupHeader}
+              {...attributes}
+              {...listeners}
+            >
+              <FolderOutlined />
+              <span>{group.name}</span>
+              {activeInGroup && (
+                <span className={styles.groupActiveCanvas}>{activeInGroup}</span>
+              )}
+              <span className={styles.groupCount}>{inGroup.length}</span>
+            </div>
+          </Dropdown>
         </div>
       </Dropdown>
     </div>
