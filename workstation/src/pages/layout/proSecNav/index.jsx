@@ -261,11 +261,18 @@ const ProSecNav = ({ mode = 'inline', theme = 'light', onMenuClick }) => {
     const processItem = (item) => {
       const newItem = { ...item }
       if (isProjectRoute && projectId) {
+        // 兼容不同动态参数命名，统一替换为当前项目 slug
         if (newItem.path?.includes(':id')) {
           newItem.path = newItem.path.replace(':id', projectId)
         }
+        if (newItem.path?.includes(':slug')) {
+          newItem.path = newItem.path.replace(':slug', projectId)
+        }
         if (newItem.key?.includes(':id')) {
           newItem.key = newItem.key.replace(':id', projectId)
+        }
+        if (newItem.key?.includes(':slug')) {
+          newItem.key = newItem.key.replace(':slug', projectId)
         }
       }
       if (newItem.children) {
