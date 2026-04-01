@@ -3,14 +3,14 @@ import { useParams } from 'react-router-dom'
 import {
   Typography, Button, Table, Space, Modal, Steps, Upload, message,
   Input, Select, Tag, Tooltip, Drawer, Alert, InputNumber, Empty,
-  Divider, Spin, Progress,
+  Divider, Spin, Progress, Tabs,
 } from 'antd'
 import {
   InboxOutlined, PlusOutlined, DatabaseOutlined, EditOutlined,
   SyncOutlined, DeleteOutlined, HistoryOutlined, SwapOutlined,
   ThunderboltOutlined, WarningOutlined, CheckCircleOutlined, CloseCircleOutlined,
   UnlockOutlined, CheckOutlined, CloseOutlined, FileTextOutlined,
-  PlayCircleOutlined,
+  PlayCircleOutlined, DownloadOutlined, QuestionCircleOutlined, FolderOutlined,
 } from '@ant-design/icons'
 import { pinyin } from 'pinyin-pro'
 import dayjs from 'dayjs'
@@ -18,8 +18,10 @@ import {
   getDatasets, uploadDatasetFileWithProgress, ensureProjectFolder,
   createDataset, updateDataset, deleteDataset,
   createDatasetVersion, createRecipe, getRecipes, updateRecipe,
-  getDatasetVersions,
+  getDatasetVersions, getFileMetadata, deleteFile, clearVersionFileId,
+  retriggerImport,
 } from '@src/service/api/datasets'
+import { getProjectBySlug } from '@src/service/api/projects'
 import styles from './index.module.less'
 
 const { Title, Text } = Typography
@@ -53,6 +55,14 @@ function validateStorageName(name) {
   if (!name || name.trim() === '') return '存储列名不能为空'
   if (!/^[a-z][a-z0-9_]*$/.test(name.trim())) return '只允许小写字母、数字、下划线，且不能以数字开头'
   return null
+}
+
+/** 格式化文件大小 */
+function formatFileSize(bytes) {
+  if (!bytes || bytes <= 0) return '—'
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
 /** ──────────────────────────────────────────────
@@ -158,7 +168,14 @@ const InlineNameCell = ({ record, onSave }) => {
  * ────────────────────────────────────────────── */
 
 const Datasets = () => {
-  const { id: projectId } = useParams()
+  const { slug } = useParams()
+
+  /** slug → UUID 解析：所有 API 仍使用 UUID */
+  const [projectId, setProjectId] = useState(null)
+  useEffect(() => {
+    if (!slug) return
+    getProjectBySlug(slug).then((p) => { if (p?.id) setProjectId(p.id) })
+  }, [slug])
 
   /** 列表状态 */
   const [datasets, setDatasets] = useState([])
@@ -193,6 +210,21 @@ const Datasets = () => {
   const [selectedDataset, setSelectedDataset] = useState(null)
   const [versions, setVersions] = useState([])
   const [versionsLoading, setVersionsLoading] = useState(false)
+  const [drawerActiveTab, setDrawerActiveTab] = useState('versions')
+
+  /** 文件元数据缓存 { [fileId]: FileMetadata } */
+  const [fileMeta, setFileMeta] = useState({})
+  const [fileMetaLoading, setFileMetaLoading] = useState(false)
+
+  /** 操作中状态（重启、删除文件等按钮 loading） */
+  const [retriggeringId, setRetriggeringId] = useState(null)
+  const [deletingFileId, setDeletingFileId] = useState(null)
+
+  /** 删除弹窗明细 */
+  const [deleteDetails, setDeleteDetails] = useState(null)
+  const [deleteDetailsLoading, setDeleteDetailsLoading] = useState(false)
+  const [pendingDeleteRecord, setPendingDeleteRecord] = useState(null)
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
 
   /** ── 获取数据集列表 ── */
   const fetchDatasets = useCallback(async (silent = false) => {
@@ -201,8 +233,17 @@ const Datasets = () => {
     try {
       const data = await getDatasets(projectId)
       setDatasets((prev) => {
-        /** 保留还在上传中的临时行（Directus 尚未有记录），其余全量替换 */
-        const uploadingRows = prev.filter((d) => d.status === 'uploading' && d._isTemp)
+        /**
+         * 保留仍在上传文件阶段的临时行（status === 'uploading' 且 _isTemp）。
+         * 此时 Directus 尚无对应真实记录，无法从 data 中找到它，需要暂时保留。
+         * 一旦 createDatasetVersion 调用成功后的 fetchDatasets() 执行，
+         * Directus 已有真实记录，data 中会包含对应项，
+         * 此时临时行必须从 uploadingRows 中排除（避免与真实记录重复显示）。
+         */
+        const realIds = new Set((data || []).map((d) => d.id))
+        const uploadingRows = prev.filter(
+          (d) => d._isTemp && d.status === 'uploading' && !realIds.has(d._datasetId)
+        )
         return [...uploadingRows, ...(data || [])]
       })
     } catch {
@@ -241,11 +282,38 @@ const Datasets = () => {
     }
   }, [])
 
+  /** 加载文件元数据（打开文件管理 Tab 时调用） */
+  const loadFileMeta = useCallback(async (versionList) => {
+    const fileIds = [...new Set(versionList.map((v) => v.file_id).filter(Boolean))]
+    if (fileIds.length === 0) return
+    setFileMetaLoading(true)
+    try {
+      const results = await Promise.allSettled(fileIds.map((fid) => getFileMetadata(fid)))
+      const meta = {}
+      results.forEach((result, idx) => {
+        if (result.status === 'fulfilled') {
+          meta[fileIds[idx]] = result.value
+        }
+      })
+      setFileMeta((prev) => ({ ...prev, ...meta }))
+    } catch { /* 忽略 */ }
+    finally { setFileMetaLoading(false) }
+  }, [])
+
   const openVersionDrawer = (record) => {
     setSelectedDataset(record)
     setVersions([])
+    setFileMeta({})
+    setDrawerActiveTab('versions')
     setVersionDrawerOpen(true)
     fetchVersions(record.id)
+  }
+
+  const handleDrawerTabChange = (tab) => {
+    setDrawerActiveTab(tab)
+    if (tab === 'files' && versions.length > 0) {
+      loadFileMeta(versions)
+    }
   }
 
   const hasProcessingVersion = versions.some((v) => v.status === 'processing')
@@ -254,6 +322,111 @@ const Datasets = () => {
     const timer = setInterval(() => fetchVersions(selectedDataset.id, true), 3000)
     return () => clearInterval(timer)
   }, [versionDrawerOpen, selectedDataset, hasProcessingVersion, fetchVersions])
+
+  /** ── 重启导入 ── */
+  const handleRetrigger = async (version) => {
+    setRetriggeringId(version.id)
+    try {
+      await retriggerImport(version.id)
+      // 同时更新 dataset 状态（显示为 processing）
+      if (selectedDataset) {
+        await updateDataset(selectedDataset.id, { status: 'processing' })
+      }
+      message.success('已重启导入任务，请稍候…')
+      fetchVersions(selectedDataset.id)
+      fetchDatasets(true)
+    } catch {
+      message.error('重启导入失败，请稍后重试')
+    } finally {
+      setRetriggeringId(null)
+    }
+  }
+
+  /** ── 文件管理：删除文件（保留版本记录） ── */
+  const handleDeleteVersionFile = async (version) => {
+    Modal.confirm({
+      title: '删除文件',
+      icon: <DeleteOutlined style={{ color: '#ff4d4f' }} />,
+      content: `确认删除版本「${version.version_name}」关联的文件？版本记录将保留，file_hash 指纹也将保留，但文件将不可下载。`,
+      okText: '删除',
+      okType: 'danger',
+      cancelText: '取消',
+      onOk: async () => {
+        setDeletingFileId(version.id)
+        try {
+          // 1. 删除 Directus 文件
+          await deleteFile(version.file_id)
+          // 2. 清空版本记录的 file_id
+          await clearVersionFileId(version.id)
+          message.success('文件已删除')
+          // 刷新版本列表
+          await fetchVersions(selectedDataset.id, true)
+          // 清除该文件的元数据缓存
+          setFileMeta((prev) => {
+            const next = { ...prev }
+            delete next[version.file_id]
+            return next
+          })
+        } catch {
+          message.error('删除文件失败')
+        } finally {
+          setDeletingFileId(null)
+        }
+      },
+    })
+  }
+
+  /** ── 删除数据集（级联，带明细弹窗） ── */
+  const handleDelete = async (record) => {
+    setPendingDeleteRecord(record)
+    setDeleteDetails(null)
+    setDeleteModalOpen(true)
+    setDeleteDetailsLoading(true)
+
+    try {
+      // 并行查询版本和文件大小
+      const [allVersions, recipes] = await Promise.all([
+        getDatasetVersions(record.id),
+        getRecipes(record.id),
+      ])
+
+      const uniqueFileIds = [...new Set(allVersions.map((v) => v.file_id).filter(Boolean))]
+      const fileMetaResults = await Promise.allSettled(uniqueFileIds.map((fid) => getFileMetadata(fid)))
+      let totalSize = 0
+      let validFileCount = 0
+      fileMetaResults.forEach((r) => {
+        if (r.status === 'fulfilled') {
+          validFileCount++
+          totalSize += r.value?.filesize ?? 0
+        }
+      })
+
+      setDeleteDetails({
+        versionCount: allVersions.length,
+        fileCount: validFileCount,
+        totalSize,
+        recipeCount: recipes.length,
+      })
+    } catch {
+      setDeleteDetails({ error: true })
+    } finally {
+      setDeleteDetailsLoading(false)
+    }
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!pendingDeleteRecord) return
+    try {
+      await deleteDataset(pendingDeleteRecord.id)
+      message.success('数据源已删除')
+      setDeleteModalOpen(false)
+      setPendingDeleteRecord(null)
+      setDeleteDetails(null)
+      fetchDatasets()
+    } catch {
+      message.error('删除失败')
+    }
+  }
 
   /** ── 打开 Modal ── */
   const openModal = async (dataset = null) => {
@@ -331,10 +504,38 @@ const Datasets = () => {
 
   /** ── Step 1 → Step 2：构建 mapping 后切步骤 ── */
   const proceedToMapping = () => {
-    const sHeaders = headerRows[storageRowIndex] || []
-    const lHeaders = headerRows[labelRowIndex] ?? sHeaders
     const recipe = existingRecipe
     const init = {}
+
+    /**
+     * 更新模式（存储锁定，未重新解析）：直接从 existingRecipe.config 重建 mapping。
+     * Recipe config 中每条 rename op 的 from = 原始列名，to = 存储列名，label = 展示名。
+     * 此时 headerRows 为空，不能依赖它。
+     */
+    const usedRecipeDirectly = (isUpdateMode && !storageUnlocked) && !parsed && recipe?.config?.length > 0
+    if (usedRecipeDirectly) {
+      recipe.config.forEach((op) => {
+        if (op.from) {
+          init[op.from] = {
+            storageName: op.to ?? op.from,
+            label: op.label ?? op.from,
+            type: 'string',
+          }
+        }
+      })
+      startTransition(() => {
+        setMapping(init)
+        setCurrentStep(2)
+      })
+      return
+    }
+
+    /**
+     * 新建模式 / 解锁后重新解析：从 headerRows 构建 mapping，
+     * 已有 recipe 时优先回填存储列名和展示名。
+     */
+    const sHeaders = headerRows[storageRowIndex] || []
+    const lHeaders = headerRows[labelRowIndex] ?? sHeaders
     sHeaders.forEach((orig, i) => {
       let storageName = orig
       let label = lHeaders[i] ?? orig
@@ -344,7 +545,6 @@ const Datasets = () => {
       }
       init[orig] = { storageName, label, type: 'string' }
     })
-    /** startTransition：mapping + 步骤切换一起作为低优先级批量更新 */
     startTransition(() => {
       setMapping(init)
       setCurrentStep(2)
@@ -383,7 +583,9 @@ const Datasets = () => {
     if (allStorageNames.filter((n) => n === name).length > 1) return '与其他列重复'
     return null
   }
-  const storageHeaders = headerRows[storageRowIndex] || []
+  const storageHeaders = headerRows[storageRowIndex]?.length > 0
+    ? headerRows[storageRowIndex]
+    : Object.keys(mapping)  // 更新模式下 headerRows 为空，从 mapping 直接取列列表
   const hasAnyError = () => storageHeaders.some((h) => getStorageNameError(h) !== null)
 
   /** ── 解锁存储列名 ── */
@@ -413,27 +615,6 @@ const Datasets = () => {
     })
   }
 
-  /** ── 删除数据集 ── */
-  const handleDelete = (record) => {
-    Modal.confirm({
-      title: `确认删除「${record.name}」？`,
-      icon: <DeleteOutlined style={{ color: '#ff4d4f' }} />,
-      content: '删除后数据源记录及所有历史版本将被移除，Doris 中的表数据不会自动清理。',
-      okText: '删除',
-      okType: 'danger',
-      cancelText: '取消',
-      onOk: async () => {
-        try {
-          await deleteDataset(record.id)
-          message.success('数据源已删除')
-          fetchDatasets()
-        } catch {
-          message.error('删除失败')
-        }
-      },
-    })
-  }
-
   /** ── 保存 ── */
   const handleSave = async () => {
     if (!currentFile || !projectId) { message.error('文件或项目信息缺失'); return }
@@ -452,6 +633,16 @@ const Datasets = () => {
     const hCount = headerRowCount
     const currentMapping = { ...mapping }
 
+    /** 新建模式：同项目内数据源名称唯一性校验 */
+    if (!isUpdate) {
+      const existingDs = datasets.filter((d) => !d._isTemp)
+      const nameConflict = existingDs.find((d) => d.name === name)
+      if (nameConflict) {
+        message.error(`数据源「${name}」已存在，请修改名称后重试`)
+        return
+      }
+    }
+
     /** 临时行 ID，用于在列表中定位进度 */
     const tempId = `__uploading_${Date.now()}`
 
@@ -466,6 +657,12 @@ const Datasets = () => {
         uploadProgress: 0,
         date_created: new Date().toISOString(),
         _isTemp: true,
+        /**
+         * 新建模式：_datasetId 暂为空，createDataset 成功后通过 setDatasets 回填。
+         * fetchDatasets 用此字段判断"Directus 是否已有对应真实记录"，
+         * 从而决定是否继续保留临时行，防止临时行与真实记录重复显示。
+         */
+        _datasetId: dsId ?? null,
       }
       /** 更新模式：替换原行；新建模式：插到列表头部 */
       if (isUpdate) {
@@ -502,6 +699,11 @@ const Datasets = () => {
       if (!isUpdate) {
         const newDs = await createDataset({ name, project_id: projectId, type, status: 'processing' })
         datasetId = newDs.id
+        /** 回填 _datasetId：让 fetchDatasets 知道此临时行对应哪个真实 Dataset，
+         *  从而在 Directus 返回该记录后，不再重复保留临时行。*/
+        setDatasets((prev) => prev.map((d) =>
+          d.id === tempId ? { ...d, _datasetId: datasetId } : d
+        ))
       } else {
         await updateDataset(datasetId, { status: 'processing', type })
       }
@@ -523,7 +725,7 @@ const Datasets = () => {
       /** 5. 创建版本记录（触发 Webhook → Worker） */
       await createDatasetVersion({
         dataset_id: datasetId,
-        version_name: isUpdate ? `v${dayjs().format('YYYYMMDDHHmmss')}` : 'v1.0',
+        version_name: `v${dayjs().format('YYYYMMDDHHmmss')}`,
         file_id: fileId,
         status: 'processing',
       })
@@ -588,9 +790,9 @@ const Datasets = () => {
       },
     },
     {
-      title: '创建时间',
-      dataIndex: 'date_created',
-      key: 'date_created',
+      title: '更新时间',
+      dataIndex: 'date_updated',
+      key: 'date_updated',
       width: 180,
       render: (val) => val ? dayjs(val).format('YYYY-MM-DD HH:mm:ss') : '—',
     },
@@ -680,7 +882,8 @@ const Datasets = () => {
         </Select>
       ),
     },
-    {
+    // 数据预览列：仅在有解析结果时展示（新建模式 / 解锁后重新解析）
+    ...(parsed ? [{
       title: '数据预览',
       key: 'preview',
       width: 130,
@@ -693,7 +896,7 @@ const Datasets = () => {
           </Text>
         )
       },
-    },
+    }] : []),
   ]
 
   const mappingData = storageHeaders.map((orig) => ({ key: orig, orig }))
@@ -702,6 +905,246 @@ const Datasets = () => {
     { title: '上传文件', description: '选择本地文件' },
     { title: '表头配置', description: '解析并指定行角色' },
     { title: '字段映射', description: '配置列名与类型' },
+  ]
+
+  /** ── 版本历史 Tab：计算最新失败版本 ── */
+  const latestFailedVersion = (() => {
+    const failedVersions = versions.filter((v) => v.status === 'failed')
+    if (failedVersions.length === 0) return null
+    // versions 已按 -id 排序（最新在前），取第一个 failed
+    return failedVersions[0]
+  })()
+
+  /** 判断最新版本（第一条）是否是 ready 状态 */
+  const latestVersionIsReady = versions.length > 0 && versions[0].status === 'ready'
+
+  /** ── 文件管理 Tab：最新成功版本 ── */
+  const latestReadyVersion = (() => {
+    return versions.find((v) => v.status === 'ready') ?? null
+  })()
+
+  /** hash 分组：同 hash 的版本归为一组，用于标识重复文件 */
+  const hashGroups = (() => {
+    const groups = {}
+    versions.forEach((v) => {
+      if (v.file_hash) {
+        if (!groups[v.file_hash]) groups[v.file_hash] = []
+        groups[v.file_hash].push(v.version_name)
+      }
+
+    })
+    return groups
+  })()
+
+  /**
+   * 文件管理 Tab 数据源：按 file_hash 合并同一文件的多个版本为一行。
+   * 无 file_hash 的版本（处理中/失败）单独一行。
+   * 每组取 versions 中第一个（最新）版本的 id/file_id/status 作为代表行。
+   */
+  const fileTableRows = (() => {
+    const seen = new Set()
+    const rows = []
+    versions.forEach((v) => {
+      if (!v.file_hash) {
+        // 无 hash：单行展示
+        rows.push({ ...v, _versionNames: [v.version_name] })
+        return
+      }
+      if (seen.has(v.file_hash)) return
+      seen.add(v.file_hash)
+      // 同 hash 的所有版本（已按 -id 排序，第一个最新）
+      const group = versions.filter((x) => x.file_hash === v.file_hash)
+      rows.push({
+        ...group[0], // 用最新版本的 id/file_id/status 作代表
+        _versionNames: group.map((x) => x.version_name),
+        _isLatestReadyInGroup: group.some((x) => latestReadyVersion?.id === x.id),
+        _isProcessingInGroup: group.some((x) => x.status === 'processing'),
+      })
+    })
+    return rows
+  })()
+
+  /** 版本历史列定义 */
+  const versionColumns = [
+    {
+      title: '版本',
+      dataIndex: 'version_name',
+      key: 'version_name',
+      width: 130,
+      render: (v) => <Text code>{v}</Text>,
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      width: 100,
+      render: (status) => {
+        if (status === 'ready') return <Tag icon={<CheckCircleOutlined />} color="success">就绪</Tag>
+        if (status === 'failed') return <Tag icon={<CloseCircleOutlined />} color="error">失败</Tag>
+        return <Tag icon={<SyncOutlined spin />} color="warning">处理中</Tag>
+      },
+    },
+    {
+      title: '导入时间',
+      dataIndex: 'date_updated',
+      key: 'date_updated',
+      render: (v) => v ? dayjs(v).format('MM-DD HH:mm:ss') : '—',
+    },
+    {
+      title: '操作',
+      key: 'action',
+      width: 180,
+      render: (_, record) => {
+        const isLatestFailed = latestFailedVersion?.id === record.id
+        const isProcessing = record.status === 'processing'
+        const hasProcessingV = hasProcessingVersion
+
+        return (
+          <Space size={4}>
+            {/** 重启导入：仅最新失败版本，且没有正在处理的版本 */}
+            {isLatestFailed && !latestVersionIsReady && (
+              <Tooltip title={hasProcessingV ? '有任务正在处理中，请稍候' : '重启导入（在此版本记录上原地重试）'}>
+                <Button
+                  type="link"
+                  size="small"
+                  icon={<PlayCircleOutlined />}
+                  disabled={hasProcessingV}
+                  loading={retriggeringId === record.id}
+                  onClick={() => handleRetrigger(record)}
+                >
+                  重启导入
+                </Button>
+              </Tooltip>
+            )}
+            {/** 失败原因：status === 'failed' 且有 error_message */}
+            {record.status === 'failed' && record.error_message && (
+              <Tooltip
+                title={<span style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{record.error_message}</span>}
+                overlayStyle={{ maxWidth: 400 }}
+              >
+                <Button type="link" size="small" danger icon={<QuestionCircleOutlined />}>
+                  失败原因
+                </Button>
+              </Tooltip>
+            )}
+          </Space>
+        )
+      },
+    },
+  ]
+
+  /** 文件管理列定义 */
+  const fileColumns = [
+    {
+      title: '版本',
+      dataIndex: 'version_name',
+      key: 'version_name',
+      width: 220,
+      render: (_, record) => {
+        const names = record._versionNames ?? [record.version_name]
+        return (
+          <Space size={4} wrap>
+            {names.map((vn) => (
+              <Text key={vn} code style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{vn}</Text>
+            ))}
+          </Space>
+        )
+      },
+    },
+    {
+      title: '文件名',
+      key: 'filename',
+      render: (_, record) => {
+        if (!record.file_id) return <Text type="secondary">文件已删除</Text>
+        const meta = fileMeta[record.file_id]
+        if (!meta) return <Text type="secondary">—</Text>
+        return (
+          <Tooltip title={meta.filename_download}>
+            <Text ellipsis style={{ maxWidth: 160 }}>{meta.filename_download}</Text>
+          </Tooltip>
+        )
+      },
+    },
+    {
+      title: '大小',
+      key: 'filesize',
+      width: 90,
+      render: (_, record) => {
+        if (!record.file_id) return <Text type="secondary">—</Text>
+        const meta = fileMeta[record.file_id]
+        return <Text>{meta ? formatFileSize(meta.filesize) : '—'}</Text>
+      },
+    },
+    {
+      title: '内容指纹',
+      key: 'file_hash',
+      width: 120,
+      render: (_, record) => {
+        if (!record.file_hash) return <Text type="secondary">—</Text>
+        const shortHash = record.file_hash.slice(0, 8)
+        return (
+          <Tooltip title={`SHA-256: ${record.file_hash}`}>
+            <Text code style={{ fontSize: 11 }}>{shortHash}…</Text>
+          </Tooltip>
+        )
+      },
+    },
+    {
+      title: '导入状态',
+      dataIndex: 'status',
+      key: 'status',
+      width: 90,
+      render: (status) => {
+        if (status === 'ready') return <Tag icon={<CheckCircleOutlined />} color="success">就绪</Tag>
+        if (status === 'failed') return <Tag icon={<CloseCircleOutlined />} color="error">失败</Tag>
+        return <Tag icon={<SyncOutlined spin />} color="warning">处理中</Tag>
+      },
+    },
+    {
+      title: '操作',
+      key: 'action',
+      width: 120,
+      render: (_, record) => {
+        const isLatestReady = record._isLatestReadyInGroup ?? (latestReadyVersion?.id === record.id)
+        const isProcessing = record._isProcessingInGroup ?? (record.status === 'processing')
+        const hasFile = !!record.file_id
+        const canDeleteFile = hasFile && !isLatestReady && !isProcessing
+
+        return (
+          <Space size={4}>
+            {/** 下载 */}
+            {hasFile && (
+              <Tooltip title="下载文件">
+                <Button
+                  type="link"
+                  size="small"
+                  icon={<DownloadOutlined />}
+                  href={`/api/assets/${record.file_id}?download`}
+                  target="_blank"
+                />
+              </Tooltip>
+            )}
+            {/** 删除文件 */}
+            <Tooltip title={
+              !hasFile ? '文件已删除' :
+              isLatestReady ? '最新成功版本的文件不可删除' :
+              isProcessing ? '处理中的版本文件不可删除' :
+              '删除文件（保留版本记录）'
+            }>
+              <Button
+                type="link"
+                size="small"
+                danger
+                icon={<DeleteOutlined />}
+                disabled={!canDeleteFile}
+                loading={deletingFileId === record.id}
+                onClick={() => handleDeleteVersionFile(record)}
+              />
+            </Tooltip>
+          </Space>
+        )
+      },
+    },
   ]
 
   /** ── 渲染 ── */
@@ -787,14 +1230,50 @@ const Datasets = () => {
         {/** Step 1 — 表头配置 */}
         {currentStep === 1 && (
           <div>
-            {/** 更新模式只读提示 */}
+            {/** 更新模式只读提示 + 已保存的表头列名展示 */}
             {isUpdateMode && !storageUnlocked && (
-              <Alert
-                type="info" showIcon
-                message="表头配置已锁定"
-                description="更新数据时表头行配置不可修改，将沿用首次导入时的配置。若需修改，请先在字段映射步骤点击「解锁修改」。"
-                style={{ marginBottom: 16 }}
-              />
+              <>
+                <Alert
+                  type="info" showIcon
+                  message="表头配置已锁定"
+                  description="更新数据时表头行配置不可修改，将沿用首次导入时的配置。若需修改，请先在字段映射步骤点击「解锁修改」。"
+                  style={{ marginBottom: 16 }}
+                />
+                {existingRecipe?.config?.length > 0 && (
+                  <div className={styles.headerPreview}>
+                    {/** 存储行：recipe config 的 from 字段（原始列名） */}
+                    <div className={`${styles.headerPreviewRow} ${styles.headerPreviewRowStorage}`}>
+                      <div className={styles.headerPreviewRole}>
+                        <Tag color="blue">存储行</Tag>
+                      </div>
+                      <div className={styles.headerPreviewCells}>
+                        {existingRecipe.config.slice(0, 8).map((op, ci) => (
+                          <span key={ci} className={styles.headerPreviewCell}>{op.from}</span>
+                        ))}
+                        {existingRecipe.config.length > 8 && (
+                          <Text type="secondary" style={{ fontSize: 12 }}>+{existingRecipe.config.length - 8} 列</Text>
+                        )}
+                      </div>
+                    </div>
+                    {/** 展示行：recipe config 的 label 字段（展示名） */}
+                    {existingRecipe.config.some((op) => op.label && op.label !== op.from) && (
+                      <div className={`${styles.headerPreviewRow} ${styles.headerPreviewRowLabel}`}>
+                        <div className={styles.headerPreviewRole}>
+                          <Tag color="green">展示行</Tag>
+                        </div>
+                        <div className={styles.headerPreviewCells}>
+                          {existingRecipe.config.slice(0, 8).map((op, ci) => (
+                            <span key={ci} className={styles.headerPreviewCell}>{op.label ?? op.from}</span>
+                          ))}
+                          {existingRecipe.config.length > 8 && (
+                            <Text type="secondary" style={{ fontSize: 12 }}>+{existingRecipe.config.length - 8} 列</Text>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
             )}
 
             {/** 行数配置 + 解析按钮 */}
@@ -866,7 +1345,8 @@ const Datasets = () => {
             )}
 
             {/** 未解析时的空提示 */}
-            {!parsing && !parsed && (
+            {/** 未解析时的空提示：更新锁定且有 recipe 时不显示（已有列名预览），新建模式未解析时显示引导 */}
+            {!parsing && !parsed && !(isUpdateMode && !storageUnlocked && existingRecipe?.config?.length > 0) && (
               <div className={styles.parseEmpty}>
                 <Text type="secondary">
                   {isUpdateMode && !storageUnlocked
@@ -931,6 +1411,17 @@ const Datasets = () => {
               </div>
             )}
 
+            {/** 更新锁定模式：未重新解析文件，无数据预览列，给出说明 */}
+            {isUpdateMode && !storageUnlocked && !parsed && (
+              <Alert
+                type="info"
+                showIcon={false}
+                banner
+                message="当前为更新模式且未重新解析文件，数据预览列不可用。如需预览原始数据，请选择新文件后点击「解析文件」。"
+                style={{ marginBottom: 8, fontSize: 12 }}
+              />
+            )}
+
             <Table
               columns={mappingColumns}
               dataSource={mappingData}
@@ -956,34 +1447,94 @@ const Datasets = () => {
         )}
       </Modal>
 
-      {/** ── 版本历史 Drawer ── */}
+      {/** ── 版本历史 Drawer（双 Tab） ── */}
       <Drawer
         title={`版本历史 — ${selectedDataset?.name ?? ''}`}
         open={versionDrawerOpen}
         onClose={() => setVersionDrawerOpen(false)}
-        style={{ minWidth: 480 }}
+        width={640}
       >
-        <Table
-          dataSource={versions}
-          rowKey="id"
-          loading={versionsLoading}
-          size="small"
-          pagination={false}
-          locale={{ emptyText: '暂无版本记录' }}
-          columns={[
-            { title: '版本', dataIndex: 'version_name', key: 'version_name', width: 120, render: (v) => <Text code>{v}</Text> },
+        <Tabs
+          activeKey={drawerActiveTab}
+          onChange={handleDrawerTabChange}
+          items={[
             {
-              title: '状态', dataIndex: 'status', key: 'status', width: 100,
-              render: (status) => {
-                if (status === 'ready') return <Tag icon={<CheckCircleOutlined />} color="success">就绪</Tag>
-                if (status === 'failed') return <Tag icon={<CloseCircleOutlined />} color="error">失败</Tag>
-                return <Tag icon={<SyncOutlined spin />} color="warning">处理中</Tag>
-              },
+              key: 'versions',
+              label: '版本历史',
+              children: (
+                <Table
+                  dataSource={versions}
+                  rowKey="id"
+                  loading={versionsLoading}
+                  size="small"
+                  pagination={false}
+                  locale={{ emptyText: '暂无版本记录' }}
+                  columns={versionColumns}
+                />
+              ),
             },
-            { title: '时间', dataIndex: 'date_created', key: 'date_created', render: (v) => v ? dayjs(v).format('MM-DD HH:mm:ss') : '—' },
+            {
+              key: 'files',
+              label: (
+                <Space size={4}>
+                  <FolderOutlined />
+                  文件管理
+                </Space>
+              ),
+              children: (
+                <Spin spinning={fileMetaLoading} tip="加载文件信息…">
+                  <Table
+                    dataSource={fileTableRows}
+                    rowKey="id"
+                    size="small"
+                    pagination={false}
+                    locale={{ emptyText: '暂无版本记录' }}
+                    columns={fileColumns}
+                  />
+                </Spin>
+              ),
+            },
           ]}
         />
       </Drawer>
+
+      {/** ── 删除确认 Modal（带明细） ── */}
+      <Modal
+        title={<Space><DeleteOutlined style={{ color: '#ff4d4f' }} />{`确认删除「${pendingDeleteRecord?.name ?? ''}」？`}</Space>}
+        open={deleteModalOpen}
+        onCancel={() => { setDeleteModalOpen(false); setPendingDeleteRecord(null); setDeleteDetails(null) }}
+        okText="确认删除"
+        okType="danger"
+        cancelText="取消"
+        onOk={handleDeleteConfirm}
+        okButtonProps={{ disabled: deleteDetailsLoading }}
+      >
+        {deleteDetailsLoading ? (
+          <div style={{ textAlign: 'center', padding: '24px 0' }}>
+            <Spin size="small" />
+            <div style={{ marginTop: 8 }}><Text type="secondary">正在查询关联数据…</Text></div>
+          </div>
+        ) : deleteDetails?.error ? (
+          <Alert type="warning" message="无法查询关联数据明细，继续操作将尽力清理。" showIcon />
+        ) : deleteDetails ? (
+          <div>
+            <Alert
+              type="warning"
+              showIcon
+              message="将清理以下内容"
+              description={
+                <ul style={{ margin: '8px 0 0', paddingLeft: 20 }}>
+                  <li>版本记录：<strong>{deleteDetails.versionCount}</strong> 条</li>
+                  <li>Directus 文件：<strong>{deleteDetails.fileCount}</strong> 个（共 <strong>{formatFileSize(deleteDetails.totalSize)}</strong>）</li>
+                  <li>字段映射配置：<strong>{deleteDetails.recipeCount}</strong> 条</li>
+                  <li style={{ color: '#8c8c8c' }}>Doris 中的数据表<strong>不会自动清理</strong>，如需清理请联系管理员。</li>
+                </ul>
+              }
+              style={{ marginBottom: 0 }}
+            />
+          </div>
+        ) : null}
+      </Modal>
     </div>
   )
 }

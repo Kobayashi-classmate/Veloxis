@@ -35,7 +35,7 @@ import {
   ApiOutlined,
   HddOutlined,
 } from '@ant-design/icons'
-import { getProject } from '@src/service/api/projects'
+import { getProjectBySlug } from '@src/service/api/projects'
 
 const { Title, Text, Paragraph } = Typography
 
@@ -203,7 +203,7 @@ const RECENT_ACTIVITIES = [
 /* ════════════════════════════════════════════ */
 
 const Overview = () => {
-  const { id } = useParams()
+  const { slug } = useParams()
   const navigate = useNavigate()
   const [project, setProject] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -211,11 +211,11 @@ const Overview = () => {
   const [notFound, setNotFound] = useState(false)
 
   const fetchProjectData = async (silent = false) => {
-    if (!id) return
+    if (!slug) return
     silent ? setRefreshing(true) : setLoading(true)
     setNotFound(false)
     try {
-      const data = await getProject(id)
+      const data = await getProjectBySlug(slug)
       if (data === null) {
         setNotFound(true)
       } else {
@@ -233,11 +233,11 @@ const Overview = () => {
   useEffect(() => {
     let cancelled = false
     const load = async () => {
-      if (!id) return
+      if (!slug) return
       setLoading(true)
       setNotFound(false)
       try {
-        const data = await getProject(id)
+        const data = await getProjectBySlug(slug)
         if (cancelled) return
         if (data === null) {
           // getProject 返回 null 表示：404 或软删除
@@ -258,7 +258,7 @@ const Overview = () => {
     return () => {
       cancelled = true
     }
-  }, [id])
+  }, [slug])
 
   if (loading) return <OverviewSkeleton />
 
