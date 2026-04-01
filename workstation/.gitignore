@@ -60,4 +60,4 @@ stats.json
 
 # Env files
 .env*
-
+!.env.example

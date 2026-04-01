@@ -1005,10 +1005,14 @@ axiosInstance.interceptors.response.use(
     if (error.response) {
       const { status, data } = error.response
       let errorMessage = RequestUtils.getHttpErrorMessage(status)
+      let backendCode = ''
 
       // 优先使用后端返回的错误信息
       if (data && typeof data === 'object') {
-        errorMessage = data.message || data.msg || errorMessage
+        const directusError = Array.isArray(data.errors) ? data.errors[0] : null
+        const directusMessage = directusError?.message
+        backendCode = directusError?.extensions?.code || data.code || ''
+        errorMessage = directusMessage || data.message || data.msg || errorMessage
       }
 
       // HTTP 401/403 特殊处理 - 尝试刷新
@@ -1070,6 +1074,7 @@ axiosInstance.interceptors.response.use(
 
       const customError = new Error(errorMessage)
       customError.status = status
+      customError.code = backendCode || customError.code
       customError.response = error.response
       return Promise.reject(customError)
     }

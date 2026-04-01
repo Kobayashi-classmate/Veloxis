@@ -1,19 +1,49 @@
 import AnimatedIcon from '@stateless/AnimatedIcon'
-import React, { useEffect, useState, useRef } from 'react'
+import BehaviorCaptcha from '@stateless/BehaviorCaptcha'
+import TurnstileCaptcha from '@stateless/TurnstileCaptcha'
+import Logo from '@assets/images/pro-logo.png'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useSafeNavigate from '@app-hooks/useSafeNavigate'
-import { Form, Input, Button, Typography, Layout, Card, theme, App, Tag, Popover, Modal } from 'antd'
+import { Form, Input, Button, Typography, Layout, Card, theme, App, Tag, Modal, Checkbox } from 'antd'
 import { useStore } from '@/store'
-import { UserOutlined, LockOutlined, LockFilled } from '@ant-design/icons'
+import {
+  UserOutlined,
+  LockOutlined,
+  LockFilled,
+  SafetyCertificateOutlined,
+  ThunderboltOutlined,
+  ApiOutlined,
+  CheckCircleFilled,
+} from '@ant-design/icons'
 import { useAuth } from '@src/service/useAuth'
 import { authService } from '@src/service/authService'
 import { permissionService } from '@src/service/permissionService'
-
-import SliderCaptcha from '@stateless/SliderCaptcha'
+import request from '@src/service/request'
 import styles from './index.module.less'
 
 const { Title, Text, Paragraph } = Typography
 const { Content } = Layout
+
+const normalizeCaptchaProvider = (value) => {
+  const provider = String(value || '')
+    .trim()
+    .toLowerCase()
+  return provider === 'turnstile' ? 'turnstile' : 'internal'
+}
+
+const resolveCaptchaConfig = (response) => {
+  const root = response?.data && typeof response.data === 'object' ? response.data : response || {}
+  const provider = normalizeCaptchaProvider(root.provider)
+  const turnstileSiteKey = String(root.turnstileSiteKey || '').trim()
+  const available = root.available !== false
+
+  return {
+    provider,
+    turnstileSiteKey: provider === 'turnstile' ? turnstileSiteKey : '',
+    available,
+  }
+}
 
 const SignIn = () => {
   const { redirectTo } = useSafeNavigate()
@@ -23,32 +53,96 @@ const SignIn = () => {
   const { isAuthenticated } = useAuth()
   const [form] = Form.useForm()
   const isMobile = useStore((s) => s.isMobile)
-  const [captchaOpen, setCaptchaOpen] = useState(false)
-  const [captchaKey, setCaptchaKey] = useState(() => Date.now())
+
   const [submitting, setSubmitting] = useState(false)
   const [totpVisible, setTotpVisible] = useState(false)
-  const captchaVerifiedRef = useRef(false)
-  const submittingRef = useRef(false) // 同步锁，比 useState 更快，防止并发重入
+
+  const [captchaProvider, setCaptchaProvider] = useState('internal')
+  const [captchaTurnstileSiteKey, setCaptchaTurnstileSiteKey] = useState('')
+  const [captchaAvailable, setCaptchaAvailable] = useState(true)
+  const [captchaConfigLoading, setCaptchaConfigLoading] = useState(true)
+
+  const turnstileRef = useRef(null)
+  const [captchaToken, setCaptchaToken] = useState(null)
+  const [captchaTicket, setCaptchaTicket] = useState('')
+  const [captchaTicketEmail, setCaptchaTicketEmail] = useState('')
+  const [captchaModalOpen, setCaptchaModalOpen] = useState(false)
+  const [captchaModalSubmitting, setCaptchaModalSubmitting] = useState(false)
+
+  const [internalChallenge, setInternalChallenge] = useState(null)
+  const [internalProof, setInternalProof] = useState(null)
+  const [internalChallengeLoading, setInternalChallengeLoading] = useState(false)
+
+  const submittingRef = useRef(false)
 
   const getErrorMessage = (error) => (error instanceof Error && error.message ? error.message : '未知错误')
+  const getErrorCode = (error) =>
+    error?.code || error?.response?.data?.errors?.[0]?.extensions?.code || error?.response?.data?.code || ''
+
+  const shouldPromptTotp = (error) => {
+    const code = String(getErrorCode(error)).toUpperCase()
+    if (['TFA_REQUIRED', 'MFA_REQUIRED', 'INVALID_OTP'].includes(code)) return true
+    const msg = getErrorMessage(error).toLowerCase()
+    return msg.includes('otp') || msg.includes('totp') || msg.includes('mfa') || msg.includes('2fa')
+  }
+
+  const clearCaptchaTicket = useCallback(() => {
+    setCaptchaTicket('')
+    setCaptchaTicketEmail('')
+  }, [])
+
+  const refreshInternalChallenge = useCallback(async () => {
+    if (captchaProvider !== 'internal') return
+    setInternalChallengeLoading(true)
+    setInternalProof(null)
+    try {
+      const resp = await request.post(
+        '/captcha/challenge',
+        { action: 'signin' },
+        { needToken: false, showError: false, addTimestamp: false }
+      )
+      if (!resp?.success || !resp?.challengeId || !resp?.nonce || !resp?.puzzle) {
+        throw new Error('验证码加载失败')
+      }
+      setInternalChallenge(resp)
+    } catch {
+      setInternalChallenge(null)
+    } finally {
+      setInternalChallengeLoading(false)
+    }
+  }, [captchaProvider])
+
+  const loadCaptchaConfig = useCallback(async () => {
+    setCaptchaConfigLoading(true)
+    try {
+      const resp = await request.get('/captcha/config', {}, { needToken: false, showError: false, addTimestamp: false })
+      const parsed = resolveCaptchaConfig(resp)
+      setCaptchaProvider(parsed.provider)
+      setCaptchaTurnstileSiteKey(parsed.turnstileSiteKey)
+      setCaptchaAvailable(parsed.available && (parsed.provider !== 'turnstile' || !!parsed.turnstileSiteKey))
+    } catch {
+      setCaptchaProvider('internal')
+      setCaptchaTurnstileSiteKey('')
+      setCaptchaAvailable(true)
+    } finally {
+      setCaptchaConfigLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
     const redirectIfLoggedIn = async () => {
       try {
         const currentState = authService.getState()
-        // isLoading 期间不做任何跳转决策——等待 loadFromStorage 完成
         if (currentState.isLoading) return
         if (!currentState.isAuthenticated || !currentState.token) {
           permissionService.logoutCleanup()
           return
         }
-        /** 已登录 → 直接导航到首页，不经过 canAccessRoute 二次权限校验
-         *  （登录成功后权限数据可能尚未缓存完毕，canAccessRoute 可能误返回 false） */
         navigate('/', { replace: true })
-      } catch (error) {
+      } catch {
         try {
           permissionService.logoutCleanup()
-        } catch (e) {
+        } catch {
           /* ignore */
         }
       }
@@ -60,18 +154,132 @@ const SignIn = () => {
     form.resetFields()
   }, [form])
 
-  const onFinish = async (values) => {
-    const { email, password, totp } = values
+  useEffect(() => {
+    void loadCaptchaConfig()
+  }, [loadCaptchaConfig])
 
-    if (!captchaVerifiedRef.current) {
-      captchaVerifiedRef.current = false
-      setCaptchaKey(Date.now())
-      setCaptchaOpen(true)
-      message.info('请完成滑块验证')
+  useEffect(() => {
+    setCaptchaToken(null)
+    setInternalProof(null)
+    clearCaptchaTicket()
+  }, [captchaAvailable, captchaProvider, clearCaptchaTicket])
+
+  useEffect(() => {
+    if (!captchaModalOpen) return
+    if (captchaProvider === 'internal' && captchaAvailable) {
+      void refreshInternalChallenge()
+    }
+  }, [captchaAvailable, captchaModalOpen, captchaProvider, refreshInternalChallenge])
+
+  const verifyCaptchaAndGetTicket = useCallback(
+    async (email) => {
+      if (!captchaAvailable) {
+        throw new Error('验证码服务不可用')
+      }
+
+      if (captchaProvider === 'turnstile') {
+        if (!captchaToken) {
+          throw new Error('请先完成人机验证')
+        }
+        const resp = await request.post(
+          '/captcha/verify',
+          { token: captchaToken, action: 'signin', subject: email },
+          { needToken: false, showError: false, addTimestamp: false }
+        )
+        if (!resp?.success || !resp?.captchaTicket) {
+          throw new Error('验证码校验失败，请重试')
+        }
+        return resp.captchaTicket
+      }
+
+      if (!internalChallenge?.challengeId || !internalChallenge?.nonce || !internalProof?.behaviorProof) {
+        throw new Error('请先完成行为验证码')
+      }
+
+      const resp = await request.post(
+        '/captcha/verify',
+        {
+          challengeId: internalChallenge.challengeId,
+          nonce: internalChallenge.nonce,
+          behaviorProof: internalProof.behaviorProof,
+          action: 'signin',
+          subject: email,
+        },
+        { needToken: false, showError: false, addTimestamp: false }
+      )
+      if (!resp?.success || !resp?.captchaTicket) {
+        throw new Error('验证码校验失败，请重试')
+      }
+      return resp.captchaTicket
+    },
+    [captchaAvailable, captchaProvider, captchaToken, internalChallenge, internalProof]
+  )
+
+  const resetCaptchaWidgets = useCallback(() => {
+    if (captchaProvider === 'turnstile') {
+      setCaptchaToken(null)
+      turnstileRef.current?.reset?.()
       return
     }
+    setInternalProof(null)
+    void refreshInternalChallenge()
+  }, [captchaProvider, refreshInternalChallenge])
 
-    // 同步锁：ref 立即生效，彻底防止并发重入
+  const openCaptchaModal = useCallback(() => {
+    if (captchaConfigLoading) return
+    if (!captchaAvailable) {
+      message.error('验证码服务暂不可用，请稍后重试')
+      return
+    }
+    setCaptchaModalOpen(true)
+    setCaptchaModalSubmitting(false)
+    resetCaptchaWidgets()
+  }, [captchaAvailable, captchaConfigLoading, message, resetCaptchaWidgets])
+
+  const closeCaptchaModal = useCallback(() => {
+    setCaptchaModalOpen(false)
+    setCaptchaModalSubmitting(false)
+    resetCaptchaWidgets()
+  }, [resetCaptchaWidgets])
+
+  const handleCaptchaConfirm = useCallback(async () => {
+    try {
+      setCaptchaModalSubmitting(true)
+      const { email } = await form.validateFields(['email'])
+      const normalizedEmail = String(email || '').trim()
+      const ticket = await verifyCaptchaAndGetTicket(normalizedEmail)
+      setCaptchaTicket(ticket)
+      setCaptchaTicketEmail(normalizedEmail)
+      message.success('验证成功，已勾选“通过验证”状态')
+      setCaptchaModalOpen(false)
+      setCaptchaModalSubmitting(false)
+      resetCaptchaWidgets()
+    } catch (error) {
+      if (error?.errorFields) {
+        message.warning('请先填写有效邮箱后再进行安全验证')
+      } else if (error instanceof Error) {
+        message.error(error.message)
+      }
+    } finally {
+      setCaptchaModalSubmitting(false)
+    }
+  }, [form, message, resetCaptchaWidgets, verifyCaptchaAndGetTicket])
+
+  const handleCaptchaCheckboxChange = useCallback(
+    (event) => {
+      const checked = Boolean(event?.target?.checked)
+      if (checked) {
+        openCaptchaModal()
+        return
+      }
+      clearCaptchaTicket()
+      resetCaptchaWidgets()
+    },
+    [clearCaptchaTicket, openCaptchaModal, resetCaptchaWidgets]
+  )
+
+  const onFinish = async (values) => {
+    const { email, password, totp } = values
     if (submittingRef.current) return
     submittingRef.current = true
 
@@ -80,44 +288,33 @@ const SignIn = () => {
       setSubmitting(true)
       hideLoading = message.loading('正在登录...', 0)
 
-      // 调用真实登录接口
-      await authService.login({ email, password, totp })
+      if (!captchaTicket || captchaTicketEmail !== String(email || '').trim()) {
+        message.warning('请先完成当前账号的安全验证')
+        setCaptchaModalOpen(true)
+        return
+      }
+
+      await authService.login({ email, password, totp, captchaTicket })
 
       message.success('登录成功！')
-
-      captchaVerifiedRef.current = false
-      setCaptchaKey(Date.now())
-
-      /** 登录成功后直接跳首页，不经过 canAccessRoute 权限二次校验
-       *  （权限同步在 authService.login 内部已完成，但 canAccessRoute 结果仍可能有缓存延迟） */
       navigate('/')
     } catch (error) {
-      // null 表示 authService 静默拒绝的防重入，不弹错误
       if (error !== null) {
         message.error(`登录失败：${getErrorMessage(error)}`)
-        if (getErrorMessage(error).includes('TOTP') || getErrorMessage(error).includes('MFA')) {
+        if (shouldPromptTotp(error)) {
           setTotpVisible(true)
         }
       }
+      clearCaptchaTicket()
+      resetCaptchaWidgets()
     } finally {
       submittingRef.current = false
       setSubmitting(false)
       try {
         if (typeof hideLoading === 'function') hideLoading()
-      } catch {}
-    }
-  }
-
-  const onFinishFailed = () => {}
-
-  const handleLoginClick = async () => {
-    try {
-      await form.validateFields()
-      captchaVerifiedRef.current = false
-      setCaptchaKey(Date.now())
-      setCaptchaOpen(true)
-    } catch {
-      // AntD会显示校验错误
+      } catch {
+        /* ignore */
+      }
     }
   }
 
@@ -130,8 +327,49 @@ const SignIn = () => {
     '--signin-text-2': token.colorTextSecondary,
     '--signin-primary': token.colorPrimary,
     '--signin-primary-2': token.colorInfo,
+    '--signin-success': token.colorSuccess,
+    '--signin-danger': token.colorError,
     '--signin-shadow': token.boxShadowSecondary,
   }
+
+  const captchaReadyForSubmit = captchaProvider === 'turnstile' ? Boolean(captchaToken) : Boolean(internalProof?.behaviorProof)
+  const captchaVerified = Boolean(captchaTicket)
+  const verifyMainText = captchaVerified ? '您已通过验证' : '我不是机器人'
+  const verifyVendorName = captchaProvider === 'turnstile' ? 'Cloudflare' : 'Veloxis'
+  const verifyVendorSub = captchaProvider === 'turnstile' ? 'Turnstile' : 'Security'
+  const verifyStatusText = captchaConfigLoading
+    ? '安全策略加载中'
+    : !captchaAvailable
+      ? '验证码服务暂不可用'
+      : captchaVerified
+        ? '安全验证已通过'
+        : '等待完成安全验证'
+  const verifyStatusDesc = captchaConfigLoading
+    ? '正在同步验证码策略，请稍候'
+    : !captchaAvailable
+      ? '服务恢复后可重新登录'
+      : captchaVerified
+        ? '当前账号可直接提交登录'
+        : '请先勾选并完成验证弹窗'
+  const verifyStatusClass = captchaVerified
+    ? styles.securityStripOk
+    : !captchaAvailable
+      ? styles.securityStripDanger
+      : styles.securityStripPending
+  const verifyHintText = captchaConfigLoading
+    ? '验证码配置加载中...'
+    : !captchaAvailable
+      ? '验证码服务暂不可用，请稍后重试'
+      : captchaVerified
+        ? '验证已完成，可直接点击登录'
+        : '点击复选框并在弹窗内完成验证'
+  const verifyHintClass = captchaConfigLoading
+    ? styles.verifyHintMuted
+    : !captchaAvailable
+      ? styles.verifyHintDanger
+      : captchaVerified
+        ? styles.verifyHintSuccess
+        : styles.verifyHintMuted
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -142,23 +380,50 @@ const SignIn = () => {
           {!isMobile && (
             <section className={styles.hero}>
               <div className={styles.heroInner}>
-                <div className={styles.badgeRow}>
-                  <Tag variant="filled" color="processing">
-                    AI-ready Console
-                  </Tag>
-                  <Tag variant="filled">Veloxis Panel</Tag>
-                </div>
+                <div className={styles.heroKicker}>VELOXIS CONTROL PLANE</div>
                 <Title level={1} className={styles.heroTitle}>
-                  面向 AI 时代的
-                  <br />
-                  企业级控制台
+                  统一权限、可观测性与 AI 协作的企业工作台
                 </Title>
-                <Paragraph className={styles.heroDesc}>大屏沉浸式视觉 · 权限体系 · 可观测的交互反馈</Paragraph>
+                <Paragraph className={styles.heroDesc}>
+                  Veloxis Panel 面向复杂业务场景，提供从登录安全、角色权限到多标签页工作流的一体化控制体验。
+                </Paragraph>
+
+                <div className={styles.capabilityGrid}>
+                  <article className={styles.capabilityItem}>
+                    <span className={styles.capabilityIcon}>
+                      <SafetyCertificateOutlined />
+                    </span>
+                    <div>
+                      <div className={styles.capabilityTitle}>RBAC 权限闭环</div>
+                      <div className={styles.capabilityDesc}>路由 / 菜单 / 按钮三级访问控制</div>
+                    </div>
+                  </article>
+                  <article className={styles.capabilityItem}>
+                    <span className={styles.capabilityIcon}>
+                      <ThunderboltOutlined />
+                    </span>
+                    <div>
+                      <div className={styles.capabilityTitle}>高效工作流</div>
+                      <div className={styles.capabilityDesc}>KeepAlive Tabs 与低打断切换体验</div>
+                    </div>
+                  </article>
+                  <article className={styles.capabilityItem}>
+                    <span className={styles.capabilityIcon}>
+                      <ApiOutlined />
+                    </span>
+                    <div>
+                      <div className={styles.capabilityTitle}>可观测服务层</div>
+                      <div className={styles.capabilityDesc}>请求重试、去重与错误反馈机制</div>
+                    </div>
+                  </article>
+                </div>
 
                 <div className={styles.heroPills}>
-                  <span className={styles.pill}>Fast Tabs</span>
-                  <span className={styles.pill}>Role-based Access</span>
-                  <span className={styles.pill}>Vite/Webpack Build</span>
+                  <Tag color="processing" bordered={false}>
+                    AI-ready Console
+                  </Tag>
+                  <Tag bordered={false}>Veloxis Panel</Tag>
+                  <Tag bordered={false}>Secure Auth</Tag>
                 </div>
               </div>
             </section>
@@ -166,20 +431,49 @@ const SignIn = () => {
 
           <section className={styles.panel}>
             <Card className={styles.card} variant="borderless" styles={{ body: { padding: isMobile ? 16 : 24 } }}>
+              <div className={styles.brandRow}>
+                <div className={styles.brandIdentity}>
+                  <img src={Logo} alt="Veloxis Panel" className={styles.brandLogo} />
+                  <div className={styles.brandText}>
+                    <span className={styles.brandName}>Veloxis Panel</span>
+                    <span className={styles.brandSub}>Enterprise Console</span>
+                  </div>
+                </div>
+                <Tag color={captchaVerified ? 'success' : 'processing'} bordered={false}>
+                  {captchaVerified ? 'Verified' : 'Protected'}
+                </Tag>
+              </div>
+
               <div className={styles.titleBox}>
                 <Title level={2} className={styles.title}>
-                  登录
+                  欢迎登录
                 </Title>
-                <Text type="secondary">输入邮箱和密码登录</Text>
+                <Text type="secondary">使用企业账号访问你的 Veloxis 工作台</Text>
               </div>
+
+              <div className={`${styles.securityStrip} ${verifyStatusClass}`}>
+                <CheckCircleFilled className={styles.securityIcon} />
+                <div className={styles.securityTextWrap}>
+                  <span className={styles.securityMain}>{verifyStatusText}</span>
+                  <span className={styles.securitySub}>{verifyStatusDesc}</span>
+                </div>
+              </div>
+
               <Form
                 form={form}
                 name="signin"
                 onFinish={onFinish}
-                onFinishFailed={onFinishFailed}
                 autoComplete="off"
                 layout="vertical"
                 size="large"
+                onValuesChange={(changedValues) => {
+                  if (Object.prototype.hasOwnProperty.call(changedValues, 'email')) {
+                    const nextEmail = String(changedValues.email || '').trim()
+                    if (captchaTicket && nextEmail !== captchaTicketEmail) {
+                      clearCaptchaTicket()
+                    }
+                  }
+                }}
               >
                 <Form.Item
                   name="email"
@@ -223,83 +517,88 @@ const SignIn = () => {
                   </Form.Item>
                 )}
 
-                <Form.Item style={{ marginBottom: 8 }}>
-                  {isMobile ? (
-                    <>
-                      <Button type="primary" block onClick={handleLoginClick} disabled={captchaOpen || submitting}>
-                        登录
-                      </Button>
-                      <Modal
-                        centered
-                        open={captchaOpen}
-                        footer={null}
-                        closable={false}
-                        onCancel={() => setCaptchaOpen(false)}
-                        afterClose={() => {
-                          setCaptchaKey(Date.now())
-                          captchaVerifiedRef.current = false
-                        }}
-                        width={'90vw'}
-                        style={{ maxWidth: 420 }}
-                        styles={{ body: { padding: 8 } }}
+                <Form.Item label="安全验证" required style={{ marginBottom: 16 }}>
+                  <div className={styles.verifyCheckWrap}>
+                    <div className={styles.verifyCheckMainRow}>
+                      <Checkbox
+                        className={styles.verifyCheckControl}
+                        checked={captchaVerified}
+                        onChange={handleCaptchaCheckboxChange}
+                        disabled={captchaConfigLoading || !captchaAvailable || submitting}
                       >
-                        <SliderCaptcha
-                          key={captchaKey}
-                          onSuccess={() => {
-                            if (submittingRef.current) return
-                            captchaVerifiedRef.current = true
-                            setCaptchaOpen(false)
-                            form.submit()
-                          }}
-                          onFail={() => {
-                            captchaVerifiedRef.current = false
-                          }}
-                          onRefresh={() => {
-                            captchaVerifiedRef.current = false
-                          }}
-                        />
-                      </Modal>
-                    </>
-                  ) : (
-                    <Popover
-                      open={captchaOpen}
-                      placement="top"
-                      trigger={[]}
-                      arrow
-                      onOpenChange={(open) => {
-                        if (!open) {
-                          setCaptchaOpen(false)
-                          setCaptchaKey(Date.now())
-                          captchaVerifiedRef.current = false
-                        }
-                      }}
-                      content={
-                        <div style={{ padding: 4 }}>
-                          <SliderCaptcha
-                            key={captchaKey}
-                            onSuccess={() => {
-                              if (submittingRef.current) return
-                              captchaVerifiedRef.current = true
-                              setCaptchaOpen(false)
-                              form.submit()
-                            }}
-                            onFail={() => {
-                              captchaVerifiedRef.current = false
-                            }}
-                            onRefresh={() => {
-                              captchaVerifiedRef.current = false
-                            }}
-                          />
+                        <span className={styles.verifyCheckLabel}>{verifyMainText}</span>
+                      </Checkbox>
+
+                      <div className={styles.verifyProvider}>
+                        <span className={styles.verifyProviderLogo} aria-hidden="true" />
+                        <div className={styles.verifyProviderText}>
+                          <span className={styles.verifyProviderName}>{verifyVendorName}</span>
+                          <span className={styles.verifyProviderSub}>{verifyVendorSub}</span>
                         </div>
-                      }
-                    >
-                      <Button type="primary" block onClick={handleLoginClick} disabled={captchaOpen || submitting}>
-                        登录
-                      </Button>
-                    </Popover>
-                  )}
+                      </div>
+                    </div>
+
+                    <div className={styles.verifyCheckHint}>
+                      <span className={`${styles.verifyHintText} ${verifyHintClass}`}>{verifyHintText}</span>
+                      <span className={styles.verifyTermsText}>Privacy • Terms</span>
+                    </div>
+                  </div>
+                </Form.Item>
+
+                <Form.Item style={{ marginBottom: 8 }}>
+                  <Button
+                    className={styles.submitBtn}
+                    type="primary"
+                    block
+                    htmlType="submit"
+                    disabled={
+                      submitting ||
+                      captchaConfigLoading ||
+                      !captchaAvailable ||
+                      !captchaVerified
+                    }
+                  >
+                    登录
+                  </Button>
                 </Form.Item>
               </Form>
+
+              <Modal
+                title="安全验证"
+                open={captchaModalOpen}
+                destroyOnClose={false}
+                maskClosable={!captchaModalSubmitting}
+                closable={!captchaModalSubmitting}
+                onCancel={closeCaptchaModal}
+                onOk={() => void handleCaptchaConfirm()}
+                okText="完成验证"
+                cancelText="取消"
+                okButtonProps={{
+                  loading: captchaModalSubmitting,
+                  disabled:
+                    captchaConfigLoading ||
+                    !captchaAvailable ||
+                    (captchaProvider === 'internal' && internalChallengeLoading) ||
+                    !captchaReadyForSubmit,
+                }}
+                cancelButtonProps={{ disabled: captchaModalSubmitting }}
+              >
+                {captchaConfigLoading ? (
+                  <Text type="secondary">验证码配置加载中...</Text>
+                ) : !captchaAvailable ? (
+                  <Text type="danger">验证码服务暂不可用，请稍后重试</Text>
+                ) : captchaProvider === 'turnstile' ? (
+                  <TurnstileCaptcha ref={turnstileRef} siteKey={captchaTurnstileSiteKey} action="signin" onTokenChange={setCaptchaToken} />
+                ) : (
+                  <BehaviorCaptcha
+                    key={internalChallenge?.challengeId || 'captcha-empty'}
+                    challenge={internalChallenge}
+                    loading={internalChallengeLoading}
+                    onRefresh={() => void refreshInternalChallenge()}
+                    onProofChange={setInternalProof}
+                  />
+                )}
+              </Modal>
 
               <div className={styles.footerRow}>
                 <Text type="secondary">还没有账号？</Text>

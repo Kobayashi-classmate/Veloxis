@@ -15,7 +15,9 @@ export interface User {
 export interface LoginRequest {
   email: string
   password: string
+  captchaTicket: string
   totp?: string
+  otp?: string
 }
 
 export interface LoginResponse {
@@ -253,7 +255,16 @@ class AuthService {
       this.notifyListeners()
 
       // Step 1: 调用 Directus /auth/login，获取 access_token
-      const loginResp = (await request.post('/auth/login', credentials)) as any
+      // Directus MFA 字段名为 otp，这里兼容前端传入的 totp
+      const otp = (credentials.otp ?? credentials.totp ?? '').trim()
+      const payload: Record<string, any> = {
+        email: credentials.email,
+        password: credentials.password,
+        captchaTicket: credentials.captchaTicket,
+      }
+      if (otp) payload.otp = otp
+
+      const loginResp = (await request.post('/auth/login', payload, { needToken: false })) as any
       // Directus 响应格式: { data: { access_token, refresh_token, expires } }
       const loginData = loginResp?.data ?? loginResp
       const accessToken: string = loginData?.access_token ?? loginData?.token
