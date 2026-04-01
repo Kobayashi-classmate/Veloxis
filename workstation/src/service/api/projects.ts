@@ -18,6 +18,8 @@ export type ProjectVisibility = 'private' | 'internal' | 'public'
 /** Raw Directus project record (as returned from /items/projects) */
 export interface DirectusProject {
   id: string
+  /** URL-safe unique slug, used as route parameter (e.g. "sales-q1") */
+  slug: string
   name: string
   description: string
   status: ProjectStatus
@@ -49,12 +51,16 @@ export interface ProjectMember {
   project_id: string
   directus_users_id: any
   role: 'Owner' | 'Data Admin' | 'Analyst' | 'Viewer'
+  date_created: string | null
+  date_updated: string | null
 }
 
 /** ─── Normalized shape used by UI components ──────────────────────────── */
 
 export interface Project {
   id: string
+  /** URL-safe unique slug, used as route parameter */
+  slug: string
   name: string
   description: string
   status: ProjectStatus
@@ -107,6 +113,7 @@ function relativeTime(isoDate: string | null | undefined): string {
 function normalize(raw: DirectusProject, memberRecord: ProjectMember | undefined, starred: boolean): Project {
   return {
     id: raw.id,
+    slug: raw.slug ?? '',
     name: raw.name,
     description: raw.description ?? '',
     status: raw.status ?? 'active',
@@ -154,6 +161,7 @@ export async function getProjects(): Promise<Project[]> {
 
   const PROJECT_FIELDS = [
     'id',
+    'slug',
     'name',
     'description',
     'status',
@@ -224,6 +232,78 @@ export async function getProjects(): Promise<Project[]> {
 }
 
 /**
+ * Fetch a single project by its URL slug.
+ * Used by page components to resolve slug → full Project (including UUID).
+ */
+export async function getProjectBySlug(slug: string): Promise<Project | null> {
+  const userId = authService.getState().user?.id
+
+  const PROJECT_FIELDS = [
+    'id',
+    'slug',
+    'name',
+    'description',
+    'status',
+    'visibility',
+    'tenant',
+    'color',
+    'tags',
+    'storage_label',
+    'cube_health',
+    'doris_latency',
+    'last_active',
+    'members_count',
+    'datasets_count',
+    'workbooks_count',
+    'recipes_count',
+  ].join(',')
+
+  try {
+    const res = await request.get('/items/projects', {
+      'filter[slug][_eq]': slug,
+      fields: PROJECT_FIELDS,
+      limit: 1,
+    })
+    const list: DirectusProject[] = (res as any)?.data ?? res ?? []
+    const raw = list[0]
+    if (!raw?.id) return null
+
+    const [memberList, starredList] = await Promise.all([
+      userId
+        ? safeList<ProjectMember>(
+            () =>
+              request.get('/items/project_members', {
+                'filter[project_id][_eq]': raw.id,
+                'filter[directus_users_id][_eq]': userId,
+                fields: 'project_id,role',
+                limit: 1,
+              }),
+            'project_members'
+          )
+        : Promise.resolve([] as ProjectMember[]),
+      userId
+        ? safeList<{ id: string }>(
+            () =>
+              request.get('/items/project_starred', {
+                'filter[project_id][_eq]': raw.id,
+                'filter[directus_users_id][_eq]': userId,
+                fields: 'id',
+                limit: 1,
+              }),
+            'project_starred'
+          )
+        : Promise.resolve([] as { id: string }[]),
+    ])
+
+    return normalize(raw, memberList[0], starredList.length > 0)
+  } catch (err: any) {
+    if (err?.message === 'canceled' || err?.code === 'ERR_CANCELED') return null
+    console.error('[getProjectBySlug] error:', err)
+    throw err
+  }
+}
+
+/**
  * Fetch a single project by ID.
  */
 export async function getProject(id: string): Promise<Project | null> {
@@ -232,6 +312,7 @@ export async function getProject(id: string): Promise<Project | null> {
 
   const PROJECT_FIELDS = [
     'id',
+    'slug',
     'name',
     'description',
     'status',
@@ -328,7 +409,7 @@ export async function toggleStarProject(projectId: string, starred: boolean): Pr
  */
 export async function updateProject(
   id: string,
-  data: Partial<Pick<DirectusProject, 'name' | 'description' | 'status' | 'visibility' | 'color' | 'tags'>>
+  data: Partial<Pick<DirectusProject, 'name' | 'description' | 'status' | 'visibility' | 'color' | 'tags' | 'slug'>>
 ): Promise<void> {
   await request.patch(`/items/projects/${id}`, data)
 }
@@ -339,6 +420,7 @@ export async function updateProject(
  */
 export async function createProject(data: {
   name: string
+  slug: string
   description?: string
   tenant?: string
   visibility?: ProjectVisibility
@@ -356,7 +438,7 @@ export async function createProject(data: {
     })
   }
 
-  return normalize(raw, { id: 'tmp', project_id: raw.id, directus_users_id: userId || '', role: 'Owner' }, false)
+  return normalize(raw, { id: 'tmp', project_id: raw.id, directus_users_id: userId || '', role: 'Owner', date_created: null, date_updated: null }, false)
 }
 
 /**
@@ -404,7 +486,7 @@ export async function getProjectMembers(projectId: string): Promise<ProjectMembe
   const res = await request.get('/items/project_members', {
     'filter[project_id][_eq]': projectId,
     fields:
-      'id,project_id,role,directus_users_id.id,directus_users_id.first_name,directus_users_id.last_name,directus_users_id.email',
+      'id,project_id,role,date_created,date_updated,directus_users_id.id,directus_users_id.first_name,directus_users_id.last_name,directus_users_id.email',
     limit: -1,
   })
   return (res as any)?.data ?? res ?? []

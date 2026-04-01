@@ -7,7 +7,7 @@ import styles from './index.module.less'
 const { Content } = Layout
 
 const ProjectLayout = () => {
-  const { id } = useParams()
+  const { slug } = useParams()
 
   return (
     <FixTabPanel>

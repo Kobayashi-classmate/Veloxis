@@ -584,6 +584,7 @@ axiosInstance.interceptors.request.use(
     if (
       config.url &&
       !config.url.startsWith('http') &&
+      !config.url.startsWith('/worker-api') &&
       CONFIG.API_PREFIX &&
       !config.url.startsWith(CONFIG.API_PREFIX)
     ) {

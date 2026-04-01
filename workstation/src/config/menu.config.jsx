@@ -271,7 +271,7 @@ const rawProjectMenu = [
   {
     label: '项目概览',
     i18nKey: 'menu.project.overview',
-    path: '/project/:id',
+    path: '/project/:slug',
     icon: (
       <AnimatedIcon variant="spin" mode="hover">
         <DashboardOutlined />
@@ -281,7 +281,7 @@ const rawProjectMenu = [
   {
     label: '数据源管理',
     i18nKey: 'menu.project.datasets',
-    path: '/project/:id/datasets',
+    path: '/project/:slug/datasets',
     icon: (
       <AnimatedIcon variant="spin" mode="hover">
         <DatabaseOutlined />
@@ -291,7 +291,7 @@ const rawProjectMenu = [
   {
     label: '数据模型',
     i18nKey: 'menu.project.models',
-    path: '/project/:id/models',
+    path: '/project/:slug/models',
     icon: (
       <AnimatedIcon variant="spin" mode="hover">
         <NodeIndexOutlined />
@@ -301,7 +301,7 @@ const rawProjectMenu = [
   {
     label: '可视化工作台',
     i18nKey: 'menu.project.workbooks',
-    path: '/project/:id/workbooks',
+    path: '/project/:slug/workbooks',
     icon: (
       <AnimatedIcon variant="spin" mode="hover">
         <BarChartOutlined />
@@ -311,7 +311,7 @@ const rawProjectMenu = [
   {
     label: '数据配方 (ETL)',
     i18nKey: 'menu.project.recipes',
-    path: '/project/:id/recipes',
+    path: '/project/:slug/recipes',
     icon: (
       <AnimatedIcon variant="spin" mode="hover">
         <ThunderboltOutlined />
@@ -321,7 +321,7 @@ const rawProjectMenu = [
   {
     label: '成员管理',
     i18nKey: 'menu.project.members',
-    path: '/project/:id/members',
+    path: '/project/:slug/members',
     icon: (
       <AnimatedIcon variant="spin" mode="hover">
         <TeamOutlined />
@@ -331,7 +331,7 @@ const rawProjectMenu = [
   {
     label: '项目设置',
     i18nKey: 'menu.project.settings',
-    path: '/project/:id/settings',
+    path: '/project/:slug/settings',
     icon: (
       <AnimatedIcon variant="spin" mode="hover">
         <SettingOutlined />

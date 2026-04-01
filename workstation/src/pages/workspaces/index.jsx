@@ -53,6 +53,44 @@ import ProjectModal from './ProjectModal'
 import MembersModal from './MembersModal'
 import styles from './index.module.less'
 
+/** 将项目名称转换为 URL-safe slug */
+function toSlug(str) {
+  return str
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\s\-_]/g, '')  // 移除非法字符（中文等）
+    .replace(/[\s_]+/g, '-')          // 空格/下划线 → 连字符
+    .replace(/-+/g, '-')              // 合并连续连字符
+    .replace(/^-+|-+$/g, '')          // 去首尾连字符
+    .slice(0, 63) || 'project'        // 最长 63 字符，空则兜底
+}
+
+/** 为项目列表中缺少 slug 的项目批量生成唯一 slug 并写入后端 */
+async function backfillSlugs(projects) {
+  const missing = projects.filter((p) => !p.slug)
+  if (!missing.length) return
+
+  // 收集已占用的 slug（含有 slug 的项目）
+  const usedSlugs = new Set(projects.map((p) => p.slug).filter(Boolean))
+
+  const updates = missing.map((p) => {
+    let base = toSlug(p.name)
+    let candidate = base
+    let idx = 2
+    // 碰撞处理：slug 重复则追加序号
+    while (usedSlugs.has(candidate)) {
+      candidate = `${base}-${idx++}`
+    }
+    usedSlugs.add(candidate)
+    return { id: p.id, slug: candidate }
+  })
+
+  await Promise.allSettled(
+    updates.map(({ id, slug }) => updateProject(id, { slug }))
+  )
+  console.info(`[workspaces] 已为 ${updates.length} 个项目生成 slug:`, updates)
+}
+
 const { Title, Text, Paragraph } = Typography
 
 const STATUS_CONFIG = {
@@ -169,7 +207,7 @@ const ProjectCard = ({ project, onEnter, onNavigate, onToggleStar, onSettings, o
       className={`${styles.projectCard} ${isGuest ? styles.guestCard : ''}`}
       variant="borderless"
       styles={{ body: { padding: 0 } }}
-      onClick={() => onEnter(project.id)}
+      onClick={() => onEnter(project.slug)}
     >
       {/* 顶部色条 */}
       <div className={styles.cardAccent} style={{ background: project.color }} />
@@ -320,7 +358,7 @@ const ProjectCard = ({ project, onEnter, onNavigate, onToggleStar, onSettings, o
               size="small"
               onClick={(e) => {
                 e.stopPropagation()
-                onNavigate(project.id, 'models')
+                onNavigate(project.slug, 'models')
               }}
             >
               数据
@@ -329,7 +367,7 @@ const ProjectCard = ({ project, onEnter, onNavigate, onToggleStar, onSettings, o
               size="small"
               onClick={(e) => {
                 e.stopPropagation()
-                onNavigate(project.id, 'workbooks')
+                onNavigate(project.slug, 'workbooks')
               }}
             >
               视图
@@ -339,7 +377,7 @@ const ProjectCard = ({ project, onEnter, onNavigate, onToggleStar, onSettings, o
               size="small"
               onClick={(e) => {
                 e.stopPropagation()
-                onEnter(project.id)
+                onEnter(project.slug)
               }}
             >
               进入
@@ -389,7 +427,7 @@ const ProjectRow = ({ project, onEnter, onNavigate, onToggleStar, onSettings, on
   }
 
   return (
-    <div className={`${styles.projectRow} ${isGuest ? styles.guestRow : ''}`} onClick={() => onEnter(project.id)}>
+    <div className={`${styles.projectRow} ${isGuest ? styles.guestRow : ''}`} onClick={() => onEnter(project.slug)}>
       <div className={styles.rowAccent} style={{ background: project.color }} />
       <div className={styles.rowMain}>
         {/* 名称列 */}
@@ -479,10 +517,10 @@ const ProjectRow = ({ project, onEnter, onNavigate, onToggleStar, onSettings, on
               onClick={() => onToggleStar(project.id)}
             />
           </Tooltip>
-          <Button size="small" onClick={() => onNavigate(project.id, 'models')}>
+          <Button size="small" onClick={() => onNavigate(project.slug, 'models')}>
             数据字典
           </Button>
-          <Button type="primary" size="small" onClick={() => onEnter(project.id)}>
+          <Button type="primary" size="small" onClick={() => onEnter(project.slug)}>
             {isGuest ? '查看详情' : '进入工作区'}
           </Button>
           {!isGuest && (
@@ -582,6 +620,10 @@ const Workspaces = () => {
     try {
       const list = await getProjects()
       if (canceled) return
+
+      // 为没有 slug 的老项目自动生成并写入（静默处理，不阻塞渲染）
+      backfillSlugs(list).catch((err) => console.warn('[workspaces] backfillSlugs 失败:', err))
+
       const visibleList = list
         .filter((p) => {
           // 管理员可见全部项目
@@ -625,8 +667,8 @@ const Workspaces = () => {
     return () => { alive = false }
   }, [user?.id]) // user.id 变化意味着切换了账号，重新检查
 
-  const handleEnter = (id) => redirectTo(`/project/${id}`)
-  const handleNavigate = (id, mod) => redirectTo(`/project/${id}/${mod}`)
+  const handleEnter = (slug) => redirectTo(`/project/${slug}`)
+  const handleNavigate = (slug, mod) => redirectTo(`/project/${slug}/${mod}`)
 
   const handleToggleStar = useCallback(
     async (id) => {

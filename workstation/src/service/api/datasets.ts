@@ -13,9 +13,21 @@ export interface DatasetVersion {
   id: string
   dataset_id: string
   version_name: string
-  file_id: string
+  file_id: string | null
   status: 'processing' | 'ready' | 'failed'
   date_created?: string
+  /** Worker 失败时写入的错误信息（最长 500 字符） */
+  error_message?: string | null
+  /** 文件内容的 SHA-256 哈希值，用于判断多版本是否引用同一份文件内容 */
+  file_hash?: string | null
+}
+
+export interface FileMetadata {
+  id: string
+  filename_download: string
+  filesize: number
+  type: string
+  metadata?: any
 }
 
 export interface RecipeOperator {
@@ -189,21 +201,21 @@ export async function updateDataset(id: string, data: Partial<Pick<Dataset, 'nam
 }
 
 /**
- * 删除数据源记录
+ * 获取数据源的版本历史
+ * @param datasetId 数据源 ID
+ * @param limit 最大返回条数，不传则返回全量（用于级联删除和文件管理）
  */
-export async function deleteDataset(id: string): Promise<void> {
-  await request.delete(`/items/datasets/${id}`)
-}
-
-/**
- * 获取数据源的版本历史（最新 10 条）
- */
-export async function getDatasetVersions(datasetId: string): Promise<DatasetVersion[]> {
-  const res = await request.get('/items/dataset_versions', {
+export async function getDatasetVersions(datasetId: string, limit?: number): Promise<DatasetVersion[]> {
+  const params: Record<string, any> = {
     'filter[dataset_id][_eq]': datasetId,
     sort: '-id',
-    limit: 10,
-  })
+  }
+  if (limit !== undefined) {
+    params.limit = limit
+  } else {
+    params.limit = -1 // Directus: -1 = no limit
+  }
+  const res = await request.get('/items/dataset_versions', params)
   return (res as any)?.data ?? res
 }
 
@@ -223,6 +235,96 @@ export async function createDatasetVersion(data: {
     status: data.status,
   })
   return (versionRes as any)?.data ?? versionRes
+}
+
+/**
+ * 获取单个 Directus 文件的元数据（文件名、大小、类型等）
+ */
+export async function getFileMetadata(fileId: string): Promise<FileMetadata> {
+  const res = await request.get(`/files/${fileId}`)
+  return (res as any)?.data ?? res
+}
+
+/**
+ * 删除 Directus 文件（物理删除）
+ */
+export async function deleteFile(fileId: string): Promise<void> {
+  await request.delete(`/files/${fileId}`)
+}
+
+/**
+ * 删除单条 dataset_version 记录
+ */
+export async function deleteDatasetVersion(versionId: string): Promise<void> {
+  await request.delete(`/items/dataset_versions/${versionId}`)
+}
+
+/**
+ * 将指定 dataset_version 的 file_id 置空（保留版本记录，仅清理文件关联）
+ */
+export async function clearVersionFileId(versionId: string): Promise<void> {
+  await request.patch(`/items/dataset_versions/${versionId}`, { file_id: null })
+}
+
+/**
+ * 删除 recipe（字段映射规则）
+ */
+export async function deleteRecipe(recipeId: string): Promise<void> {
+  await request.delete(`/items/recipes/${recipeId}`)
+}
+
+/**
+ * 重启失败版本的导入任务（在原版本记录上原地重试，不新增版本）
+ * 将 status 重置为 processing，清空 error_message，由 Directus Flow / Webhook 触发 Worker 重新处理
+ */
+export async function retriggerImport(versionId: string): Promise<void> {
+  await request.patch(`/items/dataset_versions/${versionId}`, {
+    status: 'processing',
+    error_message: null,
+  })
+}
+
+/**
+ * 级联删除数据源：
+ *   1. 查询所有版本，获取文件 ID 列表
+ *   2. 查询 recipe
+ *   3. 逐个删除 Directus 文件（去重）
+ *   4. 批量删除所有 dataset_versions
+ *   5. 删除 recipes
+ *   6. 删除 datasets 记录
+ */
+export async function deleteDataset(id: string): Promise<void> {
+  // 1. 查询所有版本（无 limit）
+  const versions = await getDatasetVersions(id)
+  // 2. 查询 recipes
+  const recipes = await getRecipes(id)
+
+  // 3. 逐个删除 Directus 文件（file_id 去重，避免同一文件被多版本引用时重复删除）
+  const uniqueFileIds = [...new Set(versions.map((v) => v.file_id).filter(Boolean))] as string[]
+  for (const fid of uniqueFileIds) {
+    try { await deleteFile(fid) } catch { /* 文件可能已被删除，忽略 */ }
+  }
+
+  // 4. 批量删除 dataset_versions（Directus 批量删除：body 为 id 数组，通过 axios data 字段传入）
+  const versionIds = versions.map((v) => v.id)
+  if (versionIds.length > 0) {
+    try {
+      await request.delete('/items/dataset_versions', {}, { data: versionIds })
+    } catch {
+      // Fallback：逐个删除
+      for (const vid of versionIds) {
+        try { await deleteDatasetVersion(vid) } catch { /* 忽略 */ }
+      }
+    }
+  }
+
+  // 5. 删除 recipes
+  for (const r of recipes) {
+    try { await deleteRecipe(r.id) } catch { /* 忽略 */ }
+  }
+
+  // 6. 删除 datasets 记录
+  await request.delete(`/items/datasets/${id}`)
 }
 
 /**
