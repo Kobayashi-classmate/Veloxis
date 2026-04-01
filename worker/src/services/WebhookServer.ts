@@ -9,6 +9,7 @@ import { ChartBindingService } from './ChartBindingService';
 import { WorkbookExportService } from './WorkbookExportService';
 import { getWorkbenchQueue } from '../jobs/WorkbenchWorker';
 import { authenticateWorkerApi, WorkerApiRequest } from '../middleware/workerApiAuth';
+import { CaptchaError, CaptchaService } from './CaptchaService';
 
 const app = express();
 app.use(bodyParser.json());
@@ -25,6 +26,7 @@ const serverStartTime = Date.now();
 const dorisQueryService = new DorisQueryService();
 const chartBindingService = new ChartBindingService();
 const workbookExportService = new WorkbookExportService();
+const captchaService = new CaptchaService(connection, config.captcha);
 
 function isUuid(value: string): boolean {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
@@ -91,6 +93,63 @@ async function buildHealthPayload() {
     };
 }
 
+function getClientIp(req: express.Request): string | undefined {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (typeof forwarded === 'string' && forwarded.trim().length > 0) {
+        return forwarded.split(',')[0].trim();
+    }
+    return req.socket.remoteAddress || undefined;
+}
+
+function getRequestId(req: express.Request): string {
+    const requestId = req.headers['x-request-id'];
+    if (typeof requestId === 'string' && requestId.trim().length > 0) return requestId;
+    return `req_${Date.now()}`;
+}
+
+function logCaptchaAudit(event: string, req: express.Request, detail: Record<string, unknown>): void {
+    const payload = {
+        at: new Date().toISOString(),
+        event,
+        requestId: getRequestId(req),
+        ip: getClientIp(req),
+        provider: config.captcha.provider,
+        ...detail,
+    };
+    console.log('[CaptchaAudit]', JSON.stringify(payload));
+}
+
+function handleCaptchaError(req: express.Request, res: express.Response, err: any, startAt: number) {
+    const elapsedMs = Date.now() - startAt;
+    if (err instanceof CaptchaError) {
+        logCaptchaAudit('captcha.error', req, {
+            code: err.code,
+            status: err.status,
+            elapsedMs,
+        });
+        return res.status(err.status).json({
+            success: false,
+            code: err.code,
+            errorCodes: [err.code],
+            message: err.message,
+            ...(err.meta ? { meta: err.meta } : {}),
+        });
+    }
+
+    console.error('[Captcha] Unexpected error:', err?.message || err);
+    logCaptchaAudit('captcha.error', req, {
+        code: 'CAPTCHA_PROVIDER_UNAVAILABLE',
+        status: 503,
+        elapsedMs,
+    });
+    return res.status(503).json({
+        success: false,
+        code: 'CAPTCHA_PROVIDER_UNAVAILABLE',
+        errorCodes: ['CAPTCHA_PROVIDER_UNAVAILABLE'],
+        message: 'captcha service unavailable',
+    });
+}
+
 /**
  * GET /health
  * Docker healthcheck + monitoring probe.
@@ -98,6 +157,141 @@ async function buildHealthPayload() {
 app.get('/health', async (_req, res) => {
     const { healthy, payload } = await buildHealthPayload();
     res.status(healthy ? 200 : 503).json(payload);
+});
+
+/**
+ * GET /captcha/config
+ * Returns provider config for the sign-in page.
+ */
+app.get('/captcha/config', (_req, res) => {
+    return res.status(200).json(captchaService.getConfig());
+});
+
+/**
+ * POST /captcha/challenge
+ * Internal behavior challenge generator.
+ */
+app.post('/captcha/challenge', async (req, res) => {
+    const startAt = Date.now();
+    const action = typeof req.body?.action === 'string' && req.body.action.trim() ? req.body.action.trim() : 'signin';
+    try {
+        const challenge = await captchaService.createChallenge(action);
+        logCaptchaAudit('captcha.challenge.issued', req, {
+            action,
+            status: 200,
+            elapsedMs: Date.now() - startAt,
+        });
+        return res.status(200).json({ success: true, ...challenge });
+    } catch (err: any) {
+        return handleCaptchaError(req, res, err, startAt);
+    }
+});
+
+/**
+ * POST /captcha/verify
+ * Verifies challenge and issues signed captchaTicket.
+ */
+app.post('/captcha/verify', async (req, res) => {
+    const startAt = Date.now();
+    const action = typeof req.body?.action === 'string' && req.body.action.trim() ? req.body.action.trim() : 'signin';
+    const subject = typeof req.body?.subject === 'string' ? req.body.subject : '';
+    try {
+        const verified = await captchaService.verifyAndIssueTicket(
+            {
+                ...req.body,
+                action,
+                subject,
+            },
+            {
+                ip: getClientIp(req),
+                userAgent: typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : '',
+                requestId: getRequestId(req),
+            },
+        );
+
+        logCaptchaAudit('captcha.verify.success', req, {
+            action,
+            provider: verified.provider,
+            riskScore: verified.riskScore,
+            status: 200,
+            elapsedMs: Date.now() - startAt,
+        });
+        return res.status(200).json(verified);
+    } catch (err: any) {
+        return handleCaptchaError(req, res, err, startAt);
+    }
+});
+
+/**
+ * POST /auth/login
+ * Enforces captcha ticket and proxies authentication to Directus.
+ */
+app.post('/auth/login', async (req, res) => {
+    const startAt = Date.now();
+    const email = typeof req.body?.email === 'string' ? req.body.email.trim() : '';
+    const password = typeof req.body?.password === 'string' ? req.body.password : '';
+    const captchaTicket = typeof req.body?.captchaTicket === 'string' ? req.body.captchaTicket.trim() : '';
+    const totp = typeof req.body?.totp === 'string' ? req.body.totp.trim() : '';
+    const otp = typeof req.body?.otp === 'string' ? req.body.otp.trim() : '';
+
+    if (!email || !password) {
+        return res.status(400).json({
+            success: false,
+            code: 'CAPTCHA_REQUIRED',
+            errorCodes: ['CAPTCHA_REQUIRED'],
+            message: 'email and password are required',
+        });
+    }
+
+    try {
+        await captchaService.consumeTicketForLogin(captchaTicket, 'signin', email, {
+            ip: getClientIp(req),
+            userAgent: typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : '',
+            requestId: getRequestId(req),
+        });
+
+        const loginPayload: Record<string, string> = {
+            email,
+            password,
+        };
+        const finalOtp = otp || totp;
+        if (finalOtp) {
+            loginPayload.otp = finalOtp;
+        }
+
+        const directusResp = await axios.post(`${config.directus.url}/auth/login`, loginPayload, {
+            headers: { 'X-Request-ID': getRequestId(req) },
+        });
+
+        logCaptchaAudit('auth.login.success', req, {
+            action: 'signin',
+            status: 200,
+            elapsedMs: Date.now() - startAt,
+        });
+        return res.status(directusResp.status).json(directusResp.data);
+    } catch (err: any) {
+        if (err instanceof CaptchaError) {
+            return handleCaptchaError(req, res, err, startAt);
+        }
+
+        const status = err?.response?.status;
+        if (status) {
+            logCaptchaAudit('auth.login.failed', req, {
+                action: 'signin',
+                status,
+                elapsedMs: Date.now() - startAt,
+            });
+            return res.status(status).json(err.response.data);
+        }
+
+        console.error('[AuthGateway] login proxy error:', err?.message || err);
+        return res.status(502).json({
+            success: false,
+            code: 'CAPTCHA_PROVIDER_UNAVAILABLE',
+            errorCodes: ['CAPTCHA_PROVIDER_UNAVAILABLE'],
+            message: 'auth upstream unavailable',
+        });
+    }
 });
 
 /**

@@ -5,6 +5,19 @@ import path from 'path';
 // might be passed via docker-compose, but we fallback to .env for local dev.
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
+const parseIntWithDefault = (value: string | undefined, fallback: number): number => {
+    const parsed = Number.parseInt(value || '', 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
+
+const asBoolean = (value: string | undefined, fallback: boolean): boolean => {
+    if (typeof value !== 'string') return fallback;
+    const normalized = value.trim().toLowerCase();
+    if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
+    if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
+    return fallback;
+};
+
 export const config = {
     // S3 (SeaweedFS) Configuration
     s3: {
@@ -34,5 +47,14 @@ export const config = {
         url: `http://directus:8055`,
         email: process.env.ADMIN_EMAIL,
         password: process.env.ADMIN_PASSWORD,
-    }
+    },
+    captcha: {
+        provider: (process.env.CAPTCHA_PROVIDER || 'internal').toLowerCase(),
+        failClosed: asBoolean(process.env.CAPTCHA_FAIL_CLOSED, true),
+        challengeTtlSeconds: parseIntWithDefault(process.env.CAPTCHA_CHALLENGE_TTL_SECONDS, 120),
+        ticketTtlSeconds: parseIntWithDefault(process.env.CAPTCHA_TICKET_TTL_SECONDS, 120),
+        ticketSecret: process.env.CAPTCHA_TICKET_SECRET || process.env.SECRET || '',
+        turnstileSiteKey: process.env.CAPTCHA_TURNSTILE_SITE_KEY || '',
+        turnstileSecret: process.env.CAPTCHA_TURNSTILE_SECRET || '',
+    },
 };
