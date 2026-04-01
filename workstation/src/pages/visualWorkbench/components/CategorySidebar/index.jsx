@@ -203,14 +203,22 @@ const CategorySidebar = () => {
 
         {/* 类别列表 */}
         <div className={styles.categoryList}>
-          {categories.map((cat) => (
-            <CategoryRow
-              key={cat.id}
-              category={cat}
-              isActive={cat.id === activeCategoryId}
-              onClick={() => { setActiveCategory(cat.id); closeCategorySidebar() }}
-            />
-          ))}
+          {categories.length === 0 ? (
+            <div className={styles.emptyHint}>
+              <Text type="secondary" style={{ fontSize: 12, display: 'block', textAlign: 'center', lineHeight: 1.7 }}>
+                暂无类别<br />点击下方按钮新建第一个类别
+              </Text>
+            </div>
+          ) : (
+            categories.map((cat) => (
+              <CategoryRow
+                key={cat.id}
+                category={cat}
+                isActive={cat.id === activeCategoryId}
+                onClick={() => { setActiveCategory(cat.id); closeCategorySidebar() }}
+              />
+            ))
+          )}
 
           {/* 新建按钮 */}
           <Button

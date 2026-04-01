@@ -79,6 +79,7 @@
 .centerSection {
   display: flex;
   align-items: center;
+  gap: 8px;
   flex-shrink: 0;
 }
 
@@ -87,6 +88,48 @@
   height: 30px !important;
   border-radius: 6px !important;
   gap: 4px;
+}
+
+/** 保存状态指示器 **/
+.saveStatus {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.saveDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #f59e0b;
+  flex-shrink: 0;
+  animation: pulseDot 1.4s ease-in-out infinite;
+}
+
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(0.8); }
+}
+
+.saveStatusText {
+  font-size: 11px !important;
+  color: #f59e0b !important;
+  font-weight: 500;
+}
+
+.saveStatusSaved {
+  /** saved state handled by saveStatusTextSaved **/
+}
+
+.saveCheckIcon {
+  font-size: 12px;
+  color: #22c55e;
+}
+
+.saveStatusTextSaved {
+  font-size: 11px !important;
+  color: #22c55e !important;
+  font-weight: 500;
 }
 
 .rightSection {
@@ -107,7 +150,17 @@
   }
 }
 
+.actionBtnDirty {
+  color: #f59e0b !important;
+
+  &:hover {
+    color: #d97706 !important;
+    background: #fef3c7 !important;
+  }
+}
+
 .shareBtn {
   font-size: 12px !important;
   height: 30px !important;
 }
+

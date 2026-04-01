@@ -9,6 +9,7 @@
   overflow: hidden;
   transition: box-shadow 0.2s, border-color 0.2s;
   z-index: 1;
+  cursor: default;
 
   &:hover {
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.14);
@@ -16,6 +17,13 @@
     z-index: 10;
   }
 }
+
+.chartItemSelected {
+  border-color: #1677ff !important;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.25), 0 4px 20px rgba(0, 0, 0, 0.12) !important;
+  z-index: 15 !important;
+}
+
 
 .chartHeader {
   display: flex;

@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import ReactDOM from 'react-dom'
-import { Typography, Button, Tabs, Radio, Space, Switch, Divider, Input } from 'antd'
-import { CloseOutlined } from '@ant-design/icons'
+import {
+  Typography, Button, Tabs, Switch, Divider, Input,
+  InputNumber, Table, Tooltip, Tag,
+} from 'antd'
+import {
+  CloseOutlined, PlusOutlined, DeleteOutlined, DatabaseOutlined,
+  EditOutlined, ApiOutlined, TableOutlined,
+} from '@ant-design/icons'
 import useWorkbenchState, { CHART_META, COLOR_THEMES, CHART_DEFAULTS } from '../../hooks/useWorkbenchState'
 import { useConfigPanelDrag } from '../../hooks/useChartDrag'
 import styles from './index.module.less'
@@ -40,28 +46,188 @@ const TypeTab = ({ chart }) => {
 }
 
 // ── 数据配置 Tab ──────────────────────────────────────────────────────────────
-const DataTab = ({ chart }) => (
-  <div className={styles.tabContent}>
-    <div className={styles.mockDataBanner}>
-      <Text type="secondary" style={{ fontSize: 12 }}>
-        当前使用虚拟数据。数据源绑定功能开发中，后续版本将支持连接项目数据集。
-      </Text>
+const DATA_SOURCES = [
+  { value: 'mock',   label: '虚拟数据',    icon: <DatabaseOutlined /> },
+  { value: 'manual', label: '手动输入',    icon: <EditOutlined /> },
+  { value: 'api',    label: 'API 接口',    icon: <ApiOutlined />, disabled: true },
+  { value: 'dataset', label: '项目数据集', icon: <TableOutlined />, disabled: true },
+]
+
+const DEFAULT_MANUAL_ROWS = [
+  { key: '1', x: '类别 A', y: 120 },
+  { key: '2', x: '类别 B', y: 280 },
+  { key: '3', x: '类别 C', y: 190 },
+  { key: '4', x: '类别 D', y: 340 },
+]
+
+const DataTab = ({ chart }) => {
+  const { updateChartOption } = useWorkbenchState()
+  const [dataSource, setDataSource] = useState('mock')
+  const [manualRows, setManualRows] = useState(DEFAULT_MANUAL_ROWS)
+
+  // 手动数据变更时实时更新图表 option
+  const applyManualData = (rows) => {
+    const xData = rows.map((r) => r.x)
+    const yData = rows.map((r) => Number(r.y) || 0)
+
+    if (chart.type === 'pie') {
+      updateChartOption(chart.id, {
+        series: [{ ...chart.option?.series?.[0], data: rows.map((r) => ({ name: r.x, value: Number(r.y) || 0 })) }],
+      })
+    } else if (chart.type === 'scatter') {
+      updateChartOption(chart.id, {
+        series: [{ ...chart.option?.series?.[0], data: rows.map((r) => [Number(r.x) || 0, Number(r.y) || 0]) }],
+      })
+    } else {
+      updateChartOption(chart.id, {
+        xAxis: { ...chart.option?.xAxis, data: xData },
+        series: chart.option?.series?.map((s, i) =>
+          i === 0 ? { ...s, data: yData } : s
+        ) ?? [{ type: chart.type === 'area' ? 'line' : chart.type, data: yData }],
+      })
+    }
+  }
+
+  const handleRowChange = (key, field, value) => {
+    const updated = manualRows.map((r) => r.key === key ? { ...r, [field]: value } : r)
+    setManualRows(updated)
+    applyManualData(updated)
+  }
+
+  const handleAddRow = () => {
+    if (manualRows.length >= 12) return
+    const newRow = { key: String(Date.now()), x: `类别 ${manualRows.length + 1}`, y: 0 }
+    const updated = [...manualRows, newRow]
+    setManualRows(updated)
+    applyManualData(updated)
+  }
+
+  const handleDeleteRow = (key) => {
+    const updated = manualRows.filter((r) => r.key !== key)
+    setManualRows(updated)
+    applyManualData(updated)
+  }
+
+  const isScatter = chart.type === 'scatter'
+
+  const columns = [
+    {
+      title: isScatter ? 'X 值' : '类别 / X 轴',
+      dataIndex: 'x',
+      key: 'x',
+      render: (val, record) => (
+        <Input
+          size="small"
+          value={val}
+          onChange={(e) => handleRowChange(record.key, 'x', e.target.value)}
+          className={styles.tableCell}
+        />
+      ),
+    },
+    {
+      title: isScatter ? 'Y 值' : '数值 / Y 轴',
+      dataIndex: 'y',
+      key: 'y',
+      render: (val, record) => (
+        <InputNumber
+          size="small"
+          value={val}
+          onChange={(v) => handleRowChange(record.key, 'y', v ?? 0)}
+          className={styles.tableCell}
+          controls={false}
+        />
+      ),
+    },
+    {
+      title: '',
+      key: 'del',
+      width: 28,
+      render: (_, record) => (
+        <Button
+          type="text"
+          size="small"
+          icon={<DeleteOutlined />}
+          danger
+          className={styles.delRowBtn}
+          onClick={() => handleDeleteRow(record.key)}
+          disabled={manualRows.length <= 1}
+        />
+      ),
+    },
+  ]
+
+  return (
+    <div className={styles.tabContent}>
+      {/* 数据源选择 */}
+      <Text type="secondary" className={styles.sectionLabel}>数据来源</Text>
+      <div className={styles.dataSourceGrid}>
+        {DATA_SOURCES.map((ds) => (
+          <Tooltip key={ds.value} title={ds.disabled ? '即将推出' : ds.label}>
+            <div
+              className={`${styles.dataSourceCard} ${dataSource === ds.value ? styles.dataSourceCardActive : ''} ${ds.disabled ? styles.dataSourceCardDisabled : ''}`}
+              onClick={() => !ds.disabled && setDataSource(ds.value)}
+            >
+              <span className={styles.dataSourceIcon}>{ds.icon}</span>
+              <Text className={styles.dataSourceLabel}>{ds.label}</Text>
+              {ds.disabled && <Tag className={styles.comingTag}>即将</Tag>}
+            </div>
+          </Tooltip>
+        ))}
+      </div>
+
+      <Divider style={{ margin: '10px 0' }} />
+
+      {/* 虚拟数据模式 */}
+      {dataSource === 'mock' && (
+        <div className={styles.mockDataBanner}>
+          <DatabaseOutlined style={{ color: '#f59e0b', marginRight: 6 }} />
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            当前使用内置虚拟数据。切换「手动输入」可自定义数据。
+          </Text>
+        </div>
+      )}
+
+      {/* 手动输入模式 */}
+      {dataSource === 'manual' && (
+        <div className={styles.manualDataSection}>
+          <div className={styles.manualHeader}>
+            <Text className={styles.sectionLabel}>数据输入</Text>
+            <Text type="secondary" style={{ fontSize: 11 }}>
+              {manualRows.length} 行
+            </Text>
+          </div>
+          <Table
+            dataSource={manualRows}
+            columns={columns}
+            size="small"
+            pagination={false}
+            className={styles.dataTable}
+            rowKey="key"
+            scroll={{ y: 200 }}
+          />
+          <Button
+            type="dashed"
+            size="small"
+            block
+            icon={<PlusOutlined />}
+            onClick={handleAddRow}
+            disabled={manualRows.length >= 12}
+            className={styles.addRowBtn}
+          >
+            添加行 ({manualRows.length}/12)
+          </Button>
+        </div>
+      )}
+
+      {/* API / Dataset 占位 */}
+      {(dataSource === 'api' || dataSource === 'dataset') && (
+        <div className={styles.comingSoonBox}>
+          <Text type="secondary" style={{ fontSize: 12 }}>此功能将在后续版本中支持</Text>
+        </div>
+      )}
     </div>
-    <Divider style={{ margin: '12px 0' }} />
-    <div className={styles.fieldRow}>
-      <Text type="secondary" className={styles.fieldLabel}>X 轴 / 类别</Text>
-      <Input size="small" value="自动（虚拟数据）" disabled className={styles.fieldInput} />
-    </div>
-    <div className={styles.fieldRow}>
-      <Text type="secondary" className={styles.fieldLabel}>Y 轴 / 数值</Text>
-      <Input size="small" value="自动（虚拟数据）" disabled className={styles.fieldInput} />
-    </div>
-    <div className={styles.fieldRow}>
-      <Text type="secondary" className={styles.fieldLabel}>系列 / 分组</Text>
-      <Input size="small" value="—" disabled className={styles.fieldInput} />
-    </div>
-  </div>
-)
+  )
+}
 
 // ── 样式配置 Tab ──────────────────────────────────────────────────────────────
 const StyleTab = ({ chart }) => {
@@ -95,6 +261,22 @@ const StyleTab = ({ chart }) => {
           size="small"
           checked={chart.showLegend !== false}
           onChange={(v) => updateChartConfig(chart.id, { showLegend: v })}
+        />
+      </div>
+
+      <Divider style={{ margin: '12px 0' }} />
+
+      <div className={styles.switchRow}>
+        <div>
+          <Text style={{ fontSize: 13 }}>允许叠加</Text>
+          <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
+            允许本图表叠加在其他图表上方
+          </Text>
+        </div>
+        <Switch
+          size="small"
+          checked={chart.allowOverlap !== false}
+          onChange={(v) => updateChartConfig(chart.id, { allowOverlap: v })}
         />
       </div>
 

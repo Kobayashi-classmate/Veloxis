@@ -8,7 +8,7 @@
   border: 1px solid #e2e8f0;
   display: flex;
   flex-direction: column;
-  max-height: 520px;
+  max-height: 560px;
   overflow: hidden;
 }
 
@@ -115,14 +115,154 @@
   color: #374151;
 }
 
-/** 数据配置 **/
+/** 数据配置 — 数据来源卡片 **/
+.dataSourceGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+.dataSourceCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 4px 6px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: #fafafa;
+  position: relative;
+
+  &:hover {
+    border-color: #93c5fd;
+    background: #eff6ff;
+  }
+}
+
+.dataSourceCardActive {
+  border-color: #1677ff !important;
+  background: #dbeafe !important;
+}
+
+.dataSourceCardDisabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+
+  &:hover {
+    border-color: #e2e8f0 !important;
+    background: #fafafa !important;
+  }
+}
+
+.dataSourceIcon {
+  font-size: 16px;
+  color: #64748b;
+}
+
+.dataSourceLabel {
+  font-size: 11px;
+  color: #374151;
+}
+
+.comingTag {
+  font-size: 9px !important;
+  padding: 0 3px !important;
+  line-height: 14px !important;
+  height: 14px !important;
+  color: #94a3b8 !important;
+  border-color: #e2e8f0 !important;
+  background: #f8fafc !important;
+  position: absolute;
+  top: 3px;
+  right: 3px;
+}
+
+/** 虚拟数据提示 **/
 .mockDataBanner {
   background: #fefce8;
   border: 1px solid #fef08a;
   border-radius: 6px;
   padding: 8px 10px;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
 }
 
+/** 手动输入 **/
+.manualDataSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.manualHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dataTable {
+  :global {
+    .ant-table {
+      font-size: 11px;
+    }
+    .ant-table-cell {
+      padding: 3px 4px !important;
+    }
+    .ant-table-thead .ant-table-cell {
+      font-size: 10px;
+      background: #f8fafc;
+      color: #94a3b8;
+      font-weight: 600;
+    }
+  }
+}
+
+.tableCell {
+  font-size: 11px;
+  width: 100%;
+
+  :global(.ant-input),
+  :global(.ant-input-number-input) {
+    font-size: 11px !important;
+    padding: 1px 4px !important;
+    height: 22px !important;
+  }
+
+  :global(.ant-input-number) {
+    width: 100%;
+  }
+}
+
+.delRowBtn {
+  width: 22px !important;
+  height: 22px !important;
+  padding: 0 !important;
+  font-size: 10px !important;
+}
+
+.addRowBtn {
+  font-size: 11px;
+  height: 26px;
+  border-style: dashed;
+  color: #64748b !important;
+
+  &:hover {
+    color: #1677ff !important;
+  }
+}
+
+.comingSoonBox {
+  padding: 16px;
+  text-align: center;
+  background: #f8fafc;
+  border-radius: 6px;
+  border: 1px dashed #e2e8f0;
+}
+
+/** 占位符（老版本兼容）**/
 .fieldRow {
   display: flex;
   flex-direction: column;
@@ -183,3 +323,4 @@
   align-items: center;
   justify-content: space-between;
 }
+

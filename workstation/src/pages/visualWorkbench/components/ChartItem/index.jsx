@@ -17,27 +17,34 @@ const { Text } = Typography
 const ChartItem = ({ chart, canvasRef }) => {
   const [hovered, setHovered] = useState(false)
 
-  const { updateChartPosition, updateChartSize, removeChart, duplicateChart, openConfigPanel } =
-    useWorkbenchState()
+  const {
+    updateChartPosition, updateChartSize, removeChart, duplicateChart,
+    openConfigPanel, selectChart, deselectChart, selectedChartId,
+  } = useWorkbenchState()
 
-  const onMove = useCallback(
+  const isSelected = selectedChartId === chart.id
+
+  // mouseup 时才调一次 — 不在 mousemove 中触发
+  const onMoveEnd = useCallback(
     (nx, ny) => updateChartPosition(chart.id, nx, ny),
     [chart.id, updateChartPosition]
   )
 
-  const onResize = useCallback(
+  const onResizeEnd = useCallback(
     (nw, nh) => updateChartSize(chart.id, nw, nh),
     [chart.id, updateChartSize]
   )
 
-  const { onDragStart, onResizeStart } = useChartDrag({
+  // itemRef 由 hook 内部创建并返回，挂到根节点
+  const { itemRef, onDragStart, onResizeStart } = useChartDrag({
     chartId: chart.id,
     x: chart.x,
     y: chart.y,
     w: chart.w,
     h: chart.h,
-    onMove,
-    onResize,
+    allowOverlap: chart.allowOverlap ?? true,
+    onMoveEnd,
+    onResizeEnd,
   })
 
   // 应用配色方案到 option
@@ -55,6 +62,11 @@ const ChartItem = ({ chart, canvasRef }) => {
     const anchorX = rect ? rect.right + 12 : e.clientX + 12
     const anchorY = rect ? rect.top : e.clientY
     openConfigPanel(chart.id, anchorX, anchorY)
+  }
+
+  const handleItemClick = (e) => {
+    e.stopPropagation()
+    selectChart(chart.id)
   }
 
   const moreItems = [
@@ -82,10 +94,12 @@ const ChartItem = ({ chart, canvasRef }) => {
 
   return (
     <div
-      className={styles.chartItem}
+      ref={itemRef}
+      className={`${styles.chartItem} ${isSelected ? styles.chartItemSelected : ''}`}
       style={{ left: chart.x, top: chart.y, width: chart.w, height: chart.h }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onClick={handleItemClick}
     >
       {/* 标题栏（可拖移）*/}
       <div className={styles.chartHeader} onMouseDown={onDragStart}>
