@@ -7,8 +7,11 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "init:directus": "node init-directus.mjs",
     "init:projects": "node init-projects.mjs",
+    "init:plugins": "node init-plugins.mjs",
+    "migrate:admin-console-fields": "node migrate-admin-console-fields.mjs",
+    "migrate:dataset-multi-source": "node migrate-dataset-multi-source.mjs",
     "seed:projects": "node seed-projects.mjs",
-    "init:all": "node init-directus.mjs && node init-projects.mjs"
+    "init:all": "node init-directus.mjs && node init-projects.mjs && node init-plugins.mjs"
   },
   "keywords": [],
   "author": "",

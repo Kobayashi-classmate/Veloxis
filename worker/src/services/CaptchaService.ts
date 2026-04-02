@@ -8,6 +8,7 @@ type CaptchaConfig = {
     failClosed: boolean;
     challengeTtlSeconds: number;
     ticketTtlSeconds: number;
+    internalLeniency?: number;
     ticketSecret: string;
     turnstileSiteKey: string;
     turnstileSecret: string;
@@ -209,6 +210,8 @@ export class CaptchaService {
 
     private ticketTtlSeconds: number;
 
+    private internalLeniency: number;
+
     private ticketSecret: string;
 
     private turnstileSiteKey: string;
@@ -221,6 +224,7 @@ export class CaptchaService {
         this.failClosed = cfg.failClosed !== false;
         this.challengeTtlSeconds = clamp(Math.floor(cfg.challengeTtlSeconds || 120), 30, 600);
         this.ticketTtlSeconds = clamp(Math.floor(cfg.ticketTtlSeconds || 120), 30, 600);
+        this.internalLeniency = clamp(Number(cfg.internalLeniency) || 1, 0.6, 1.8);
         this.ticketSecret = String(cfg.ticketSecret || '');
         this.turnstileSiteKey = String(cfg.turnstileSiteKey || '');
         this.turnstileSecret = String(cfg.turnstileSecret || '');
@@ -234,6 +238,7 @@ export class CaptchaService {
             required: true,
             failClosed: this.failClosed,
             available: this.provider === 'internal' ? true : turnstileReady,
+            internalLeniency: this.internalLeniency,
             turnstileSiteKey: this.provider === 'turnstile' ? this.turnstileSiteKey : '',
         };
     }
@@ -383,22 +388,52 @@ return 1
 
         const start: Point = {
             x: 22,
-            y: 40 + Math.floor(Math.random() * 60),
+            y: 46 + Math.floor(Math.random() * 50),
         };
         const target: Point = {
             x: width - 26,
-            y: 30 + Math.floor(Math.random() * 80),
+            y: 42 + Math.floor(Math.random() * 56),
         };
 
         const cp1x = Math.floor(width * 0.35);
         const cp2x = Math.floor(width * 0.58);
         const cp3x = Math.floor(width * 0.78);
         const interpY = (ratio: number): number => start.y + (target.y - start.y) * ratio;
-        const checkpoints: Point[] = [
-            { x: cp1x, y: clamp(Math.round(interpY(0.35) + (Math.random() * 44 - 22)), 20, height - 20) },
-            { x: cp2x, y: clamp(Math.round(interpY(0.58) + (Math.random() * 52 - 26)), 20, height - 20) },
-            { x: cp3x, y: clamp(Math.round(interpY(0.78) + (Math.random() * 40 - 20)), 20, height - 20) },
-        ];
+        const minOffset = Math.round(tolerancePx * 1.7);
+        const maxOffset = 42;
+        let previousSign = Math.random() > 0.5 ? 1 : -1;
+        const createCheckpoint = (x: number, ratio: number): Point => {
+            const baseY = interpY(ratio);
+            const upRoom = Math.max(0, Math.floor(baseY - 20));
+            const downRoom = Math.max(0, Math.floor(height - 20 - baseY));
+            const preferredSign = previousSign * -1;
+            const alternateSign = preferredSign * -1;
+            const preferredRoom = preferredSign < 0 ? upRoom : downRoom;
+            const alternateRoom = alternateSign < 0 ? upRoom : downRoom;
+
+            let sign = preferredSign;
+            if (preferredRoom < minOffset && alternateRoom >= minOffset) {
+                sign = alternateSign;
+            } else if (preferredRoom < minOffset && alternateRoom < minOffset) {
+                sign = downRoom >= upRoom ? 1 : -1;
+            }
+            previousSign = sign;
+
+            const room = sign < 0 ? upRoom : downRoom;
+            const maxAllowedOffset = Math.min(maxOffset, room);
+            const minAllowedOffset = Math.min(minOffset, maxAllowedOffset);
+            const offset =
+                minAllowedOffset +
+                (maxAllowedOffset > minAllowedOffset
+                    ? Math.floor(Math.random() * (maxAllowedOffset - minAllowedOffset + 1))
+                    : 0);
+            const jitter = Math.floor(Math.random() * 7) - 3;
+            return {
+                x,
+                y: clamp(Math.round(baseY + sign * offset + jitter), 20, height - 20),
+            };
+        };
+        const checkpoints: Point[] = [createCheckpoint(cp1x, 0.35), createCheckpoint(cp2x, 0.58), createCheckpoint(cp3x, 0.78)];
 
         return {
             id,
@@ -439,6 +474,7 @@ return 1
     }
 
     private evaluateBehavior(challenge: InternalChallengePayload, proof: BehaviorProof): InternalScore {
+        const leniency = this.internalLeniency;
         const points = this.parseBehaviorProof(proof);
         const first = points[0];
         const last = points[points.length - 1];
@@ -449,41 +485,43 @@ return 1
         const endDistancePx = distance(last, challenge.target);
         const startDistancePx = distance(first, challenge.start);
 
-        if (durationMs < 450 || durationMs > 20_000) {
+        if (durationMs < 220 / leniency || durationMs > 20_000) {
             throw new CaptchaError('CAPTCHA_VERIFY_FAILED', 'captcha behavior duration out of range', 400);
         }
-        if (startDistancePx > challenge.tolerancePx * 1.8) {
+        if (startDistancePx > challenge.tolerancePx * 1.8 * leniency) {
             throw new CaptchaError('CAPTCHA_VERIFY_FAILED', 'captcha behavior start mismatch', 400);
         }
-        if (endDistancePx > challenge.tolerancePx * 1.3) {
+        if (endDistancePx > challenge.tolerancePx * 1.3 * leniency) {
             throw new CaptchaError('CAPTCHA_VERIFY_FAILED', 'captcha behavior end mismatch', 400);
         }
 
         const { totalDistance, maxJump, speeds, directionChanges } = computePathDistance(points);
-        if (totalDistance < 80 || totalDistance > 4000) {
+        if (totalDistance < 80 / leniency || totalDistance > 4000 * leniency) {
             throw new CaptchaError('CAPTCHA_VERIFY_FAILED', 'captcha path distance out of range', 400);
         }
-        if (maxJump > 130) {
+        if (maxJump > 130 * leniency) {
             throw new CaptchaError('CAPTCHA_VERIFY_FAILED', 'captcha path jump too large', 400);
         }
 
         const speedVariance = variance(speeds);
-        if (speedVariance < 0.00002) {
+        if (speedVariance < 0.0000005 / (leniency * leniency)) {
             throw new CaptchaError('CAPTCHA_VERIFY_FAILED', 'captcha behavior too uniform', 400);
         }
 
-        const checkpoints = [challenge.start, ...challenge.checkpoints, challenge.target];
-        let passedCheckpoints = 0;
-        for (const checkpoint of checkpoints) {
+        const midCheckpoints = [...challenge.checkpoints];
+        let passedMidCheckpoints = 0;
+        for (const checkpoint of midCheckpoints) {
             const min = minDistanceToPoints(points, checkpoint);
-            if (min <= challenge.tolerancePx * 1.45) {
-                passedCheckpoints += 1;
+            if (min <= challenge.tolerancePx * 1.25 * leniency) {
+                passedMidCheckpoints += 1;
             }
         }
-        const checkpointCoverage = passedCheckpoints / checkpoints.length;
-        if (checkpointCoverage < 0.8) {
+        const requiredMidCheckpoints = Math.max(1, midCheckpoints.length - 1);
+        if (passedMidCheckpoints < requiredMidCheckpoints) {
             throw new CaptchaError('CAPTCHA_VERIFY_FAILED', 'captcha checkpoint coverage too low', 400);
         }
+        const checkpointCoverage =
+            midCheckpoints.length === 0 ? 1 : passedMidCheckpoints / midCheckpoints.length;
 
         const avgSpeed = totalDistance / Math.max(1, durationMs);
         let riskScore = 100;
@@ -673,4 +711,3 @@ return 1
         };
     }
 }
-

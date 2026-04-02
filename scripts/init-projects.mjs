@@ -110,6 +110,16 @@ async function run() {
   console.log('\n📦 Extending `projects` collection fields...')
 
   const projectFields = [
+    /** Route slug used by /project/:slug */
+    {
+      field: 'slug',
+      type: 'string',
+      meta: {
+        interface: 'input',
+        width: 'half',
+        note: '项目路由标识（建议唯一，如 "sales-ops"）',
+      },
+    },
     /** Status: active | warning | archived */
     {
       field: 'status',
@@ -230,6 +240,98 @@ async function run() {
 
   for (const field of projectFields) {
     await upsertField(client, 'projects', field)
+  }
+
+  /** ── 1.5. Extend `directus_users` with admin fields ─────────────── */
+
+  console.log('\n👤 Extending `directus_users` collection fields...')
+
+  const userFields = [
+    {
+      field: 'tenant',
+      type: 'string',
+      meta: { interface: 'input', width: 'half', note: '所属租户 / 事业部名称' },
+    },
+    {
+      field: 'mfa_enabled',
+      type: 'boolean',
+      schema: { default_value: false },
+      meta: { interface: 'boolean', width: 'half', note: 'MFA 是否已启用（Admin Console 展示字段）' },
+    },
+    {
+      field: 'last_login_at',
+      type: 'timestamp',
+      meta: { interface: 'datetime', width: 'half', note: '最近登录时间（Admin Console 展示字段）' },
+    },
+  ]
+
+  for (const field of userFields) {
+    await upsertField(client, 'directus_users', field)
+  }
+
+  /** ── 1.6. Extend dataset import schema for multi-source ingest ───── */
+
+  console.log('\n🧩 Extending `datasets` / `dataset_versions` for multi-source ingest...')
+
+  const datasetFields = [
+    {
+      field: 'root_dataset_id',
+      type: 'uuid',
+      meta: { interface: 'select-dropdown-m2o', width: 'half', note: '主数据源 ID（子数据源指向主数据源）' },
+    },
+    {
+      field: 'schema_fingerprint',
+      type: 'string',
+      meta: { interface: 'input', width: 'half', note: '结构指纹（映射后 storageName 集合哈希）' },
+    },
+    {
+      field: 'schema_order',
+      type: 'integer',
+      schema: { default_value: 1 },
+      meta: { interface: 'input', width: 'half', note: '结构分组序号（1,2,3...）' },
+    },
+    {
+      field: 'merge_same_schema',
+      type: 'boolean',
+      schema: { default_value: true },
+      meta: { interface: 'boolean', width: 'half', note: '同结构 source unit 是否合并导入' },
+    },
+  ]
+
+  for (const field of datasetFields) {
+    await upsertField(client, 'datasets', field)
+  }
+
+  const datasetVersionFields = [
+    {
+      field: 'ingest_batch_id',
+      type: 'string',
+      meta: { interface: 'input', width: 'half', note: '批次导入 ID（同一次导入动作共享）' },
+    },
+    {
+      field: 'sheet_name',
+      type: 'string',
+      meta: { interface: 'input', width: 'half', note: 'Excel 选中的 Sheet 名称' },
+    },
+    {
+      field: 'schema_fingerprint',
+      type: 'string',
+      meta: { interface: 'input', width: 'half', note: '结构指纹（映射后 storageName 集合哈希）' },
+    },
+    {
+      field: 'source_file_name',
+      type: 'string',
+      meta: { interface: 'input', width: 'half', note: '来源文件名（溯源）' },
+    },
+    {
+      field: 'source_sheet_name',
+      type: 'string',
+      meta: { interface: 'input', width: 'half', note: '来源 Sheet 名称（溯源）' },
+    },
+  ]
+
+  for (const field of datasetVersionFields) {
+    await upsertField(client, 'dataset_versions', field)
   }
 
   /** ── 2. Create `project_members` junction collection ──────────────── */

@@ -40,6 +40,7 @@ async function run() {
   const PROJECTS = [
     {
       id:            uuidv4(),
+      slug:          'ecommerce-ops-center',
       name:          '电商运营数据中台',
       description:   '整合多渠道销售数据，提供实时销售看板、用户行为漏斗与 GMV 趋势分析，支撑运营日常决策。',
       status:        'active',
@@ -58,6 +59,7 @@ async function run() {
     },
     {
       id:            uuidv4(),
+      slug:          'overseas-growth-center',
       name:          '海外增长分析中心',
       description:   '追踪东南亚、欧美区域的用户增长、渠道 ROI 及 留存率，为国际化战略提供数据支撑。',
       status:        'active',
@@ -76,6 +78,7 @@ async function run() {
     },
     {
       id:            uuidv4(),
+      slug:          'supply-chain-realtime',
       name:          '供应链实时监控平台',
       description:   '监控仓储库存、物流轨迹和供应商交付率，集成 Doris 实时流数据，SLA 异常自动告警。',
       status:        'warning',
@@ -94,6 +97,7 @@ async function run() {
     },
     {
       id:            uuidv4(),
+      slug:          'rfm-user-profile',
       name:          '用户画像与 RFM 分析',
       description:   '基于全量用户行为日志构建多维用户标签体系，输出 RFM 分层模型，驱动精准营销策略。',
       status:        'active',

@@ -10,6 +10,11 @@ const parseIntWithDefault = (value: string | undefined, fallback: number): numbe
     return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 };
 
+const parseFloatWithDefault = (value: string | undefined, fallback: number): number => {
+    const parsed = Number.parseFloat(value || '');
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
+
 const asBoolean = (value: string | undefined, fallback: boolean): boolean => {
     if (typeof value !== 'string') return fallback;
     const normalized = value.trim().toLowerCase();
@@ -53,8 +58,13 @@ export const config = {
         failClosed: asBoolean(process.env.CAPTCHA_FAIL_CLOSED, true),
         challengeTtlSeconds: parseIntWithDefault(process.env.CAPTCHA_CHALLENGE_TTL_SECONDS, 120),
         ticketTtlSeconds: parseIntWithDefault(process.env.CAPTCHA_TICKET_TTL_SECONDS, 120),
+        internalLeniency: parseFloatWithDefault(process.env.CAPTCHA_INTERNAL_LENIENCY, 1),
         ticketSecret: process.env.CAPTCHA_TICKET_SECRET || process.env.SECRET || '',
         turnstileSiteKey: process.env.CAPTCHA_TURNSTILE_SITE_KEY || '',
         turnstileSecret: process.env.CAPTCHA_TURNSTILE_SECRET || '',
+    },
+    plugins: {
+        artifactRoot: process.env.PLUGIN_ARTIFACT_ROOT || path.resolve(process.cwd(), '../plugins'),
+        platformVersion: process.env.PLATFORM_VERSION || '1.0.0',
     },
 };

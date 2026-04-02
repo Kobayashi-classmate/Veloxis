@@ -117,6 +117,29 @@ const buildProofFromPuzzle = (puzzle: any) => {
     };
 };
 
+const buildStraightLineProof = (puzzle: any) => {
+    const points: Array<{ x: number; y: number; t: number }> = [];
+    const steps = 36;
+    let time = 0;
+    for (let i = 0; i <= steps; i += 1) {
+        const ratio = i / steps;
+        points.push({
+            x: Number((puzzle.start.x + (puzzle.target.x - puzzle.start.x) * ratio).toFixed(2)),
+            y: Number((puzzle.start.y + (puzzle.target.y - puzzle.start.y) * ratio).toFixed(2)),
+            t: Math.round(time),
+        });
+        time += 24 + (i % 4) * 8;
+    }
+    return {
+        points,
+        startedAt: points[0].t,
+        completedAt: points[points.length - 1].t,
+        summary: {
+            pointCount: points.length,
+        },
+    };
+};
+
 const createInternalService = (redis: any) =>
     new CaptchaService(redis, {
         provider: 'internal',
@@ -219,3 +242,24 @@ test('CaptchaService turnstile mode should fail closed when provider is not conf
     );
 });
 
+test('CaptchaService should reject over-straight internal behavior proof', async () => {
+    const redis = new FakeRedis();
+    const service = createInternalService(redis as any);
+    const challenge = await service.createChallenge('signin');
+    const proof = buildStraightLineProof(challenge.puzzle);
+
+    await assert.rejects(
+        () =>
+            service.verifyAndIssueTicket(
+                {
+                    action: 'signin',
+                    subject: 'user@example.com',
+                    challengeId: challenge.challengeId,
+                    nonce: challenge.nonce,
+                    behaviorProof: proof,
+                },
+                { ip: '127.0.0.1', userAgent: 'unit-test-agent' },
+            ),
+        (err: any) => err instanceof CaptchaError && err.code === 'CAPTCHA_VERIFY_FAILED',
+    );
+});

@@ -3,17 +3,42 @@ import * as fs from 'fs';
 import ExcelJS from 'exceljs';
 
 export class ExcelConverter {
+    private static resolveSheetName(
+        workbook: XLSX.WorkBook,
+        options?: { sheetName?: string; sheetIndex?: number }
+    ): string {
+        const names = workbook.SheetNames || [];
+        if (names.length === 0) {
+            throw new Error('Excel workbook has no sheets');
+        }
+
+        const requestedName = options?.sheetName?.trim();
+        if (requestedName) {
+            const matched = names.find((name) => name === requestedName);
+            if (!matched) {
+                throw new Error(`Excel sheet not found: ${requestedName}`);
+            }
+            return matched;
+        }
+
+        const idx = Number.isInteger(options?.sheetIndex) ? Number(options?.sheetIndex) : 0;
+        if (idx < 0 || idx >= names.length) {
+            throw new Error(`Excel sheet index out of range: ${idx}`);
+        }
+        return names[idx];
+    }
+
     /**
      * Small files (≤ 20 MB): in-memory conversion using xlsx library.
      * Returns CSV string.
      */
-    static toCSV(filePath: string, sheetIndex: number = 0): string {
+    static toCSV(filePath: string, options?: { sheetName?: string; sheetIndex?: number }): string {
         const workbook = XLSX.readFile(filePath, {
             type: 'file',
             cellDates: true,
             dense: true,
         });
-        const sheetName = workbook.SheetNames[sheetIndex];
+        const sheetName = ExcelConverter.resolveSheetName(workbook, options);
         const sheet = workbook.Sheets[sheetName];
         return XLSX.utils.sheet_to_csv(sheet, { blankrows: false });
     }
@@ -24,7 +49,13 @@ export class ExcelConverter {
      * is proportional to a single row, not the full workbook.
      * Writes output CSV directly to destPath.
      */
-    static async toCSVFileStream(filePath: string, destPath: string): Promise<void> {
+    static async toCSVFileStream(
+        filePath: string,
+        destPath: string,
+        options?: { sheetName?: string; sheetIndex?: number }
+    ): Promise<void> {
+        const requestedSheetName = options?.sheetName?.trim();
+        const requestedSheetIndex = Number.isInteger(options?.sheetIndex) ? Number(options?.sheetIndex) : 0;
         const workbook = new ExcelJS.stream.xlsx.WorkbookReader(filePath, {
             sharedStrings: 'cache',
             hyperlinks: 'ignore',
@@ -52,16 +83,24 @@ export class ExcelConverter {
         // parse() yields { eventType: 'worksheet', value: worksheetObj } for each sheet.
         // Each worksheetObj is itself async-iterable, yielding ExcelJS Row objects.
         // Row.values is 1-indexed (index 0 is null); iterate from 1..length-1.
-        let processedFirstSheet = false;
+        let worksheetIndex = -1;
+        let processedTargetSheet = false;
 
         for await (const { eventType, value } of (workbook as any).parse()) {
             if (eventType === 'worksheet') {
-                if (processedFirstSheet) {
-                    // Only process the first worksheet
-                    break;
-                }
-                processedFirstSheet = true;
                 const worksheet = value as any;
+                worksheetIndex += 1;
+
+                const currentName = String(worksheet?.name || '');
+                const isTarget = requestedSheetName
+                    ? currentName === requestedSheetName
+                    : worksheetIndex === requestedSheetIndex;
+
+                if (!isTarget) {
+                    continue;
+                }
+
+                processedTargetSheet = true;
                 for await (const row of worksheet) {
                     const cells: string[] = [];
                     const values: any[] = (row as any).values ?? [];
@@ -72,7 +111,16 @@ export class ExcelConverter {
                     }
                     writeStream.write(cells.join(',') + '\n');
                 }
+                break;
             }
+        }
+
+        if (!processedTargetSheet) {
+            throw new Error(
+                requestedSheetName
+                    ? `Excel sheet not found: ${requestedSheetName}`
+                    : `Excel sheet index out of range: ${requestedSheetIndex}`
+            );
         }
 
         await new Promise<void>((resolve, reject) => {
@@ -86,13 +134,17 @@ export class ExcelConverter {
      * @deprecated Use toCSVFileStream for large files. Kept for compatibility.
      * Synchronous streaming variant — blocks the event loop for large files.
      */
-    static toCSVFile(filePath: string, destPath: string, sheetIndex: number = 0): void {
+    static toCSVFile(
+        filePath: string,
+        destPath: string,
+        options?: { sheetName?: string; sheetIndex?: number }
+    ): void {
         const workbook = XLSX.readFile(filePath, {
             type: 'file',
             cellDates: true,
             dense: true,
         });
-        const sheetName = workbook.SheetNames[sheetIndex];
+        const sheetName = ExcelConverter.resolveSheetName(workbook, options);
         const ws = workbook.Sheets[sheetName];
 
         const range = XLSX.utils.decode_range(ws['!ref'] ?? 'A1');

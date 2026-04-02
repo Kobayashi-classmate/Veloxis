@@ -7,6 +7,7 @@ import { ExcelConverter } from '../utils/ExcelConverter';
 import { CsvHelper } from '../utils/CsvHelper';
 import { CubeSchemaGenerator } from '../utils/CubeSchemaGenerator';
 import { ETLPipeline, ETLOperator } from '../utils/ETLPipeline';
+import { resolveBatchStatus } from '../utils/IngestionBatchStatus';
 import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
@@ -30,6 +31,12 @@ export interface IngestionJobData {
     extension?: 'xlsx' | 'csv';
     storageSource?: 'directus' | 's3'; // default directus
     projectId?: string;
+    ingestBatchId?: string;
+    sheetName?: string;
+    sheetIndex?: number;
+    schemaFingerprint?: string;
+    sourceFileName?: string;
+    sourceSheetName?: string;
 }
 
 /** 流式计算文件 SHA-256，不将整个文件读入内存 */
@@ -43,6 +50,55 @@ async function computeFileHashStream(filePath: string): Promise<string> {
     });
 }
 
+async function loginDirectus(): Promise<{ token: string; headers: Record<string, string> }> {
+    const authRes = await axios.post(`${config.directus.url}/auth/login`, {
+        email: config.directus.email,
+        password: config.directus.password
+    });
+    const token = authRes.data.data.access_token;
+    return {
+        token,
+        headers: { Authorization: `Bearer ${token}` },
+    };
+}
+
+async function syncDatasetStatusByBatch(
+    datasetId: string,
+    ingestBatchId: string | undefined,
+    headers: Record<string, string>,
+    fallbackStatus?: 'processing' | 'ready' | 'failed'
+) {
+    if (!ingestBatchId) {
+        if (fallbackStatus) {
+            await axios.patch(`${config.directus.url}/items/datasets/${datasetId}`, { status: fallbackStatus }, { headers });
+        }
+        return;
+    }
+
+    const versionsRes = await axios.get(`${config.directus.url}/items/dataset_versions`, {
+        headers,
+        params: {
+            'filter[dataset_id][_eq]': datasetId,
+            'filter[ingest_batch_id][_eq]': ingestBatchId,
+            fields: 'id,status',
+            limit: -1,
+        },
+    });
+    const versions: Array<{ status?: string }> = versionsRes.data?.data ?? [];
+    const status = resolveBatchStatus(versions.map((v) => String(v.status || '')));
+    await axios.patch(`${config.directus.url}/items/datasets/${datasetId}`, { status }, { headers });
+}
+
+async function fetchVersionMetadata(versionId: string, headers: Record<string, string>) {
+    const versionRes = await axios.get(`${config.directus.url}/items/dataset_versions/${versionId}`, {
+        headers,
+        params: {
+            fields: 'id,sheet_name,ingest_batch_id,schema_fingerprint,source_file_name,source_sheet_name',
+        },
+    });
+    return versionRes.data?.data ?? {};
+}
+
 export const initIngestionWorker = async () => {
     console.log(`[Worker] ✨ Ingestion Engine Online (Queue: ingestion-queue)`);
 
@@ -52,24 +108,49 @@ export const initIngestionWorker = async () => {
     const worker = new Worker<IngestionJobData>(
         'ingestion-queue',
         async (job: Job<IngestionJobData>) => {
-            const { datasetId, versionId, fileId, tableName, extension = 'csv', storageSource = 'directus', projectId = 'default_project' } = job.data;
+            const {
+                datasetId,
+                versionId,
+                fileId,
+                tableName,
+                extension = 'csv',
+                storageSource = 'directus',
+                projectId = 'default_project',
+                ingestBatchId: fromJobBatchId,
+                sheetName: fromJobSheetName,
+                sheetIndex: fromJobSheetIndex,
+                schemaFingerprint: fromJobSchemaFingerprint,
+                sourceFileName: fromJobSourceFileName,
+                sourceSheetName: fromJobSourceSheetName,
+            } = job.data;
             console.log(`[Job ${job.id}] Processing ${extension} ingestion from ${storageSource} for ${tableName} (Project: ${projectId})`);
 
             let token = '';
-            let headers = {};
+            let headers: Record<string, string> = {};
             const isTest = versionId.startsWith('v1.test');
+            let ingestBatchId = fromJobBatchId;
+            let sheetName = fromJobSheetName;
+            let sheetIndex = fromJobSheetIndex;
+            let schemaFingerprint = fromJobSchemaFingerprint;
+            let sourceFileName = fromJobSourceFileName;
+            let sourceSheetName = fromJobSourceSheetName;
 
             try {
                 if (!isTest) {
-                    const authRes = await axios.post(`${config.directus.url}/auth/login`, {
-                        email: config.directus.email,
-                        password: config.directus.password
-                    });
-                    token = authRes.data.data.access_token;
-                    headers = { Authorization: `Bearer ${token}` };
+                    const auth = await loginDirectus();
+                    token = auth.token;
+                    headers = auth.headers;
+
+                    const versionMeta = await fetchVersionMetadata(versionId, headers);
+                    ingestBatchId = ingestBatchId ?? versionMeta.ingest_batch_id ?? undefined;
+                    sheetName = sheetName ?? versionMeta.sheet_name ?? undefined;
+                    schemaFingerprint = schemaFingerprint ?? versionMeta.schema_fingerprint ?? undefined;
+                    sourceFileName = sourceFileName ?? versionMeta.source_file_name ?? undefined;
+                    sourceSheetName = sourceSheetName ?? versionMeta.source_sheet_name ?? sheetName ?? undefined;
 
                     await axios.patch(`${config.directus.url}/items/dataset_versions/${versionId}`,
                         { status: 'processing' }, { headers });
+                    await syncDatasetStatusByBatch(datasetId, ingestBatchId, headers, 'processing');
                 }
 
                 const tempPath = path.join('/tmp', `${fileId}.${extension}`);
@@ -104,9 +185,15 @@ export const initIngestionWorker = async () => {
                     if (fileSizeBytes > 20 * 1024 * 1024) {
                         // Large file: ExcelJS streaming SAX parser — peak memory is one row, not full workbook
                         console.log(`[Job ${job.id}] Large file (${(fileSizeBytes / 1024 / 1024).toFixed(1)} MB), using ExcelJS streaming converter...`);
-                        await ExcelConverter.toCSVFileStream(tempPath, csvPathToRead);
+                        await ExcelConverter.toCSVFileStream(tempPath, csvPathToRead, {
+                            sheetName,
+                            sheetIndex,
+                        });
                     } else {
-                        const csvString = ExcelConverter.toCSV(tempPath);
+                        const csvString = ExcelConverter.toCSV(tempPath, {
+                            sheetName,
+                            sheetIndex,
+                        });
                         fs.writeFileSync(csvPathToRead, csvString);
                     }
                     // 无论大小文件，均不 readFileSync — 统一用 createReadStream 传给 Doris
@@ -154,6 +241,9 @@ export const initIngestionWorker = async () => {
                 }
 
                 console.log(`[Job ${job.id}] Final Detected headers:`, csvHeaders);
+                if (schemaFingerprint) {
+                    console.log(`[Job ${job.id}] Schema fingerprint: ${schemaFingerprint}`);
+                }
 
                 // 5. Create Table Dynamically
                 await dorisClient.ensureTableExists(tableName, csvHeaders);
@@ -161,7 +251,13 @@ export const initIngestionWorker = async () => {
                 // 6. Stream Load into Doris — ReadStream 直接传输，内存占用与文件大小无关
                 console.log(`[Job ${job.id}] Pumping data into Doris...`);
                 const csvStream = fs.createReadStream(finalCsvPathToRead);
-                await dorisClient.streamLoad(tableName, csvStream, { headers: csvHeaders, projectId: projectId });
+                await dorisClient.streamLoad(tableName, csvStream, {
+                    headers: csvHeaders,
+                    projectId: projectId,
+                    sourceFileName: sourceFileName || fileId,
+                    sourceSheetName: sourceSheetName || sheetName || '',
+                    ingestBatchId: ingestBatchId || '',
+                });
 
                 // 7. Generate Dynamic Cube.js Schema
                 CubeSchemaGenerator.generateSchema(tableName, csvHeaders, datasetId);
@@ -176,8 +272,7 @@ export const initIngestionWorker = async () => {
                 if (!isTest) {
                     await axios.patch(`${config.directus.url}/items/dataset_versions/${versionId}`,
                         { status: 'ready' }, { headers });
-                    await axios.patch(`${config.directus.url}/items/datasets/${datasetId}`,
-                        { status: 'ready' }, { headers });
+                    await syncDatasetStatusByBatch(datasetId, ingestBatchId, headers, 'ready');
                 }
 
                 console.log(`[Job ${job.id}] 🏆 Done! ${tableName} is now live in Doris.`);
@@ -199,15 +294,11 @@ export const initIngestionWorker = async () => {
 
                 if (!isTest) {
                     try {
-                        const authRes = await axios.post(`${config.directus.url}/auth/login`, {
-                            email: config.directus.email,
-                            password: config.directus.password
-                        });
-                        const refreshHeaders = { Authorization: `Bearer ${authRes.data.data.access_token}` };
+                        const auth = await loginDirectus();
+                        const refreshHeaders = auth.headers;
                         await axios.patch(`${config.directus.url}/items/dataset_versions/${versionId}`,
                             { status: 'failed', error_message: (error.message ?? '未知错误').slice(0, 500) }, { headers: refreshHeaders });
-                        await axios.patch(`${config.directus.url}/items/datasets/${datasetId}`,
-                            { status: 'failed' }, { headers: refreshHeaders });
+                        await syncDatasetStatusByBatch(datasetId, ingestBatchId, refreshHeaders, 'failed');
                     } catch (e) {}
                 }
                 throw error;

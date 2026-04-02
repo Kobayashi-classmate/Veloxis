@@ -10,6 +10,7 @@ import { WorkbookExportService } from './WorkbookExportService';
 import { getWorkbenchQueue } from '../jobs/WorkbenchWorker';
 import { authenticateWorkerApi, WorkerApiRequest } from '../middleware/workerApiAuth';
 import { CaptchaError, CaptchaService } from './CaptchaService';
+import { createPluginRouter } from '../plugins/router';
 
 const app = express();
 app.use(bodyParser.json());
@@ -304,7 +305,15 @@ app.post('/webhooks/ingestion', async (req, res) => {
 
     if (payload.collection === 'dataset_versions' && payload.event.includes('create')) {
         const versionId = payload.key ?? payload.payload?.id;
-        const { dataset_id, file_id } = payload.payload ?? {};
+        const {
+            dataset_id,
+            file_id,
+            ingest_batch_id,
+            sheet_name,
+            schema_fingerprint,
+            source_file_name,
+            source_sheet_name,
+        } = payload.payload ?? {};
 
         if (!versionId || !dataset_id || !file_id) {
             console.error('[Webhook] Missing required fields:', { versionId, dataset_id, file_id });
@@ -355,6 +364,11 @@ app.post('/webhooks/ingestion', async (req, res) => {
             extension,
             storageSource: 'directus',
             projectId,
+            ingestBatchId: ingest_batch_id,
+            sheetName: sheet_name,
+            schemaFingerprint: schema_fingerprint,
+            sourceFileName: source_file_name,
+            sourceSheetName: source_sheet_name,
         });
 
         return res.status(200).json({ status: 'queued', jobId: versionId });
@@ -366,6 +380,7 @@ app.post('/webhooks/ingestion', async (req, res) => {
 // Protected Worker API router
 const workerApi = express.Router();
 workerApi.use(authenticateWorkerApi);
+workerApi.use('/plugins', createPluginRouter());
 
 /**
  * GET /worker-api/health

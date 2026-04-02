@@ -13,6 +13,35 @@ export class DorisClient {
         this.authHeader = `Basic ${Buffer.from(creds).toString('base64')}`;
     }
 
+    private readonly provenanceColumns = ['_source_file', '_source_sheet', '_ingest_batch_id'];
+
+    private escapeLiteral(value: string): string {
+        return value.replace(/'/g, "''");
+    }
+
+    private async ensureMissingColumns(db: mysql.Connection, tableName: string, desiredColumns: string[]) {
+        const [rows] = await db.query(
+            `
+                SELECT COLUMN_NAME
+                FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
+            `,
+            [config.doris.database, tableName]
+        );
+
+        const existing = new Set(
+            (rows as Array<{ COLUMN_NAME?: string }>).map((r) => String(r.COLUMN_NAME || '')).filter(Boolean)
+        );
+        const missing = desiredColumns.filter((name) => !existing.has(name));
+
+        for (const column of missing) {
+            await db.query(
+                `ALTER TABLE ${config.doris.database}.\`${tableName}\` ADD COLUMN \`${column}\` VARCHAR(65533)`
+            );
+            console.log(`[Doris] Added missing column \`${column}\` to \`${tableName}\`.`);
+        }
+    }
+
     /**
      * Dynamically creates a Doris table based on CSV headers
      */
@@ -28,9 +57,11 @@ export class DorisClient {
 
         await db.query(`CREATE DATABASE IF NOT EXISTS ${config.doris.database}`);
         
+        const tableColumns = [...headers, 'project_id', ...this.provenanceColumns];
+
         // Use the first column as the hash bucket key
         const firstCol = headers[0];
-        const columnsDef = headers.map(h => `\`${h}\` VARCHAR(65533)`).join(', ');
+        const columnsDef = tableColumns.map(h => `\`${h}\` VARCHAR(65533)`).join(', ');
         
         const createQuery = `
             CREATE TABLE IF NOT EXISTS ${config.doris.database}.\`${tableName}\` (
@@ -46,6 +77,7 @@ export class DorisClient {
 
         try {
             await db.query(createQuery);
+            await this.ensureMissingColumns(db, tableName, tableColumns);
             console.log(`[Doris] Ensured table \`${tableName}\` exists with project_id.`);
         } catch(e: any) {
             console.error(`[Doris] Failed to create table:`, e.message);
@@ -60,7 +92,18 @@ export class DorisClient {
      * @param tableName Destination table
      * @param data Buffer or Stream
      */
-    async streamLoad(tableName: string, data: Buffer | Readable, options?: { columnSeparator?: string, headers?: string[], projectId?: string }) {
+    async streamLoad(
+        tableName: string,
+        data: Buffer | Readable,
+        options?: {
+            columnSeparator?: string;
+            headers?: string[];
+            projectId?: string;
+            sourceFileName?: string;
+            sourceSheetName?: string;
+            ingestBatchId?: string;
+        }
+    ) {
         const feUrl = `${this.httpBase}/api/${config.doris.database}/${tableName}/_stream_load`;
         const label = `veloxis_ingest_${tableName}_${Date.now()}`;
 
@@ -68,7 +111,13 @@ export class DorisClient {
         let columnsHeader: string | undefined;
         if (options?.headers && options.headers.length > 0 && options?.projectId) {
             const baseColumns = options.headers.map(h => `\`${h}\``).join(',');
-            columnsHeader = `${baseColumns}, project_id='${options.projectId}'`;
+            const literals = [
+                `project_id='${this.escapeLiteral(options.projectId)}'`,
+                `_source_file='${this.escapeLiteral(options.sourceFileName || '')}'`,
+                `_source_sheet='${this.escapeLiteral(options.sourceSheetName || '')}'`,
+                `_ingest_batch_id='${this.escapeLiteral(options.ingestBatchId || '')}'`,
+            ];
+            columnsHeader = `${baseColumns}, ${literals.join(', ')}`;
         }
 
         const requestHeaders: Record<string, string> = {
