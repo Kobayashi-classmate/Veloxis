@@ -1,6 +1,7 @@
-import { mainLayoutMenu, projectMenu } from '@src/config/menu.config'
+import { adminMenu, mainLayoutMenu, projectMenu } from '@src/config/menu.config'
 
 const PROJECT_SCOPE_KEY = 'project'
+const ADMIN_SCOPE_KEY = 'admin'
 const MAIN_SCOPE_FALLBACK = 'main'
 
 const ensurePathPrefix = (value) => {
@@ -103,6 +104,9 @@ export const resolveScopeKey = (pathname = '/') => {
   if (normalizedPath === '/project' || normalizedPath.startsWith('/project/')) {
     return PROJECT_SCOPE_KEY
   }
+  if (normalizedPath === '/admin' || normalizedPath.startsWith('/admin/')) {
+    return ADMIN_SCOPE_KEY
+  }
   return MAIN_SCOPE_FALLBACK
 }
 
@@ -128,10 +132,24 @@ const resolveProjectScopeHomePath = (pathname, allowedRoutes) => {
   return '/'
 }
 
+const resolveAdminScopeHomePath = (_pathname, allowedRoutes) => {
+  const adminPaths = (adminMenu || [])
+    .map((item) => menuItemPath(item))
+    .filter((path) => path === '/admin' || path.startsWith('/admin/'))
+
+  const firstAdminAccessible = adminPaths.find((path) => canAccessPath(path, allowedRoutes))
+  if (firstAdminAccessible) return firstAdminAccessible
+
+  return '/admin/overview'
+}
+
 export const resolveScopeHomePath = (pathname = '/', allowedRoutes = []) => {
   const scopeKey = resolveScopeKey(pathname)
   if (scopeKey === PROJECT_SCOPE_KEY) {
     return resolveProjectScopeHomePath(pathname, allowedRoutes)
+  }
+  if (scopeKey === ADMIN_SCOPE_KEY) {
+    return resolveAdminScopeHomePath(pathname, allowedRoutes)
   }
   return resolveMainScopeHomePath(pathname, allowedRoutes)
 }

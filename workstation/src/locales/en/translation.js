@@ -19,6 +19,7 @@ const en = {
     userSettings: 'Settings',
     contactMe: 'Contact',
     logout: 'Log out',
+    unnamedUser: 'Unnamed User',
   },
   settingDrawer: {
     title: 'Preferences',
@@ -92,6 +93,7 @@ const en = {
     prismRender: 'Prism Render',
     print: 'Print',
     profile: 'Profile',
+    setting: 'Settings',
     contact: 'Contact',
 
     error: 'Error',
@@ -106,6 +108,16 @@ const en = {
       members: 'Members',
       settings: 'Project Settings',
       back: 'Back to Hub',
+    },
+    admin: {
+      console: 'Admin Console',
+      overview: 'Overview',
+      users: 'Users',
+      roles: 'Roles',
+      projects: 'Projects',
+      plugins: 'Plugins',
+      audit: 'Audit',
+      legacy: 'Legacy Entry',
     },
   },
   svp: {

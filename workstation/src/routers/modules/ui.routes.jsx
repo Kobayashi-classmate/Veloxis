@@ -60,6 +60,12 @@ export const uiRoutes = [
     element: <lazyComponents.Profile />,
   },
   {
+    path: 'setting',
+    name: 'User Settings',
+    i18nKey: 'menu.setting',
+    element: <lazyComponents.UserSettings />,
+  },
+  {
     path: 'contact',
     name: 'Contact',
     i18nKey: 'menu.contact',
@@ -76,6 +82,11 @@ export const uiRoutes = [
     name: '项目依赖分析',
     i18nKey: 'menu.dependencies',
     element: <lazyComponents.Dependencies />,
+  },
+  {
+    path: 'plugin-debug',
+    name: 'Plugin Debug',
+    element: <lazyComponents.PluginDebug />,
   },
   {
     path: 'text-editor',

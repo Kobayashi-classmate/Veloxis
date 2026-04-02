@@ -81,7 +81,7 @@ const resolvePageModuleKey = (() => {
   }
 })()
 
-import { mainLayoutMenu, projectMenu } from '@src/config/menu.config'
+import { mainLayoutMenu, projectMenu, adminMenu } from '@src/config/menu.config'
 
 let lazyComponentsCache = null
 let lazyComponentsPromise = null
@@ -106,6 +106,7 @@ const ProSecNav = ({ mode = 'inline', theme = 'light', onMenuClick }) => {
   const { redirectTo } = useSafeNavigate()
 
   const isProjectRoute = pathname.startsWith('/project/')
+  const isAdminRoute = pathname === '/admin' || pathname.startsWith('/admin/')
   const projectId = isProjectRoute ? pathname.split('/')[2] : null
 
   const { t } = useTranslation()
@@ -256,7 +257,7 @@ const ProSecNav = ({ mode = 'inline', theme = 'light', onMenuClick }) => {
     }
 
     // 使用配置文件的菜单，并进行翻译；同时规范化每项的 path 字段
-    const baseMenu = isProjectRoute ? projectMenu : mainLayoutMenu
+    const baseMenu = isProjectRoute ? projectMenu : isAdminRoute ? adminMenu : mainLayoutMenu
 
     const processItem = (item) => {
       const newItem = { ...item }
@@ -328,7 +329,7 @@ const ProSecNav = ({ mode = 'inline', theme = 'light', onMenuClick }) => {
           continue
         }
 
-        const hasAccess = hasAccessSafely(rawKey) || matchesDynamicParam(rawKey)
+        const hasAccess = item.alwaysVisible || hasAccessSafely(rawKey) || matchesDynamicParam(rawKey)
         if (hasAccess) {
           pushWithChildren(item, null)
         }
@@ -462,6 +463,13 @@ const ProSecNav = ({ mode = 'inline', theme = 'light', onMenuClick }) => {
     }
 
     try {
+      if (selected?.bypassPermission) {
+        redirectTo(selectedPath)
+        setIsOpenChange(false)
+        onMenuClick?.()
+        return
+      }
+
       const ok = await permissionService.canAccessRoute(selectedPath, false)
       if (!ok) {
         showDeniedOnce(selectedPath)

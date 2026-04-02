@@ -19,6 +19,7 @@ const zh = {
     userSettings: '个人设置',
     contactMe: '联 系 我',
     logout: '退出登录',
+    unnamedUser: '未命名用户',
   },
   settingDrawer: {
     title: '偏好设置',
@@ -92,6 +93,7 @@ const zh = {
     prismRender: 'Prism 渲染',
     print: '打印',
     profile: '个人资料',
+    setting: '个人设置',
     contact: '联系人',
 
     error: '错误',
@@ -106,6 +108,16 @@ const zh = {
       members: '成员管理',
       settings: '项目设置',
       back: '返回大厅',
+    },
+    admin: {
+      console: '管理员控制台',
+      overview: '管理总览',
+      users: '用户管理',
+      roles: '角色管理',
+      projects: '项目管理',
+      plugins: '插件治理',
+      audit: '审计中心',
+      legacy: 'Legacy 入口',
     },
   },
   svp: {

@@ -99,6 +99,15 @@ const rawMainLayoutMenu = [
     ),
   },
   {
+    label: 'Plugin Debug',
+    path: '/plugin-debug',
+    icon: (
+      <AnimatedIcon variant="spin" mode="hover">
+        <ToolOutlined />
+      </AnimatedIcon>
+    ),
+  },
+  {
     label: 'Text Editor',
     i18nKey: 'menu.textEditor',
     path: '/text-editor',
@@ -351,3 +360,82 @@ const rawProjectMenu = [
 ]
 
 export const projectMenu = normalizeMenu(rawProjectMenu)
+
+const rawAdminMenu = [
+  {
+    label: '管理总览',
+    path: '/admin/overview',
+    icon: (
+      <AnimatedIcon variant="spin" mode="hover">
+        <SafetyCertificateOutlined />
+      </AnimatedIcon>
+    ),
+  },
+  {
+    label: '用户管理',
+    path: '/admin/users',
+    icon: (
+      <AnimatedIcon variant="spin" mode="hover">
+        <UserOutlined />
+      </AnimatedIcon>
+    ),
+  },
+  {
+    label: '角色管理',
+    path: '/admin/roles',
+    icon: (
+      <AnimatedIcon variant="spin" mode="hover">
+        <LockOutlined />
+      </AnimatedIcon>
+    ),
+  },
+  {
+    label: '项目管理',
+    path: '/admin/projects',
+    icon: (
+      <AnimatedIcon variant="spin" mode="hover">
+        <ProjectOutlined />
+      </AnimatedIcon>
+    ),
+  },
+  {
+    label: '插件治理',
+    path: '/admin/plugins',
+    icon: (
+      <AnimatedIcon variant="spin" mode="hover">
+        <ToolOutlined />
+      </AnimatedIcon>
+    ),
+  },
+  {
+    label: '审计中心',
+    path: '/admin/audit',
+    icon: (
+      <AnimatedIcon variant="spin" mode="hover">
+        <SafetyCertificateOutlined />
+      </AnimatedIcon>
+    ),
+  },
+  {
+    label: 'Legacy 入口',
+    path: '/admin/legacy',
+    icon: (
+      <AnimatedIcon variant="spin" mode="hover">
+        <SettingOutlined />
+      </AnimatedIcon>
+    ),
+  },
+  {
+    label: '返回前台首页',
+    path: '/',
+    alwaysVisible: true,
+    bypassPermission: true,
+    icon: (
+      <AnimatedIcon variant="spin" mode="hover">
+        <ArrowLeftOutlined />
+      </AnimatedIcon>
+    ),
+  },
+]
+
+export const adminMenu = normalizeMenu(rawAdminMenu)

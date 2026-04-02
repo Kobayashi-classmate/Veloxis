@@ -10,6 +10,7 @@
 
 import { UserPermission, Role, PermissionCode } from '../../types/permission'
 import request from '@/service/request'
+import { buildAdminAccessProfile } from '@src/utils/adminAccess'
 
 export type Permission = {
   code: string
@@ -85,12 +86,15 @@ export const getUserPermissions = async (_userId?: string): Promise<UserPermissi
           ]
         : []
 
+      const adminProfile = buildAdminAccessProfile(frontendRoles, { isPlatformAdmin: true })
+      const adminRoutes = adminProfile.allowedPaths
+
       return {
         userId: me.id,
         username: me.email,
         roles: frontendRoles,
         permissions: ['*:*'],
-        routes: ['*'],
+        routes: Array.from(new Set(['*', ...adminRoutes])),
         tenant: me.tenant,
       }
     }
@@ -131,8 +135,17 @@ export const getUserPermissions = async (_userId?: string): Promise<UserPermissi
     }
 
     // Step 6: 从权限码推导可访问的前端路由
+    const adminProfile = buildAdminAccessProfile(frontendRoles)
     const collectionSet = new Set(permissionCodes.map((code) => code.split(':')[0]))
-    const routes: string[] = ['/', ...Array.from(collectionSet).map((c) => `/${c}`)]
+    const collectionRoutes = Array.from(collectionSet).map((c) => `/${c}`)
+    const adminRoutes = adminProfile.allowedPaths
+
+    // 仅对 Admin Console 角色补充管理入口权限码，避免普通业务用户误入。
+    if (adminProfile.isAdminConsoleUser && !permissionCodes.includes('system:read')) {
+      permissionCodes = [...permissionCodes, 'system:read']
+    }
+
+    const routes: string[] = Array.from(new Set(['/', ...collectionRoutes, ...adminRoutes]))
 
     return {
       userId: me.id,
@@ -143,11 +156,23 @@ export const getUserPermissions = async (_userId?: string): Promise<UserPermissi
       tenant: me.tenant,
     }
   } catch (error: any) {
-    // 增加对授权错误的处理逻辑，确保 request.js 能够识别并触发 refresh/logout
-    if (error?.response?.status === 401 || error?.response?.status === 403) {
+    const status = error?.response?.status
+
+    // 401：认证失效，可进入 refresh 链路
+    if (status === 401) {
       error.isUnauthorized = true
+      error.isAuthExpired = true
       error.canRetry = !error.config?._isRefreshRequest
+      error.status = 401
     }
+
+    // 403：权限不足，不触发 refresh/logout
+    if (status === 403) {
+      error.isForbidden = true
+      error.status = 403
+      error.canRetry = false
+    }
+
     throw error
   }
 }

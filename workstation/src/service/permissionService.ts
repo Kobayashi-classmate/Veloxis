@@ -13,6 +13,8 @@ const routePermissionMap: Partial<Record<string, PermissionCode>> = {
   '/workspaces': 'workspaces:read',
   '/demo': 'demo:read',
   '/global-console': 'global-console:read',
+  '/admin': 'system:read',
+  '/admin/*': 'system:read',
   '/project/*': 'workbench:read',
   '/signin': 'system:read',
   '/signup': 'system:read',
@@ -233,7 +235,17 @@ class PermissionService {
           msg.includes('token') ||
           (error as any)?.status === 401 ||
           (error as any)?.code === 401
+        const isForbiddenError =
+          msg.includes('无权限') ||
+          msg.includes('权限') ||
+          (error as any)?.isForbidden === true ||
+          (error as any)?.status === 403 ||
+          (error as any)?.code === 403
         if (isAuthError) {
+          this.loadingPromise = null
+          throw error
+        }
+        if (isForbiddenError) {
           this.loadingPromise = null
           throw error
         }
@@ -268,8 +280,17 @@ class PermissionService {
           msg.includes('token') ||
           (error as any)?.status === 401 ||
           (error as any)?.code === 401
+        const isForbiddenError =
+          msg.includes('无权限') ||
+          msg.includes('权限') ||
+          (error as any)?.isForbidden === true ||
+          (error as any)?.status === 403 ||
+          (error as any)?.code === 403
 
         if (isAuthError) {
+          throw error
+        }
+        if (isForbiddenError) {
           throw error
         }
 
@@ -554,7 +575,13 @@ class PermissionService {
         msg.includes('token') ||
         (error as any)?.status === 401 ||
         (error as any)?.code === 401
-      if (isAuthError) throw error
+      const isForbiddenError =
+        msg.includes('无权限') ||
+        msg.includes('权限') ||
+        (error as any)?.isForbidden === true ||
+        (error as any)?.status === 403 ||
+        (error as any)?.code === 403
+      if (isAuthError || isForbiddenError) throw error
     }
   }
 }

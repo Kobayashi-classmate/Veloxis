@@ -20,6 +20,7 @@ import { nestedRoutes } from './modules/nested.routes'
 import { errorRoutes } from './modules/error.routes'
 import { notificationRoutes } from './modules/notification.routes'
 import { zustandRoutes } from './modules/zustand.routes'
+import { adminRoutes } from './modules/admin.routes'
 import { annotateRoutesWithPermissions, filterRoutesByAccessiblePaths } from './utils'
 import { permissionService } from '@src/service/permissionService'
 
@@ -28,6 +29,7 @@ mainLayoutRoute.children = [
   ...mainLayoutRoute.children,
   ...businessRoutes,
   ...projectRoutes,
+  ...adminRoutes,
   ...uiRoutes,
   ...chartRoutes,
   ...nestedRoutes,

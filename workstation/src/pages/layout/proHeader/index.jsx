@@ -16,6 +16,7 @@ import {
   RocketOutlined,
   BookOutlined,
   SearchOutlined,
+  SafetyCertificateOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { removeLocalStorage, getLocalStorage } from '@utils/publicFn'
@@ -30,6 +31,8 @@ import { useAuth } from '@src/service/useAuth'
 import { authService } from '@src/service/authService'
 import { permissionService } from '@src/service/permissionService'
 import { HashRouterUtils } from '@src/utils/hashRouter'
+import { resolveUserDisplayName } from '@src/utils/userDisplayName'
+import { buildAdminAccessProfile } from '@src/utils/adminAccess'
 import PrimaryNav, { usePrimaryNavItems } from '../primaryNav'
 import styles from './index.module.less'
 import Fullscreen from '../fullscreen'
@@ -70,15 +73,17 @@ const safeNotifyDeniedOnce = async ({ path, lastDeniedRef, messageApi }) => {
   }
 }
 
-const buildUserMenuItems = ({ t, isAuthenticated, user }) => [
+const buildUserMenuItems = ({ t, isAuthenticated, user, displayName, showAdminEntry }) => [
   ...(isAuthenticated && user
     ? [
         {
           key: 'userinfo',
           label: (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '2px 0' }}>
-              <span style={{ fontWeight: 600 }}>{user.name || user.login || user.email}</span>
-              {user.email && user.name ? <span style={{ fontSize: 12, opacity: 0.6 }}>{user.email}</span> : null}
+              <span style={{ fontWeight: 600 }}>{displayName}</span>
+              {user.email && user.email !== displayName ? (
+                <span style={{ fontSize: 12, opacity: 0.6 }}>{user.email}</span>
+              ) : null}
             </div>
           ),
           disabled: true,
@@ -114,6 +119,21 @@ const buildUserMenuItems = ({ t, isAuthenticated, user }) => [
       </AnimatedIcon>
     ),
   },
+  ...(showAdminEntry ? [{ type: 'divider' }] : []),
+  ...(showAdminEntry
+    ? [
+        {
+          key: 'admin',
+          label: <Space>管理员控制台</Space>,
+          icon: (
+            <AnimatedIcon variant="spin" mode="hover">
+              <SafetyCertificateOutlined />
+            </AnimatedIcon>
+          ),
+        },
+      ]
+    : []),
+  { type: 'divider' },
   {
     key: '4',
     label: <Space>{t('header.logout')}</Space>,
@@ -381,8 +401,58 @@ const ProHeader = ({ layout, onSettingClick, children, onMobileMenuClick }) => {
   }
 
   const { isAuthenticated, user } = useAuth()
+  const [showAdminEntry, setShowAdminEntry] = React.useState(false)
 
-  const items = React.useMemo(() => buildUserMenuItems({ t, isAuthenticated, user }), [t, isAuthenticated, user])
+  React.useEffect(() => {
+    let mounted = true
+
+    const resolveAdminEntry = async () => {
+      if (!isAuthenticated) {
+        if (mounted) setShowAdminEntry(false)
+        return
+      }
+
+      try {
+        const userPermissions = await permissionService.getPermissions()
+        const permissions = Array.isArray(userPermissions?.permissions) ? userPermissions.permissions : []
+        const roles = Array.isArray(userPermissions?.roles)
+          ? userPermissions.roles
+              .map((role) => {
+                if (!role) return null
+                if (typeof role === 'string') return { code: role, name: role }
+                return {
+                  code: role.code || role.id || '',
+                  name: role.name || role.code || role.id || '',
+                }
+              })
+              .filter(Boolean)
+          : []
+
+        const profile = buildAdminAccessProfile(roles, {
+          isPlatformAdmin: permissions.includes('*:*'),
+        })
+
+        if (mounted) {
+          setShowAdminEntry(profile.isAdminConsoleUser)
+        }
+      } catch {
+        if (mounted) setShowAdminEntry(false)
+      }
+    }
+
+    resolveAdminEntry()
+
+    return () => {
+      mounted = false
+    }
+  }, [isAuthenticated])
+
+  const userDisplayName = React.useMemo(() => resolveUserDisplayName(user, t('header.unnamedUser')), [user, t])
+
+  const items = React.useMemo(
+    () => buildUserMenuItems({ t, isAuthenticated, user, displayName: userDisplayName, showAdminEntry }),
+    [t, isAuthenticated, user, userDisplayName, showAdminEntry]
+  )
 
   const mobileMoreItems = React.useMemo(
     () =>
@@ -408,6 +478,10 @@ const ProHeader = ({ layout, onSettingClick, children, onMobileMenuClick }) => {
       }
       if (key === '3') {
         redirectTo('/contact')
+        return
+      }
+      if (key === 'admin') {
+        redirectTo('/admin/overview')
         return
       }
       if (key === '4') {

@@ -74,6 +74,14 @@ export const lazyComponents = {
   ProjectRecipes: lazyLoad(() => import('@pages/project/recipes'), { preload: true }),
   ProjectMembers: lazyLoad(() => import('@pages/project/members'), { preload: true }),
   ProjectSettings: lazyLoad(() => import('@pages/project/settings'), { preload: true }),
+  AdminLayout: lazyLoad(() => import('@pages/admin/layout'), { preload: true }),
+  AdminOverview: lazyLoad(() => import('@pages/admin/overview'), { preload: true }),
+  AdminUsers: lazyLoad(() => import('@pages/admin/users'), { preload: true }),
+  AdminRoles: lazyLoad(() => import('@pages/admin/roles'), { preload: true }),
+  AdminProjects: lazyLoad(() => import('@pages/admin/projects'), { preload: true }),
+  AdminPlugins: lazyLoad(() => import('@pages/admin/plugins'), { preload: true }),
+  AdminAudit: lazyLoad(() => import('@pages/admin/audit'), { preload: true }),
+  AdminLegacy: lazyLoad(() => import('@pages/admin/legacy'), { preload: true }),
   Home: lazyLoad(() => import('@pages/home'), { preload: true }), // 原首页，现作为演示页
   GlobalConsole: lazyLoad(() => import('@pages/globalConsole'), { preload: true }),
   Demo: lazyLoad(() => import('@pages/demo'), { preload: true }),
@@ -110,6 +118,9 @@ export const lazyComponents = {
   Dependencies: lazyLoad(() => import('@pages/dependencies'), {
     preload: true,
   }),
+  PluginDebug: lazyLoad(() => import('@pages/pluginDebug'), {
+    preload: true,
+  }),
 
   // 示例：如果新增一个按需加载的路由组件，请在此处注册（示例）
   // 例如：新增 pages/alerts/AlertDetail.jsx
@@ -119,6 +130,7 @@ export const lazyComponents = {
 
   // 用户相关
   Profile: lazyLoad(() => import('@pages/profile')),
+  UserSettings: lazyLoad(() => import('@pages/setting')),
   Contact: lazyLoad(() => import('@pages/contact')),
 
   // 嵌套路由

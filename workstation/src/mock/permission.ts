@@ -26,6 +26,14 @@ const allRoutes = [
   '/zustand',
   '/dependencies',
   '/text-editor',
+  '/admin',
+  '/admin/overview',
+  '/admin/users',
+  '/admin/roles',
+  '/admin/projects',
+  '/admin/plugins',
+  '/admin/audit',
+  '/admin/legacy',
 ]
 
 // 超级管理员：所有路由
@@ -48,6 +56,11 @@ const managerRoutes = [
   '/dependencies',
   '/text-editor',
   '/deploy-flow',
+  '/admin',
+  '/admin/overview',
+  '/admin/projects',
+  '/admin/audit',
+  '/admin/legacy',
 ]
 
 // 业务员：业务相关功能
@@ -155,6 +168,14 @@ export const routePermissionMap: Record<string, PermissionCode> = {
   '/svg-viewer': 'svg-viewer:read',
   '/dependencies': 'dependencies:read',
   '/text-editor': 'text-editor:read',
+  '/admin': 'system:read',
+  '/admin/overview': 'system:read',
+  '/admin/users': 'system:read',
+  '/admin/roles': 'system:read',
+  '/admin/projects': 'system:read',
+  '/admin/plugins': 'system:read',
+  '/admin/audit': 'system:read',
+  '/admin/legacy': 'system:read',
   '*': '*:*',
 }
 
