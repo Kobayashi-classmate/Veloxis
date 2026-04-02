@@ -2,10 +2,11 @@ import AnimatedIcon from '@stateless/AnimatedIcon'
 import BehaviorCaptcha from '@stateless/BehaviorCaptcha'
 import TurnstileCaptcha from '@stateless/TurnstileCaptcha'
 import Logo from '@assets/images/pro-logo.png'
+import VerifyCaptchaBox from './components/VerifyCaptchaBox'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useSafeNavigate from '@app-hooks/useSafeNavigate'
-import { Form, Input, Button, Typography, Layout, Card, theme, App, Tag, Modal, Checkbox } from 'antd'
+import { Form, Input, Button, Typography, Layout, Card, theme, App, Tag, Modal } from 'antd'
 import { useStore } from '@/store'
 import {
   UserOutlined,
@@ -24,6 +25,9 @@ import styles from './index.module.less'
 
 const { Title, Text, Paragraph } = Typography
 const { Content } = Layout
+const VERIFY_ERROR_RESET_MS = 3000
+const VERIFY_MODAL_AUTO_CLOSE_MS = 45000
+const VERIFY_SUCCESS_EXPIRE_MS = 180000
 
 const normalizeCaptchaProvider = (value) => {
   const provider = String(value || '')
@@ -68,14 +72,21 @@ const SignIn = () => {
   const [captchaTicketEmail, setCaptchaTicketEmail] = useState('')
   const [captchaModalOpen, setCaptchaModalOpen] = useState(false)
   const [captchaModalSubmitting, setCaptchaModalSubmitting] = useState(false)
+  const [verifyUiState, setVerifyUiState] = useState('idle')
 
   const [internalChallenge, setInternalChallenge] = useState(null)
   const [internalProof, setInternalProof] = useState(null)
   const [internalChallengeLoading, setInternalChallengeLoading] = useState(false)
+  const captchaReadyForSubmit = captchaProvider === 'turnstile' ? Boolean(captchaToken) : Boolean(internalProof?.behaviorProof)
 
   const submittingRef = useRef(false)
+  const verifyResetTimerRef = useRef(null)
+  const verifySuccessTimerRef = useRef(null)
+  const modalAutoCloseTimerRef = useRef(null)
+  const modalCountdownTimerRef = useRef(null)
+  const [captchaModalRemainSec, setCaptchaModalRemainSec] = useState(Math.ceil(VERIFY_MODAL_AUTO_CLOSE_MS / 1000))
 
-  const getErrorMessage = (error) => (error instanceof Error && error.message ? error.message : '未知错误')
+  const getErrorMessage = (error) => (error instanceof Error && error.message ? error.message : '请求未完成')
   const getErrorCode = (error) =>
     error?.code || error?.response?.data?.errors?.[0]?.extensions?.code || error?.response?.data?.code || ''
 
@@ -91,6 +102,41 @@ const SignIn = () => {
     setCaptchaTicketEmail('')
   }, [])
 
+  const clearVerifyResetTimer = useCallback(() => {
+    if (verifyResetTimerRef.current) {
+      clearTimeout(verifyResetTimerRef.current)
+      verifyResetTimerRef.current = null
+    }
+  }, [])
+
+  const clearVerifySuccessTimer = useCallback(() => {
+    if (verifySuccessTimerRef.current) {
+      clearTimeout(verifySuccessTimerRef.current)
+      verifySuccessTimerRef.current = null
+    }
+  }, [])
+
+  const clearModalAutoCloseTimers = useCallback(() => {
+    if (modalAutoCloseTimerRef.current) {
+      clearTimeout(modalAutoCloseTimerRef.current)
+      modalAutoCloseTimerRef.current = null
+    }
+    if (modalCountdownTimerRef.current) {
+      clearInterval(modalCountdownTimerRef.current)
+      modalCountdownTimerRef.current = null
+    }
+  }, [])
+
+  const triggerVerifyErrorState = useCallback(() => {
+    clearVerifyResetTimer()
+    clearVerifySuccessTimer()
+    setVerifyUiState('error')
+    verifyResetTimerRef.current = setTimeout(() => {
+      setVerifyUiState('idle')
+      verifyResetTimerRef.current = null
+    }, VERIFY_ERROR_RESET_MS)
+  }, [clearVerifyResetTimer, clearVerifySuccessTimer])
+
   const refreshInternalChallenge = useCallback(async () => {
     if (captchaProvider !== 'internal') return
     setInternalChallengeLoading(true)
@@ -102,7 +148,7 @@ const SignIn = () => {
         { needToken: false, showError: false, addTimestamp: false }
       )
       if (!resp?.success || !resp?.challengeId || !resp?.nonce || !resp?.puzzle) {
-        throw new Error('验证码加载失败')
+        throw new Error('校验资源加载失败')
       }
       setInternalChallenge(resp)
     } catch {
@@ -162,7 +208,14 @@ const SignIn = () => {
     setCaptchaToken(null)
     setInternalProof(null)
     clearCaptchaTicket()
-  }, [captchaAvailable, captchaProvider, clearCaptchaTicket])
+    clearVerifyResetTimer()
+    clearVerifySuccessTimer()
+    setVerifyUiState('idle')
+  }, [captchaAvailable, captchaProvider, clearCaptchaTicket, clearVerifyResetTimer, clearVerifySuccessTimer])
+
+  useEffect(() => () => clearVerifyResetTimer(), [clearVerifyResetTimer])
+  useEffect(() => () => clearVerifySuccessTimer(), [clearVerifySuccessTimer])
+  useEffect(() => () => clearModalAutoCloseTimers(), [clearModalAutoCloseTimers])
 
   useEffect(() => {
     if (!captchaModalOpen) return
@@ -174,12 +227,12 @@ const SignIn = () => {
   const verifyCaptchaAndGetTicket = useCallback(
     async (email) => {
       if (!captchaAvailable) {
-        throw new Error('验证码服务不可用')
+        throw new Error('校验服务不可用')
       }
 
       if (captchaProvider === 'turnstile') {
         if (!captchaToken) {
-          throw new Error('请先完成人机验证')
+          throw new Error('请先完成登录校验')
         }
         const resp = await request.post(
           '/captcha/verify',
@@ -187,13 +240,13 @@ const SignIn = () => {
           { needToken: false, showError: false, addTimestamp: false }
         )
         if (!resp?.success || !resp?.captchaTicket) {
-          throw new Error('验证码校验失败，请重试')
+          throw new Error('校验未通过，请重新尝试')
         }
         return resp.captchaTicket
       }
 
       if (!internalChallenge?.challengeId || !internalChallenge?.nonce || !internalProof?.behaviorProof) {
-        throw new Error('请先完成行为验证码')
+        throw new Error('请先完成当前登录校验')
       }
 
       const resp = await request.post(
@@ -208,7 +261,7 @@ const SignIn = () => {
         { needToken: false, showError: false, addTimestamp: false }
       )
       if (!resp?.success || !resp?.captchaTicket) {
-        throw new Error('验证码校验失败，请重试')
+        throw new Error('校验未通过，请重新尝试')
       }
       return resp.captchaTicket
     },
@@ -221,61 +274,105 @@ const SignIn = () => {
       turnstileRef.current?.reset?.()
       return
     }
+    setInternalChallenge(null)
     setInternalProof(null)
-    void refreshInternalChallenge()
-  }, [captchaProvider, refreshInternalChallenge])
+  }, [captchaProvider])
+
+  const scheduleVerifySuccessExpiry = useCallback(() => {
+    clearVerifySuccessTimer()
+    verifySuccessTimerRef.current = setTimeout(() => {
+      clearCaptchaTicket()
+      resetCaptchaWidgets()
+      setVerifyUiState('idle')
+      verifySuccessTimerRef.current = null
+    }, VERIFY_SUCCESS_EXPIRE_MS)
+  }, [clearCaptchaTicket, clearVerifySuccessTimer, resetCaptchaWidgets])
+
+  const handleCaptchaTimeout = useCallback(() => {
+    clearModalAutoCloseTimers()
+    setCaptchaModalOpen(false)
+    setCaptchaModalSubmitting(false)
+    clearCaptchaTicket()
+    triggerVerifyErrorState()
+    resetCaptchaWidgets()
+    message.warning('校验已超时，请重新完成登录校验')
+  }, [clearCaptchaTicket, clearModalAutoCloseTimers, message, resetCaptchaWidgets, triggerVerifyErrorState])
+
+  useEffect(() => {
+    clearModalAutoCloseTimers()
+    if (!captchaModalOpen) {
+      setCaptchaModalRemainSec(Math.ceil(VERIFY_MODAL_AUTO_CLOSE_MS / 1000))
+      return
+    }
+    const timeoutSec = Math.ceil(VERIFY_MODAL_AUTO_CLOSE_MS / 1000)
+    const deadlineTs = Date.now() + VERIFY_MODAL_AUTO_CLOSE_MS
+    setCaptchaModalRemainSec(timeoutSec)
+    modalCountdownTimerRef.current = setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((deadlineTs - Date.now()) / 1000))
+      setCaptchaModalRemainSec(remaining)
+    }, 1000)
+    modalAutoCloseTimerRef.current = setTimeout(() => {
+      handleCaptchaTimeout()
+    }, VERIFY_MODAL_AUTO_CLOSE_MS)
+    return () => clearModalAutoCloseTimers()
+  }, [captchaModalOpen, clearModalAutoCloseTimers, handleCaptchaTimeout])
 
   const openCaptchaModal = useCallback(() => {
     if (captchaConfigLoading) return
     if (!captchaAvailable) {
-      message.error('验证码服务暂不可用，请稍后重试')
+      message.error('校验服务暂不可用，请稍后重试')
+      clearCaptchaTicket()
+      triggerVerifyErrorState()
       return
     }
+    clearModalAutoCloseTimers()
+    clearVerifyResetTimer()
+    clearVerifySuccessTimer()
+    setVerifyUiState('loading')
     setCaptchaModalOpen(true)
     setCaptchaModalSubmitting(false)
     resetCaptchaWidgets()
-  }, [captchaAvailable, captchaConfigLoading, message, resetCaptchaWidgets])
+  }, [captchaAvailable, captchaConfigLoading, clearCaptchaTicket, clearModalAutoCloseTimers, clearVerifyResetTimer, clearVerifySuccessTimer, message, resetCaptchaWidgets, triggerVerifyErrorState])
 
   const closeCaptchaModal = useCallback(() => {
+    clearModalAutoCloseTimers()
+    clearVerifySuccessTimer()
     setCaptchaModalOpen(false)
     setCaptchaModalSubmitting(false)
+    clearCaptchaTicket()
+    triggerVerifyErrorState()
     resetCaptchaWidgets()
-  }, [resetCaptchaWidgets])
+  }, [clearCaptchaTicket, clearModalAutoCloseTimers, clearVerifySuccessTimer, resetCaptchaWidgets, triggerVerifyErrorState])
 
-  const handleCaptchaConfirm = useCallback(async () => {
-    try {
-      setCaptchaModalSubmitting(true)
-      const { email } = await form.validateFields(['email'])
-      const normalizedEmail = String(email || '').trim()
-      const ticket = await verifyCaptchaAndGetTicket(normalizedEmail)
-      setCaptchaTicket(ticket)
-      setCaptchaTicketEmail(normalizedEmail)
-      message.success('验证成功，已勾选“通过验证”状态')
-      setCaptchaModalOpen(false)
-      setCaptchaModalSubmitting(false)
-      resetCaptchaWidgets()
-    } catch (error) {
-      if (error?.errorFields) {
-        message.warning('请先填写有效邮箱后再进行安全验证')
-      } else if (error instanceof Error) {
-        message.error(error.message)
-      }
-    } finally {
-      setCaptchaModalSubmitting(false)
+  const handleCaptchaConfirm = useCallback(() => {
+    if (!captchaReadyForSubmit) {
+      message.warning('请先完成当前登录校验')
+      return
     }
-  }, [form, message, resetCaptchaWidgets, verifyCaptchaAndGetTicket])
 
-  const handleCaptchaCheckboxChange = useCallback(
-    (event) => {
-      const checked = Boolean(event?.target?.checked)
-      if (checked) {
+    clearModalAutoCloseTimers()
+    clearVerifyResetTimer()
+    clearCaptchaTicket()
+    setCaptchaModalSubmitting(false)
+    setCaptchaModalOpen(false)
+    setVerifyUiState('success')
+    scheduleVerifySuccessExpiry()
+    message.success('登录校验已完成，请继续提交')
+  }, [captchaReadyForSubmit, clearCaptchaTicket, clearModalAutoCloseTimers, clearVerifyResetTimer, message, scheduleVerifySuccessExpiry])
+
+  const handleCaptchaToggle = useCallback(
+    (nextChecked) => {
+      if (nextChecked) {
         openCaptchaModal()
         return
       }
+      clearVerifyResetTimer()
+      clearVerifySuccessTimer()
+      setVerifyUiState('idle')
       clearCaptchaTicket()
       resetCaptchaWidgets()
     },
-    [clearCaptchaTicket, openCaptchaModal, resetCaptchaWidgets]
+    [clearCaptchaTicket, clearVerifyResetTimer, clearVerifySuccessTimer, openCaptchaModal, resetCaptchaWidgets]
   )
 
   const onFinish = async (values) => {
@@ -286,25 +383,32 @@ const SignIn = () => {
     let hideLoading
     try {
       setSubmitting(true)
-      hideLoading = message.loading('正在登录...', 0)
+      hideLoading = message.loading('正在验证身份并登录...', 0)
 
-      if (!captchaTicket || captchaTicketEmail !== String(email || '').trim()) {
-        message.warning('请先完成当前账号的安全验证')
-        setCaptchaModalOpen(true)
+      const normalizedEmail = String(email || '').trim()
+      if (verifyUiState !== 'success' || !captchaReadyForSubmit) {
+        message.warning('请先完成登录校验后再继续')
+        openCaptchaModal()
         return
       }
 
-      await authService.login({ email, password, totp, captchaTicket })
+      const ticket = await verifyCaptchaAndGetTicket(normalizedEmail)
+      setCaptchaTicket(ticket)
+      setCaptchaTicketEmail(normalizedEmail)
 
-      message.success('登录成功！')
+      await authService.login({ email, password, totp, captchaTicket: ticket })
+
+      message.success('登录成功，正在进入工作台')
       navigate('/')
     } catch (error) {
       if (error !== null) {
-        message.error(`登录失败：${getErrorMessage(error)}`)
+        message.error(`登录未完成：${getErrorMessage(error)}`)
         if (shouldPromptTotp(error)) {
           setTotpVisible(true)
         }
       }
+      clearVerifySuccessTimer()
+      triggerVerifyErrorState()
       clearCaptchaTicket()
       resetCaptchaWidgets()
     } finally {
@@ -332,44 +436,68 @@ const SignIn = () => {
     '--signin-shadow': token.boxShadowSecondary,
   }
 
-  const captchaReadyForSubmit = captchaProvider === 'turnstile' ? Boolean(captchaToken) : Boolean(internalProof?.behaviorProof)
+  const verifyModalWidth = captchaProvider === 'internal' ? 420 : 520
   const captchaVerified = Boolean(captchaTicket)
-  const verifyMainText = captchaVerified ? '您已通过验证' : '我不是机器人'
+  const captchaChallengeCompleted = verifyUiState === 'success' && captchaReadyForSubmit
+  const verifyBoxState = captchaConfigLoading
+    ? 'loading'
+    : !captchaAvailable
+      ? 'unavailable'
+      : verifyUiState === 'loading'
+        ? 'loading'
+        : verifyUiState === 'error'
+          ? 'error'
+          : captchaVerified || verifyUiState === 'success'
+            ? 'success'
+            : 'idle'
+  const verifyMainText = verifyBoxState === 'loading'
+    ? '正在处理登录校验...'
+    : verifyBoxState === 'success'
+      ? '当前请求已验证'
+      : verifyBoxState === 'error'
+        ? '校验未通过'
+        : verifyBoxState === 'unavailable'
+          ? '校验服务不可用'
+          : '验证本次登录'
   const verifyVendorName = captchaProvider === 'turnstile' ? 'Cloudflare' : 'Veloxis'
-  const verifyVendorSub = captchaProvider === 'turnstile' ? 'Turnstile' : 'Security'
+  const verifyVendorSub = captchaProvider === 'turnstile' ? 'Turnstile' : 'Access Guard'
   const verifyStatusText = captchaConfigLoading
-    ? '安全策略加载中'
+    ? '登录校验准备中'
     : !captchaAvailable
-      ? '验证码服务暂不可用'
-      : captchaVerified
-        ? '安全验证已通过'
-        : '等待完成安全验证'
+      ? '登录校验暂不可用'
+      : captchaVerified || captchaChallengeCompleted
+        ? '登录校验已完成'
+        : '需要完成登录校验'
   const verifyStatusDesc = captchaConfigLoading
-    ? '正在同步验证码策略，请稍候'
+    ? '正在同步校验策略，请稍候'
     : !captchaAvailable
-      ? '服务恢复后可重新登录'
-      : captchaVerified
-        ? '当前账号可直接提交登录'
-        : '请先勾选并完成验证弹窗'
-  const verifyStatusClass = captchaVerified
+      ? '请稍后重试或联系管理员检查服务状态'
+      : captchaVerified || captchaChallengeCompleted
+        ? '当前账号可直接提交登录请求'
+        : '勾选下方校验框后继续'
+  const verifyStatusClass = captchaVerified || captchaChallengeCompleted
     ? styles.securityStripOk
     : !captchaAvailable
       ? styles.securityStripDanger
       : styles.securityStripPending
   const verifyHintText = captchaConfigLoading
-    ? '验证码配置加载中...'
-    : !captchaAvailable
-      ? '验证码服务暂不可用，请稍后重试'
-      : captchaVerified
-        ? '验证已完成，可直接点击登录'
-        : '点击复选框并在弹窗内完成验证'
-  const verifyHintClass = captchaConfigLoading
-    ? styles.verifyHintMuted
-    : !captchaAvailable
-      ? styles.verifyHintDanger
-      : captchaVerified
-        ? styles.verifyHintSuccess
-        : styles.verifyHintMuted
+    ? '校验策略加载中，请稍候'
+    : verifyBoxState === 'loading'
+      ? captchaModalOpen
+        ? '请在弹窗内完成校验'
+        : '正在确认校验结果，请稍候...'
+      : verifyBoxState === 'error'
+        ? '校验未通过，请重新发起'
+      : verifyBoxState === 'unavailable'
+          ? '校验服务暂不可用，请稍后重试'
+          : verifyBoxState === 'success'
+        ? '校验已完成，点击“进入系统”即可继续'
+        : '点击复选框并完成弹窗校验'
+  const verifyHintTone = verifyBoxState === 'error' || verifyBoxState === 'unavailable'
+    ? 'danger'
+    : verifyBoxState === 'success'
+      ? 'success'
+      : 'muted'
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -380,12 +508,12 @@ const SignIn = () => {
           {!isMobile && (
             <section className={styles.hero}>
               <div className={styles.heroInner}>
-                <div className={styles.heroKicker}>VELOXIS CONTROL PLANE</div>
+                <div className={styles.heroKicker}>VELOXIS WORKSPACE ACCESS</div>
                 <Title level={1} className={styles.heroTitle}>
-                  统一权限、可观测性与 AI 协作的企业工作台
+                  以统一入口连接项目、数据与团队协作
                 </Title>
                 <Paragraph className={styles.heroDesc}>
-                  Veloxis Panel 面向复杂业务场景，提供从登录安全、角色权限到多标签页工作流的一体化控制体验。
+                  Veloxis 为组织提供清晰的访问控制、稳定的登录校验与连续的工作台体验，让成员在同一入口下推进业务与管理任务。
                 </Paragraph>
 
                 <div className={styles.capabilityGrid}>
@@ -394,8 +522,8 @@ const SignIn = () => {
                       <SafetyCertificateOutlined />
                     </span>
                     <div>
-                      <div className={styles.capabilityTitle}>RBAC 权限闭环</div>
-                      <div className={styles.capabilityDesc}>路由 / 菜单 / 按钮三级访问控制</div>
+                      <div className={styles.capabilityTitle}>项目级访问控制</div>
+                      <div className={styles.capabilityDesc}>成员、角色与操作范围统一收敛</div>
                     </div>
                   </article>
                   <article className={styles.capabilityItem}>
@@ -403,8 +531,8 @@ const SignIn = () => {
                       <ThunderboltOutlined />
                     </span>
                     <div>
-                      <div className={styles.capabilityTitle}>高效工作流</div>
-                      <div className={styles.capabilityDesc}>KeepAlive Tabs 与低打断切换体验</div>
+                      <div className={styles.capabilityTitle}>连续工作台体验</div>
+                      <div className={styles.capabilityDesc}>常用任务在同一工作区内持续推进</div>
                     </div>
                   </article>
                   <article className={styles.capabilityItem}>
@@ -412,18 +540,18 @@ const SignIn = () => {
                       <ApiOutlined />
                     </span>
                     <div>
-                      <div className={styles.capabilityTitle}>可观测服务层</div>
-                      <div className={styles.capabilityDesc}>请求重试、去重与错误反馈机制</div>
+                      <div className={styles.capabilityTitle}>可信登录校验</div>
+                      <div className={styles.capabilityDesc}>登录请求、验证状态与结果反馈清晰可见</div>
                     </div>
                   </article>
                 </div>
 
                 <div className={styles.heroPills}>
                   <Tag color="processing" bordered={false}>
-                    AI-ready Console
+                    Governed Workspace
                   </Tag>
-                  <Tag bordered={false}>Veloxis Panel</Tag>
-                  <Tag bordered={false}>Secure Auth</Tag>
+                  <Tag bordered={false}>Team Access</Tag>
+                  <Tag bordered={false}>Trusted Sign-in</Tag>
                 </div>
               </div>
             </section>
@@ -433,22 +561,22 @@ const SignIn = () => {
             <Card className={styles.card} variant="borderless" styles={{ body: { padding: isMobile ? 16 : 24 } }}>
               <div className={styles.brandRow}>
                 <div className={styles.brandIdentity}>
-                  <img src={Logo} alt="Veloxis Panel" className={styles.brandLogo} />
+                  <img src={Logo} alt="Veloxis" className={styles.brandLogo} />
                   <div className={styles.brandText}>
-                    <span className={styles.brandName}>Veloxis Panel</span>
-                    <span className={styles.brandSub}>Enterprise Console</span>
+                    <span className={styles.brandName}>Veloxis</span>
+                    <span className={styles.brandSub}>Workspace Access</span>
                   </div>
                 </div>
-                <Tag color={captchaVerified ? 'success' : 'processing'} bordered={false}>
-                  {captchaVerified ? 'Verified' : 'Protected'}
+                <Tag color={captchaVerified || captchaChallengeCompleted ? 'success' : 'processing'} bordered={false}>
+                  {captchaVerified || captchaChallengeCompleted ? '已验证' : '受保护'}
                 </Tag>
               </div>
 
               <div className={styles.titleBox}>
                 <Title level={2} className={styles.title}>
-                  欢迎登录
+                  进入工作台
                 </Title>
-                <Text type="secondary">使用企业账号访问你的 Veloxis 工作台</Text>
+                <Text type="secondary">使用组织账号访问项目空间、数据资产与管理能力</Text>
               </div>
 
               <div className={`${styles.securityStrip} ${verifyStatusClass}`}>
@@ -470,7 +598,10 @@ const SignIn = () => {
                   if (Object.prototype.hasOwnProperty.call(changedValues, 'email')) {
                     const nextEmail = String(changedValues.email || '').trim()
                     if (captchaTicket && nextEmail !== captchaTicketEmail) {
+                      clearVerifySuccessTimer()
+                      setVerifyUiState('idle')
                       clearCaptchaTicket()
+                      resetCaptchaWidgets()
                     }
                   }
                 }}
@@ -478,8 +609,8 @@ const SignIn = () => {
                 <Form.Item
                   name="email"
                   rules={[
-                    { required: true, message: '请输入邮箱!' },
-                    { type: 'email', message: '请输入有效的邮箱格式!' },
+                    { required: true, message: '请输入登录邮箱' },
+                    { type: 'email', message: '请输入有效的邮箱地址' },
                   ]}
                 >
                   <Input
@@ -488,61 +619,54 @@ const SignIn = () => {
                         <UserOutlined />
                       </AnimatedIcon>
                     }
-                    placeholder="邮箱"
+                    placeholder="邮箱地址"
                   />
                 </Form.Item>
 
-                <Form.Item name="password" rules={[{ required: true, message: '请输入密码!' }]}>
+                <Form.Item name="password" rules={[{ required: true, message: '请输入登录密码' }]}>
                   <Input.Password
                     prefix={
                       <AnimatedIcon variant="spin" mode="hover">
                         <LockOutlined />
                       </AnimatedIcon>
                     }
-                    placeholder="密码"
+                    placeholder="登录密码"
                   />
                 </Form.Item>
 
                 {totpVisible && (
-                  <Form.Item name="totp" rules={[{ required: true, message: '请输入两步验证码!' }]}>
+                  <Form.Item name="totp" rules={[{ required: true, message: '请输入两步验证码' }]}>
                     <Input
                       prefix={
                         <AnimatedIcon variant="spin" mode="hover">
                           <LockFilled />
                         </AnimatedIcon>
                       }
-                      placeholder="两步验证码（6位数字）"
+                      placeholder="两步验证码（6位）"
                       maxLength={6}
                     />
                   </Form.Item>
                 )}
 
-                <Form.Item label="安全验证" required style={{ marginBottom: 16 }}>
-                  <div className={styles.verifyCheckWrap}>
-                    <div className={styles.verifyCheckMainRow}>
-                      <Checkbox
-                        className={styles.verifyCheckControl}
-                        checked={captchaVerified}
-                        onChange={handleCaptchaCheckboxChange}
-                        disabled={captchaConfigLoading || !captchaAvailable || submitting}
-                      >
-                        <span className={styles.verifyCheckLabel}>{verifyMainText}</span>
-                      </Checkbox>
-
-                      <div className={styles.verifyProvider}>
-                        <span className={styles.verifyProviderLogo} aria-hidden="true" />
-                        <div className={styles.verifyProviderText}>
-                          <span className={styles.verifyProviderName}>{verifyVendorName}</span>
-                          <span className={styles.verifyProviderSub}>{verifyVendorSub}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className={styles.verifyCheckHint}>
-                      <span className={`${styles.verifyHintText} ${verifyHintClass}`}>{verifyHintText}</span>
-                      <span className={styles.verifyTermsText}>Privacy • Terms</span>
-                    </div>
-                  </div>
+                <Form.Item label="登录校验" required style={{ marginBottom: 16 }}>
+                  <VerifyCaptchaBox
+                    state={verifyBoxState}
+                    disabled={
+                      captchaConfigLoading ||
+                      !captchaAvailable ||
+                      submitting ||
+                      captchaVerified ||
+                      verifyUiState === 'loading' ||
+                      verifyUiState === 'error' ||
+                      verifyUiState === 'success'
+                    }
+                    label={verifyMainText}
+                    hint={verifyHintText}
+                    hintTone={verifyHintTone}
+                    providerName={verifyVendorName}
+                    providerSub={verifyVendorSub}
+                    onToggle={handleCaptchaToggle}
+                  />
                 </Form.Item>
 
                 <Form.Item style={{ marginBottom: 8 }}>
@@ -555,24 +679,27 @@ const SignIn = () => {
                       submitting ||
                       captchaConfigLoading ||
                       !captchaAvailable ||
-                      !captchaVerified
+                      !captchaChallengeCompleted
                     }
                   >
-                    登录
+                    进入系统
                   </Button>
                 </Form.Item>
               </Form>
 
               <Modal
-                title="安全验证"
+                title="完成登录校验"
+                className={styles.verifyModal}
                 open={captchaModalOpen}
                 destroyOnClose={false}
+                centered
+                width={verifyModalWidth}
                 maskClosable={!captchaModalSubmitting}
                 closable={!captchaModalSubmitting}
                 onCancel={closeCaptchaModal}
                 onOk={() => void handleCaptchaConfirm()}
-                okText="完成验证"
-                cancelText="取消"
+                okText="确认校验"
+                cancelText="稍后再试"
                 okButtonProps={{
                   loading: captchaModalSubmitting,
                   disabled:
@@ -583,27 +710,31 @@ const SignIn = () => {
                 }}
                 cancelButtonProps={{ disabled: captchaModalSubmitting }}
               >
-                {captchaConfigLoading ? (
-                  <Text type="secondary">验证码配置加载中...</Text>
-                ) : !captchaAvailable ? (
-                  <Text type="danger">验证码服务暂不可用，请稍后重试</Text>
-                ) : captchaProvider === 'turnstile' ? (
-                  <TurnstileCaptcha ref={turnstileRef} siteKey={captchaTurnstileSiteKey} action="signin" onTokenChange={setCaptchaToken} />
-                ) : (
-                  <BehaviorCaptcha
-                    key={internalChallenge?.challengeId || 'captcha-empty'}
-                    challenge={internalChallenge}
-                    loading={internalChallengeLoading}
-                    onRefresh={() => void refreshInternalChallenge()}
-                    onProofChange={setInternalProof}
-                  />
-                )}
+                <div className={styles.verifyModalBody}>
+                  <Text type="secondary" className={styles.verifyModalLead}>
+                    请完成下方校验以继续登录。校验通过后，本次登录请求会获得安全凭证。
+                  </Text>
+                  {captchaConfigLoading ? (
+                    <Text type="secondary">正在加载校验组件...</Text>
+                  ) : !captchaAvailable ? (
+                    <Text type="danger">校验服务暂不可用，请稍后重试</Text>
+                  ) : captchaProvider === 'turnstile' ? (
+                    <TurnstileCaptcha ref={turnstileRef} siteKey={captchaTurnstileSiteKey} action="signin" onTokenChange={setCaptchaToken} />
+                  ) : (
+                    <BehaviorCaptcha
+                      key={internalChallenge?.challengeId || 'captcha-empty'}
+                      challenge={internalChallenge}
+                      loading={internalChallengeLoading}
+                      onProofChange={setInternalProof}
+                    />
+                  )}
+                </div>
               </Modal>
 
               <div className={styles.footerRow}>
-                <Text type="secondary">还没有账号？</Text>
+                <Text type="secondary">还没有组织账号？</Text>
                 <Button type="link" className={styles.registerBtn} onClick={() => redirectTo('/signup')}>
-                  去注册
+                  申请开通
                 </Button>
               </div>
             </Card>

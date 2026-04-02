@@ -763,56 +763,145 @@ axiosInstance.interceptors.request.use(
   }
 )
 
-// 处理未授权 - 返回Promise以便等待刷新结果
-function handleUnauthorized(message) {
-  logger.warn('用户未授权，尝试刷新令牌:', message)
+const AUTH_EXPIRED_CODES = new Set([401, '401', 'TOKEN_EXPIRED', 'INVALID_TOKEN'])
+const FORBIDDEN_CODES = new Set([403, '403', 'FORBIDDEN'])
 
-  return new Promise((resolve, reject) => {
-    // 动态导入 authService 以避免循环依赖
-    import('./authService')
-      .then(({ authService }) => {
-        // 如果有刷新令牌，先尝试刷新
-        if (authService.getRefreshToken()) {
-          authService
-            .refreshToken()
-            .then((success) => {
-              if (success) {
-                logger.info('令牌刷新成功')
-                resolve(true) // 刷新成功
-              } else {
-                logger.warn('令牌刷新失败，执行登出')
-                performLogout()
-                resolve(false) // 刷新失败，需要登出
-              }
-            })
-            .catch((error) => {
-              logger.error('刷新令牌过程中出错:', error)
-              performLogout()
-              resolve(false) // 出错，需要登出
-            })
-        } else {
-          // 没有刷新令牌，直接登出
-          performLogout()
-          resolve(false) // 需要登出
-        }
-      })
-      .catch((error) => {
-        logger.error('导入authService失败:', error)
-        performLogout()
-        resolve(false) // 出错，需要登出
-      })
-  })
+let sharedRefreshPromise = null
+let logoutEventScheduled = false
+
+const getBackendCodeFromData = (data) => {
+  if (!data || typeof data !== 'object') return ''
+  const directusError = Array.isArray(data.errors) ? data.errors[0] : null
+  return directusError?.extensions?.code || data.code || ''
 }
 
-function performLogout() {
+const isAuthExpiredCode = (code) => AUTH_EXPIRED_CODES.has(code)
+const isForbiddenCode = (code) => FORBIDDEN_CODES.has(code)
+
+const isAuthExpiredResponse = (status, data) => {
+  const backendCode = getBackendCodeFromData(data)
+  return status === 401 || isAuthExpiredCode(backendCode)
+}
+
+const isForbiddenResponse = (status, data) => {
+  const backendCode = getBackendCodeFromData(data)
+  return status === 403 || isForbiddenCode(backendCode)
+}
+
+const hasAuthHeader = (config) => {
+  return !!(config?.headers?.Authorization || config?.headers?.authorization)
+}
+
+const isRefreshCandidateRequest = (config) => {
+  if (!config || config._isRefreshRequest) return false
+  if (config.needToken === false && !hasAuthHeader(config)) return false
+  return true
+}
+
+const clearAuthorizationHeader = (config) => {
+  if (!config?.headers) return
+  delete config.headers.Authorization
+  delete config.headers.authorization
+}
+
+const buildCustomError = (
+  message,
+  { status, code, response, config, isAuthExpired = false, isForbidden = false } = {}
+) => {
+  const error = new Error(message)
+  if (status !== undefined) error.status = status
+  if (code !== undefined) error.code = code
+  if (response !== undefined) error.response = response
+  if (config !== undefined) error.config = config
+  if (isAuthExpired) error.isUnauthorized = true
+  if (isAuthExpired) error.isAuthExpired = true
+  if (isForbidden) error.isForbidden = true
+  return error
+}
+
+const isAuthExpiredError = (error) => {
+  if (!error) return false
+  if (error.isAuthExpired || error.isUnauthorized) return true
+  const status = error.status ?? error.response?.status
+  const code = error.code || getBackendCodeFromData(error.response?.data)
+  return status === 401 || isAuthExpiredCode(code)
+}
+
+const getAuthService = async () => {
+  const { authService } = await import('./authService')
+  return authService
+}
+
+const runRefreshSingleFlight = async () => {
+  if (sharedRefreshPromise) return sharedRefreshPromise
+
+  sharedRefreshPromise = (async () => {
+    try {
+      const authService = await getAuthService()
+      const hasRefreshTokenBeforeRefresh = !!authService.getRefreshToken()
+
+      if (!hasRefreshTokenBeforeRefresh) {
+        return { success: false, hasRefreshTokenBeforeRefresh: false }
+      }
+
+      const success = await authService.refreshToken()
+      return { success, hasRefreshTokenBeforeRefresh: true }
+    } catch (error) {
+      logger.error('刷新令牌过程中出错:', error)
+      return { success: false, hasRefreshTokenBeforeRefresh: true }
+    } finally {
+      sharedRefreshPromise = null
+    }
+  })()
+
+  return sharedRefreshPromise
+}
+
+const retryRequestAfterRefresh = async (config, reason) => {
+  if (!isRefreshCandidateRequest(config)) return null
+
+  const retryCount = config._retryCount || 0
+  if (retryCount >= CONFIG.RETRY_ATTEMPTS) {
+    logger.warn('重试次数已达上限，终止自动刷新并触发登出')
+    performLogout('Retry attempts exhausted')
+    return null
+  }
+
+  logger.warn('检测到认证失效，尝试刷新令牌:', reason)
+  const refreshResult = await runRefreshSingleFlight()
+
+  if (!refreshResult.success) {
+    // 无 refresh token 时，authService.refreshToken 不会主动 logout，这里补发一次统一未授权事件。
+    if (!refreshResult.hasRefreshTokenBeforeRefresh) {
+      performLogout('Missing refresh token')
+    }
+    return null
+  }
+
+  config._retryCount = retryCount + 1
+  clearAuthorizationHeader(config)
+  logger.info(
+    `令牌刷新成功，重试请求 (${config._retryCount}/${CONFIG.RETRY_ATTEMPTS}): ${config.method?.toUpperCase()} ${config.url}`
+  )
+
+  await RequestUtils.delay(CONFIG.RETRY_DELAY)
+  return axiosInstance(config)
+}
+
+function performLogout(message = 'Token expired and refresh failed') {
   /** 用 setTimeout(0) 将事件 dispatch 推迟到当前 Axios microtask 链完成之后，
    *  避免在响应拦截器执行期间同步触发 React 状态更新（authService.logout → notifyListeners）。
    *  通过自定义事件通知 authService 登出，规避 request ← authService ← request 循环依赖。*/
-  if (typeof window !== 'undefined') {
+  if (typeof window !== 'undefined' && !logoutEventScheduled) {
+    logoutEventScheduled = true
     setTimeout(() => {
-      window.dispatchEvent(
-        new CustomEvent('veloxis:unauthorized', { detail: { message: 'Token expired and refresh failed' } })
-      )
+      try {
+        window.dispatchEvent(new CustomEvent('veloxis:unauthorized', { detail: { message } }))
+      } finally {
+        setTimeout(() => {
+          logoutEventScheduled = false
+        }, 0)
+      }
     }, 0)
   }
 }
@@ -855,36 +944,47 @@ const resolveResponseData = (response) => {
   }
 
   const errorMsg = data.message || data.msg || '请求失败'
-  if (data.code === 401 || data.code === 403) {
-    // 如果这是刷新请求本身返回401，不要再次尝试刷新（防止循环）
-    if (config._isRefreshRequest) {
-      logger.warn('刷新请求本身返回401，不再重试')
-      RequestUtils.handleShowError(errorMsg, config.showError !== false)
-      const error = new Error(errorMsg)
-      error.code = data.code
-      error.response = { ...response, data }
-      throw error
-    }
+  const backendCode = getBackendCodeFromData(data) || data.code
+  const authExpired = isAuthExpiredCode(backendCode)
+  const forbidden = isForbiddenCode(backendCode)
 
-    // 抛出特殊的401错误，在error interceptor中处理
-    const error = new Error(errorMsg)
-    error.code = data.code
-    error.response = { ...response, data }
-    error.isUnauthorized = true // 标记为未授权错误
-    error.canRetry = true // 标记可以重试
-    throw error
+  if (authExpired) {
+    if (config._isRefreshRequest) {
+      logger.warn('刷新请求本身返回认证失效，不再重试')
+      RequestUtils.handleShowError(errorMsg, config.showError !== false)
+    }
+    throw buildCustomError(errorMsg, {
+      status: 401,
+      code: backendCode,
+      response: { ...response, data },
+      config,
+      isAuthExpired: true,
+    })
+  }
+
+  if (forbidden) {
+    RequestUtils.handleShowError(errorMsg, config.showError !== false)
+    throw buildCustomError(errorMsg, {
+      status: 403,
+      code: backendCode,
+      response: { ...response, data },
+      config,
+      isForbidden: true,
+    })
   }
 
   RequestUtils.handleShowError(errorMsg, config.showError !== false)
-  const error = new Error(errorMsg)
-  error.code = data.code
-  error.response = { ...response, data }
-  throw error
+  throw buildCustomError(errorMsg, {
+    status: response.status,
+    code: backendCode,
+    response: { ...response, data },
+    config,
+  })
 }
 
 // ==================== 10. 响应拦截器 ====================
 axiosInstance.interceptors.response.use(
-  (response) => {
+  async (response) => {
     const config = response.config
 
     // 1. 移除已完成的请求
@@ -900,8 +1000,13 @@ axiosInstance.interceptors.response.use(
 
     try {
       return resolveResponseData(response)
-    } catch (e) {
-      return Promise.reject(e)
+    } catch (error) {
+      // 处理业务包裹返回的 code=401 / TOKEN_EXPIRED / INVALID_TOKEN 等
+      if (isAuthExpiredError(error)) {
+        const retried = await retryRequestAfterRefresh(error.config || config, error.message)
+        if (retried) return retried
+      }
+      return Promise.reject(error)
     }
   },
   async (error) => {
@@ -916,89 +1021,10 @@ axiosInstance.interceptors.response.use(
       return Promise.reject(error)
     }
 
-    // 2.1. 处理业务层的401错误（code: 401）- 来自resolveResponseData抛出
-    if (error.isUnauthorized && error.canRetry) {
-      logger.warn('检测到业务层401错误，尝试刷新令牌:', error.message)
-      const config = error.config
-
-      if (config) {
-        // 检查重试次数
-        const retryCount = config._retryCount || 0
-        if (retryCount < CONFIG.RETRY_ATTEMPTS) {
-          try {
-            logger.info('尝试刷新令牌...')
-            // 动态导入 authService
-            const { authService } = await import('./authService')
-
-            // 检查是否有刷新令牌
-            if (authService.getRefreshToken()) {
-              const refreshSuccess = await authService.refreshToken()
-              if (refreshSuccess) {
-                logger.info(
-                  `令牌刷新成功，重试请求 (${retryCount + 1}/${CONFIG.RETRY_ATTEMPTS}): ${config.method?.toUpperCase()} ${config.url}`
-                )
-
-                // 增加重试计数
-                config._retryCount = retryCount + 1
-
-                // 重要：清除旧的 Authorization 头，以便请求拦截器重新从存储中读取新令牌
-                if (config.headers) {
-                  delete config.headers.Authorization
-                  delete config.headers.authorization
-                }
-
-                // 延迟重试
-                return RequestUtils.delay(CONFIG.RETRY_DELAY).then(() => {
-                  return axiosInstance(config)
-                })
-              }
-            }
-          } catch (refreshError) {
-            logger.error('刷新令牌失败:', refreshError)
-          }
-
-          // 刷新失败
-          logger.warn('令牌刷新失败，执行登出')
-          performLogout()
-          return Promise.reject(error)
-        } else {
-          logger.warn('重试次数已达上限，执行登出')
-          performLogout()
-          return Promise.reject(error)
-        }
-      }
-    }
-
-    // 2.5. 处理TOKEN_REFRESHED错误 - 自动重试
-    if (error.canRetry && error.message === 'TOKEN_REFRESHED') {
-      const config = error.config
-      if (config) {
-        // 检查重试次数
-        const retryCount = config._retryCount || 0
-        if (retryCount < CONFIG.RETRY_ATTEMPTS) {
-          logger.info(
-            `令牌已刷新，重试请求 (${retryCount + 1}/${CONFIG.RETRY_ATTEMPTS}): ${config.method?.toUpperCase()} ${config.url}`
-          )
-
-          // 增加重试计数
-          config._retryCount = retryCount + 1
-
-          // 重要：清除旧的 Authorization 头，以便请求拦截器重新从存储中读取新令牌
-          if (config.headers) {
-            delete config.headers.Authorization
-            delete config.headers.authorization
-          }
-
-          // 延迟重试
-          return RequestUtils.delay(CONFIG.RETRY_DELAY).then(() => {
-            return axiosInstance(config)
-          })
-        } else {
-          logger.warn('重试次数已达上限，停止重试并登出')
-          performLogout()
-          return Promise.reject(error)
-        }
-      }
+    // 2.1. 401 / TOKEN_EXPIRED / INVALID_TOKEN 走统一 refresh 单飞链路
+    if (isAuthExpiredError(error)) {
+      const retried = await retryRequestAfterRefresh(error.config, error.message)
+      if (retried) return retried
     }
 
     // 3. 響應錯誤
@@ -1015,68 +1041,20 @@ axiosInstance.interceptors.response.use(
         errorMessage = directusMessage || data.message || data.msg || errorMessage
       }
 
-      // HTTP 401/403 特殊处理 - 尝试刷新
-      if ((status === 401 || status === 403) && !error.config?._isRefreshRequest) {
-        logger.warn('检测到HTTP层401/403错误，尝试刷新令牌:', errorMessage)
-        const config = error.config
-
-        if (config) {
-          // 检查重试次数
-          const retryCount = config._retryCount || 0
-          if (retryCount < CONFIG.RETRY_ATTEMPTS) {
-            try {
-              logger.info('尝试刷新令牌...')
-              // 动态导入 authService
-              const { authService } = await import('./authService')
-
-              // 检查是否有刷新令牌
-              if (authService.getRefreshToken()) {
-                const refreshSuccess = await authService.refreshToken()
-                if (refreshSuccess) {
-                  logger.info(
-                    `令牌刷新成功，重试请求 (${retryCount + 1}/${CONFIG.RETRY_ATTEMPTS}): ${config.method?.toUpperCase()} ${config.url}`
-                  )
-
-                  // 增加重试计数
-                  config._retryCount = retryCount + 1
-
-                  // 重要：清除旧的 Authorization 头，以便请求拦截器重新从存储中读取新令牌
-                  if (config.headers) {
-                    delete config.headers.Authorization
-                    delete config.headers.authorization
-                  }
-
-                  // 延迟重试
-                  return RequestUtils.delay(CONFIG.RETRY_DELAY).then(() => {
-                    return axiosInstance(config)
-                  })
-                }
-              }
-            } catch (refreshError) {
-              logger.error('刷新令牌失败:', refreshError)
-            }
-          }
-
-          // 刷新失败或是重试次数耗尽
-          logger.warn('令牌刷新失败或重试次数耗尽，执行登出')
-          performLogout()
-          return Promise.reject(new Error(errorMessage))
-        }
-      }
-
-      // 如果是刷新请求本身失败（通常是 400 Invalid user credentials）
-      if (error.config?._isRefreshRequest) {
-        logger.warn('刷新请求失败，执行强制登出:', errorMessage)
-        performLogout()
-      }
-
       RequestUtils.handleShowError(errorMessage, error.config?.showError !== false)
+      const authExpired = isAuthExpiredResponse(status, data)
+      const forbidden = isForbiddenResponse(status, data)
 
-      const customError = new Error(errorMessage)
-      customError.status = status
-      customError.code = backendCode || customError.code
-      customError.response = error.response
-      return Promise.reject(customError)
+      return Promise.reject(
+        buildCustomError(errorMessage, {
+          status,
+          code: backendCode || error.code,
+          response: error.response,
+          config: error.config,
+          isAuthExpired: authExpired,
+          isForbidden: forbidden,
+        })
+      )
     }
 
     // 4. 网络错误

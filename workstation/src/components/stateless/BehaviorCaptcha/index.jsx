@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Button, Space, Typography } from 'antd'
+import { Typography } from 'antd'
 
 const { Text } = Typography
 
 const CANVAS_PADDING = 8
+const MAX_SUBMIT_POINTS = 360
 
 const toFixed = (value, digits = 2) => Number(value.toFixed(digits))
 
@@ -32,7 +33,27 @@ const buildSummary = (points) => {
 
 const isNear = (point, target, radius) => distance(point, target) <= radius
 
-const BehaviorCaptcha = ({ challenge, loading, onRefresh, onProofChange }) => {
+const downsampleTrace = (trace, maxPoints) => {
+  if (!Array.isArray(trace) || trace.length <= maxPoints) return trace
+  const lastSourceIndex = trace.length - 1
+  const lastTargetIndex = maxPoints - 1
+  const sampled = []
+  let previousIndex = -1
+
+  for (let i = 0; i < maxPoints; i += 1) {
+    let sourceIndex = Math.round((i * lastSourceIndex) / lastTargetIndex)
+    if (sourceIndex <= previousIndex) sourceIndex = previousIndex + 1
+    const remainingSlots = lastTargetIndex - i
+    const maxAllowedIndex = lastSourceIndex - remainingSlots
+    if (sourceIndex > maxAllowedIndex) sourceIndex = maxAllowedIndex
+    sampled.push(trace[sourceIndex])
+    previousIndex = sourceIndex
+  }
+
+  return sampled
+}
+
+const BehaviorCaptcha = ({ challenge, loading, onProofChange }) => {
   const canvasRef = useRef(null)
   const pointerIdRef = useRef(null)
   const drawingRef = useRef(false)
@@ -107,8 +128,7 @@ const BehaviorCaptcha = ({ challenge, loading, onRefresh, onProofChange }) => {
       if (!point) return
       const t = Math.max(0, performance.now() - startTsRef.current)
       setTrace((prev) => {
-        const next = [...prev, { x: toFixed(point.x), y: toFixed(point.y), t: Math.round(t) }]
-        return next.length > 500 ? next.slice(next.length - 500) : next
+        return [...prev, { x: toFixed(point.x), y: toFixed(point.y), t: Math.round(t) }]
       })
     },
     [getCanvasPoint, puzzle]
@@ -140,11 +160,12 @@ const BehaviorCaptcha = ({ challenge, loading, onRefresh, onProofChange }) => {
           return []
         }
 
+        const sampledTrace = downsampleTrace(currentTrace, MAX_SUBMIT_POINTS)
         const summary = buildSummary(currentTrace) || undefined
         const behaviorProof = {
-          points: currentTrace,
-          startedAt: currentTrace[0].t,
-          completedAt: currentTrace[currentTrace.length - 1].t,
+          points: sampledTrace,
+          startedAt: sampledTrace[0].t,
+          completedAt: sampledTrace[sampledTrace.length - 1].t,
           summary,
         }
 
@@ -242,12 +263,7 @@ const BehaviorCaptcha = ({ challenge, loading, onRefresh, onProofChange }) => {
   if (!puzzle) {
     return (
       <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 12, background: '#fafafa' }}>
-        <Space direction="vertical" size={8} style={{ width: '100%' }}>
-          <Text type="secondary">验证码加载中...</Text>
-          <Button size="small" onClick={onRefresh} loading={loading}>
-            刷新
-          </Button>
-        </Space>
+        <Text type="secondary">验证码加载中...</Text>
       </div>
     )
   }
@@ -256,7 +272,7 @@ const BehaviorCaptcha = ({ challenge, loading, onRefresh, onProofChange }) => {
     <div style={{ border: '1px solid #d9e4ff', borderRadius: 8, padding: 10, background: '#f9fbff' }}>
       <canvas
         ref={canvasRef}
-        style={{ width: '100%', maxWidth: puzzle.canvas.width, borderRadius: 6, touchAction: 'none', cursor: 'crosshair' }}
+        style={{ width: '100%', maxWidth: puzzle.canvas.width, margin: '0 auto', borderRadius: 6, touchAction: 'none', cursor: 'crosshair', display: 'block' }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -265,9 +281,6 @@ const BehaviorCaptcha = ({ challenge, loading, onRefresh, onProofChange }) => {
         <Text type={trace.length > 0 ? 'secondary' : undefined} style={{ fontSize: 12 }}>
           {status}
         </Text>
-        <Button size="small" onClick={onRefresh} loading={loading}>
-          刷新
-        </Button>
       </div>
     </div>
   )

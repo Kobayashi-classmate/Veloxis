@@ -184,6 +184,9 @@ const AuthRouterBase = (props) => {
   if (canAccess === null) return null
 
   if (canAccess === false) {
+    const { token } = getLocalStorage('token') || { token: null }
+    const redirectPath = token ? '/403' : '/signin'
+
     if (lastDeniedPathRef.current !== pathname) {
       lastDeniedPathRef.current = pathname
       showDeniedMessage(messageApi)
@@ -191,7 +194,7 @@ const AuthRouterBase = (props) => {
     return (
       <>
         {contextHolder}
-        <Navigate to="/signin" replace />
+        <Navigate to={redirectPath} replace />
       </>
     )
   }

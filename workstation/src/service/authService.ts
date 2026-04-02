@@ -93,6 +93,10 @@ class AuthService {
   }
   private listeners: ((state: AuthState) => void)[] = []
 
+  private shouldLogoutForAuthFailure(error: any): boolean {
+    return !!(error?.isUnauthorized || error?.isAuthExpired || error?.status === 401 || error?.code === 401)
+  }
+
   private constructor() {
     this.loadFromStorage()
     /** 监听 request.js 触发的 token 失效事件（避免循环依赖）
@@ -193,6 +197,27 @@ class AuthService {
     return { ...this.authState }
   }
 
+  updateCurrentUser(partial: Partial<User>): User | null {
+    if (!this.authState.user) {
+      return null
+    }
+
+    const merged: User = { ...this.authState.user }
+    Object.keys(partial).forEach((key) => {
+      const typedKey = key as keyof User
+      const value = partial[typedKey]
+      if (value !== undefined) {
+        (merged as Record<string, any>)[typedKey] = value
+      }
+    })
+
+    this.authState.user = merged
+    this.saveToStorage()
+    this.notifyListeners()
+
+    return merged
+  }
+
   async setAuthenticated(
     isAuthenticated: boolean,
     user?: User | null,
@@ -228,10 +253,9 @@ class AuthService {
         await permissionService.syncPermissions()
       } catch (e: any) {
         logger.warn('同步权限失败:', e)
-        // 仅当用户当前仍处于登录态时才因 401/403 执行登出
+        // 仅当用户当前仍处于登录态且认证失效（401）时执行登出
         // （避免并发调用导致已登出状态下二次 logout）
-        if (this.authState.isAuthenticated &&
-            (e?.isUnauthorized || e?.status === 401 || e?.status === 403 || e?.code === 401)) {
+        if (this.authState.isAuthenticated && this.shouldLogoutForAuthFailure(e)) {
           this.logout()
         }
       }
@@ -306,9 +330,8 @@ class AuthService {
         await permissionService.syncPermissions()
       } catch (e: any) {
         logger.warn('同步权限失败:', e)
-        // 仅当用户当前仍处于登录态时才因 401/403 执行登出
-        if (this.authState.isAuthenticated &&
-            (e?.isUnauthorized || e?.status === 401 || e?.status === 403 || e?.code === 401)) {
+        // 仅当用户当前仍处于登录态且认证失效（401）时执行登出
+        if (this.authState.isAuthenticated && this.shouldLogoutForAuthFailure(e)) {
           this.logout()
         }
       }
