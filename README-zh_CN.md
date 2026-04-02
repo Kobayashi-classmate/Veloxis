@@ -1,103 +1,172 @@
-# Veloxis Analytics Platform (v1.0-alpha) 🚀
+# Veloxis
 
 <p align="center">
   <a href="README.md">English</a> | <b>简体中文</b>
 </p>
 
-Veloxis 是一套专为“**自托管、高并发、强合规**”设计的企业级敏捷数据分析平台。
+Veloxis 是一套面向企业私有化场景的数据分析平台，重点解决数据控制、权限边界和执行链路可治理的问题。
 
-系统采用创新的 **D/C/D (Directus / Cube.js / Doris)** 混合架构，通过同构化的 **Data Worker** 计算大坝，解决了传统 BI 工具在私有化部署场景下“性能平庸、扩展性差、安全黑盒”的痛点。Veloxis 能够秒级处理百万级原始数据入库，并支撑 500+ 用户同时进行复杂的 OLAP 交互分析。
+它提供一个面向项目的数据工作空间，用于完成数据集接入、处理、建模、可视化分析，以及后续通过插件进行受控扩展。
 
----
+## 产品定位
 
-## 🌟 核心特性 (Key Features)
+Veloxis 适合这样的团队：
 
-- **🚀 工业级吞吐**: 利用 Doris Stream Load 协议，实测 10 万行 Excel 入库仅需 1.04 秒。
-- **🛡️ 铁幕安全隔离**: 内置 TOTP 二次验证、管理后台路径动态加固、基于 JWT 的租户级行锁隔离。
-- **🏗️ D/C/D 混合架构**: 完美融合了 Directus 的管控生产力、Cube.js 的语义层灵活性与 Doris 的极致算力。
-- **📦 零依赖自托管**: 适配 Docker Compose，抛弃所有带协议风险的组件（如 MinIO 换为 SeaweedFS），一键私有化部署。
-- **🤖 自动化算子**: 通过 Recipe（配方）模式编排数据处理逻辑，支持官方算子与受限 Python 脚本执行。
+- 希望把分析基础设施部署在自己的环境内
+- 希望在同一平台内管理项目、数据集、版本、配方和工作簿
+- 希望把治理、语义建模和高吞吐数据接入结合起来
+- 希望走向可信 AI 分析，而不是牺牲权限边界去换取表面上的“智能”
 
----
+本项目当前并不追求大而全的数据治理全家桶，V1 基线聚焦一条闭环：
 
-## 🏗️ 架构深度解析 (Architecture Deep Dive)
+`数据接入 -> 版本化 -> 处理 -> 建模 -> 分析 -> 展示`
 
-Veloxis 的核心是由三个顶尖引擎构成的闭环：
+## 平台能力
 
-### 1. 控制面 (Control Plane): Directus
-*   **职责**: 身份验证 (RBAC)、多租户隔离、审计日志、元数据建模、任务编排。
-*   **价值**: 提供了极致的管控灵活性，所有业务实体（项目、版本、算子）均由 Directus 统一管理。
+### 1. 项目工作空间
 
-### 2. 语义与加速层 (Semantic Layer): Cube.js
-*   **职责**: 统一指标定义、动态 Schema 生成、Redis 结果缓存、并发查询限流。
-*   **价值**: 作为 500+ 并发的防波堤，确保复杂的分析请求不会击穿底层数据库，并提供租户级的 SQL 重写保护。
+- 面向项目组织分析上下文
+- 提供数据集、模型、配方、工作簿等功能入口
+- 支持多项目协作
 
-### 3. 存储与计算引擎 (OLAP Engine): Apache Doris
-*   **职责**: 海量明细/聚合存储、实时 OLAP 分析、高频流式写入。
-*   **价值**: 采用“版本分区（Version-based Partition）”设计，支持数据秒级回滚与自定义保留策略。
+### 2. 数据集管理
 
-### 4. 计算大坝 (Execution Engine): Data Worker
-*   **职责**: 文件解析、字段清洗、指标计算、Doris 灌入。
-*   **技术**: 基于 Node.js/TypeScript 与 BullMQ，支持流式 Excel 转换，极大降低内存开销。
+- 上传 CSV / TXT / Excel 文件
+- 跟踪数据集版本和导入状态
+- 管理字段映射、存储列名和展示名称
+- 保留处理历史，便于追踪
 
----
+### 3. 数据处理与 Recipe
 
-## 🛠️ 技术栈矩阵 (Tech Stack)
+- 通过 Worker 驱动导入与处理任务
+- 使用 Recipe 描述处理逻辑
+- 为下游分析和工作簿消费准备数据
 
-| 维度 | 技术选型 |
-| :--- | :--- |
-| **管控后台** | Directus (Vue) + PostgreSQL 15 |
-| **查询层** | Cube.js + Redis 8.6 |
-| **分析引擎** | Apache Doris 4.0.3-slim |
-| **对象存储** | SeaweedFS (S3 Compatible) |
-| **前端终端** | React 18 + Webpack MF + ECharts + AntV S2 |
-| **任务队列** | BullMQ + Redis |
-| **安全方案** | TOTP (RFC 6238) + Step-up Auth |
+### 4. 建模与查询
 
----
+- 在项目内组织可分析的数据集
+- 提供面向分析场景的语义查询主链路
+- 为后续模型页和关联分析流程预留能力
 
-## 🏁 开发进度 (Progress Report)
+### 5. 工作簿与可视化
 
-### 1. 基础设施与安全 [100%]
-- [x] Docker Compose 全组件编排与网络隔离。
-- [x] 动态路径安全网关（Nginx 随机前缀）。
-- [x] TOTP 绑定与高危操作二次验证逻辑。
+- 构建项目级工作簿和分析页面
+- 支持图表化探索和交互式分析
+- 逐步演进到可复用的工作簿模板能力
 
-### 2. 元数据与数据流 [100%]
-- [x] 租户/项目/数据集/版本/配方 物理建模。
-- [x] SeaweedFS 资产管理与 S3 协议对接。
+### 6. 权限与治理
 
-### 3. 计算引擎 (Data Worker) [85%]
-- [x] **Doris 工业级驱动**: 封装 Stream Load，支持幂等写入。
-- [x] **极速转换**: 实现 Excel-to-CSV 流式处理器。
-- [x] **异步调度**: BullMQ 任务队列平衡负载。
+- 面向租户和项目的访问边界
+- 基于 RBAC 的控制模型
+- 面向版本追踪和审计的产品结构
 
-### 4. 2026 Q2 路线图 (Roadmap)
-- [ ] **全链路点火**: Directus Flows 同步驱动 Worker 任务。
-- [ ] **动态建模**: 跑通基于 `project_id` 的 Cube.js Schema 自动生成。
-- [ ] **模板复用**: 开发看板布局导出与跨项目重绑定功能。
+### 7. 受控扩展能力
 
----
+- 通过官方插件承载高变化能力
+- 通过受控定制扩展适配特定部署需求
+- 不把核心安全和治理能力做成插件
 
-## 📦 快速开始 (Quick Start)
+## 典型工作流
 
-### 1. 环境准备
-确保宿主机已安装 Docker Compose。
+1. 创建或进入一个项目工作空间。
+2. 上传源文件并创建数据集记录。
+3. 跟踪导入进度与数据集版本。
+4. 在需要时配置 Recipe 处理逻辑。
+5. 在模型和查询链路中组织分析数据。
+6. 通过工作簿完成展示和重复分析。
 
-### 2. 启动集群
+## 适用对象
+
+- 需要私有化分析平台的数据团队
+- 对内部权限边界要求严格的组织
+- 希望把接入、处理、建模和展示统一在一套平台里的团队
+- 正在为可信 AI 分析做准备的团队
+
+## 产品方向
+
+### AI
+
+Veloxis 更适合作为 “AI-ready 的可信分析底座” 来理解。
+
+它的方向不是做一个泛化聊天式 BI，而是在受控数据集、版本上下文和项目边界之上承载可信分析能力。
+
+### 插件
+
+Veloxis 也正在向受控插件模型演进。
+
+目标是保持平台核心稳定，同时把高变化能力做成插件。
+
+## 当前产品基线
+
+当前文档定义的主基线为 V1。
+
+V1 聚焦：
+
+- 稳定的部署与核心服务
+- 认证与项目级访问边界
+- 数据集导入、版本追踪与 Worker 执行
+- 第一代模型页、配方页和工作簿流转
+
+V1 明确不把开放式第三方插件市场视为范围内承诺。
+
+## 仓库结构
+
+```text
+. 
+├── conf/           Nginx、Cube、Doris 运行配置
+├── data/           本地卷与运行态数据
+├── plugins/        插件工作区、规范与样例插件
+├── scripts/        初始化与维护脚本
+├── worker/         Data Worker（Node.js / TypeScript）
+└── workstation/    React Workstation
+```
+
+## 快速开始
+
+### 环境准备
+
+- Docker
+- Docker Compose
+
+### 启动整套服务
+
 ```bash
-git clone https://github.com/your-repo/veloxis.git
-cd veloxis
+git clone <your-repo-url>
+cd Veloxis
 docker compose up -d
 ```
 
-### 3. 访问系统
-*   **商务终端**: `http://localhost:8080/`
-*   **管理后台**: `http://localhost:8080${ADMIN_BASE_PATH}` (具体见 `.env`)
+### 默认访问地址
 
----
+- Workstation：`http://localhost:8080/`
+- 管理后台：`http://localhost:8080${ADMIN_BASE_PATH}`
 
-## 📜 许可证 (License)
+其中 `ADMIN_BASE_PATH` 定义在 `.env` 中。
 
-本项目遵循 **GNU Affero General Public License v3.0 (AGPL-3.0)** 协议。
-这意味着在任何通过网络提供服务的场景下，您必须开源对本系统进行的修改部分。
+### 停止服务
+
+```bash
+docker compose down
+```
+
+## 开发入口
+
+### 前端
+
+```bash
+cd workstation
+npm run dev:vite
+```
+
+### Worker
+
+```bash
+cd worker
+npm run dev
+```
+
+## 许可证
+
+Veloxis 采用 GNU Affero General Public License v3.0（`AGPL-3.0`）授权。
+
+如果你修改本系统并以网络服务形式提供，AGPL 的相应义务将生效。
