@@ -172,6 +172,10 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api/, ''),
         },
+        '/worker-api': {
+          target: 'http://localhost:8080',
+          changeOrigin: true,
+        },
         '/faker': {
           target: 'http://localhost:4000',
           changeOrigin: true,

@@ -8,6 +8,8 @@ import {
   FullscreenExitOutlined,
 } from '@ant-design/icons'
 import { CHART_META } from '../../hooks/useWorkbenchState'
+import { useUIPluginHost } from '@src/plugins/UIPluginHostProvider'
+import { getVisualizationRenderers } from '@src/plugins/slotRegistry'
 import styles from './index.module.less'
 
 const { Text } = Typography
@@ -138,25 +140,47 @@ const clampWidth = (value) => Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, value))
 
 const ChartPalette = () => {
   const [search, setSearch] = useState('')
+  const { registryVersion } = useUIPluginHost()
+
+  const paletteChartMeta = useMemo(() => {
+    const pluginMetas = getVisualizationRenderers().map((renderer) => ({
+      type: renderer.type,
+      label: renderer.label ?? renderer.type,
+      icon: renderer.icon ?? '🧩',
+      group: renderer.group ?? '插件',
+    }))
+
+    const merged = [...CHART_META]
+    const indexByType = new Map(merged.map((item, index) => [item.type, index]))
+    for (const pluginMeta of pluginMetas) {
+      const index = indexByType.get(pluginMeta.type)
+      if (typeof index === 'number') {
+        merged[index] = { ...merged[index], ...pluginMeta }
+      } else {
+        merged.push(pluginMeta)
+      }
+    }
+    return merged
+  }, [registryVersion])
 
   const allGroups = useMemo(() => {
     const seen = new Set()
     const groups = []
-    CHART_META.forEach((m) => {
+    paletteChartMeta.forEach((m) => {
       if (!seen.has(m.group)) {
         seen.add(m.group)
         groups.push(m.group)
       }
     })
     return groups
-  }, [])
+  }, [paletteChartMeta])
 
   const groupCountMap = useMemo(() => {
-    return CHART_META.reduce((acc, meta) => {
+    return paletteChartMeta.reduce((acc, meta) => {
       acc[meta.group] = (acc[meta.group] ?? 0) + 1
       return acc
     }, {})
-  }, [])
+  }, [paletteChartMeta])
 
   const savedState = useMemo(() => loadPaletteState(), [])
   const [openKeys, setOpenKeys] = useState(() => savedState?.openKeys ?? allGroups)
@@ -228,7 +252,7 @@ const ChartPalette = () => {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
-    return CHART_META.filter((m) => {
+    return paletteChartMeta.filter((m) => {
       const matchedGroup = effectiveGroup === 'all' || m.group === effectiveGroup
       if (!matchedGroup) return false
       if (!q) return true
@@ -238,10 +262,10 @@ const ChartPalette = () => {
         m.group.toLowerCase().includes(q)
       )
     })
-  }, [search, effectiveGroup])
+  }, [search, effectiveGroup, paletteChartMeta])
 
   const filteredCount = filtered.length
-  const totalCount = CHART_META.length
+  const totalCount = paletteChartMeta.length
   const effectiveOpenKeys = search.trim() || effectiveGroup !== 'all' ? allGroups : openKeys
   const showFlat = collapsed || search.trim().length > 0 || effectiveGroup !== 'all'
 

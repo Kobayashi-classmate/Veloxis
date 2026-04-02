@@ -8,6 +8,14 @@ export default [
     changeOrigin: true,
     cookieDomainRewrite: 'localhost',
   },
+  // Data Worker API 代理
+  {
+    context: ['/worker-api'],
+    target: 'http://localhost:8080',
+    secure: false,
+    changeOrigin: true,
+    cookieDomainRewrite: 'localhost',
+  },
   // Faker 数据接口
   {
     context: ['/faker'],

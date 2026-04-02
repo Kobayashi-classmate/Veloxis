@@ -6,6 +6,7 @@ import {
   getCanvasWithSnapshot,
 } from '@src/service/api/workbooks'
 import { findLegalPosition } from '../utils/collisionUtils'
+import { getVisualizationRendererByType } from '@src/plugins/slotRegistry'
 
 /** ─── 图表类型默认 ECharts option ───────────────────────────────────────── */
 
@@ -695,8 +696,16 @@ const useWorkbenchState = create((set, get) => ({
   addChart: (type, x, y) => {
     const { activeCanvasId, charts } = get()
     if (!activeCanvasId) return
-    const option = CHART_DEFAULTS[type] ?? CHART_DEFAULTS.line
-    const meta = CHART_META.find((m) => m.type === type)
+    const pluginRenderer = getVisualizationRendererByType(type)
+    const option = pluginRenderer?.defaultOption ?? CHART_DEFAULTS[type] ?? CHART_DEFAULTS.line
+    const meta =
+      CHART_META.find((m) => m.type === type) ??
+      (pluginRenderer
+        ? {
+            type: pluginRenderer.type,
+            label: pluginRenderer.label ?? pluginRenderer.type,
+          }
+        : null)
     const order = charts.filter((ch) => ch.canvasId === activeCanvasId).length
     const chart = {
       id: uid(),

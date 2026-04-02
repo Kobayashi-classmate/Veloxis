@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, startTransition } from
 import { useParams } from 'react-router-dom'
 import {
   Typography, Button, Table, Space, Modal, Steps, Upload, message,
-  Input, Select, Tag, Tooltip, Drawer, Alert, InputNumber, Empty,
+  Input, Select, Tag, Tooltip, Drawer, Alert, InputNumber, Empty, Checkbox,
   Divider, Spin, Progress, Tabs,
 } from 'antd'
 import {
@@ -17,11 +17,18 @@ import dayjs from 'dayjs'
 import {
   getDatasets, uploadDatasetFileWithProgress, ensureProjectFolder,
   createDataset, updateDataset, deleteDataset,
-  createDatasetVersion, createRecipe, getRecipes, updateRecipe,
+  createDatasetVersionsBulk, createRecipe, getRecipes, updateRecipe,
   getDatasetVersions, getFileMetadata, deleteFile, clearVersionFileId,
   retriggerImport,
 } from '@src/service/api/datasets'
 import { getProjectBySlug } from '@src/service/api/projects'
+import {
+  buildSchemaChildName,
+  buildSourceGroups,
+  buildSourceFileSignature,
+  buildSourceUnitId,
+  computeSchemaFingerprintFromStorageNames,
+} from './multiSourceUtils'
 import styles from './index.module.less'
 
 const { Title, Text } = Typography
@@ -97,6 +104,26 @@ async function parseXLSXHead(file, headerRowCount) {
   const headerRows = json.slice(0, headerRowCount).map((row) => row.map(String))
   const dataRows = json.slice(headerRowCount, PREVIEW_ROWS).map((row) => row.map(String))
   return { headerRows, dataRows }
+}
+
+async function listExcelSheetNames(file) {
+  const XLSX = await import('xlsx')
+  const buffer = await file.arrayBuffer()
+  const wb = XLSX.read(buffer, { type: 'array', sheetRows: 1 })
+  return wb.SheetNames ?? []
+}
+
+async function parseXLSXHeadBySheet(file, headerRowCount, sheetName) {
+  const PREVIEW_ROWS = headerRowCount + 5
+  const XLSX = await import('xlsx')
+  const buffer = await file.arrayBuffer()
+  const wb = XLSX.read(buffer, { type: 'array', sheetRows: PREVIEW_ROWS })
+  const targetSheet = sheetName && wb.SheetNames.includes(sheetName) ? sheetName : wb.SheetNames[0]
+  const ws = wb.Sheets[targetSheet]
+  const json = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
+  const headerRows = json.slice(0, headerRowCount).map((row) => row.map(String))
+  const dataRows = json.slice(headerRowCount, PREVIEW_ROWS).map((row) => row.map(String))
+  return { headerRows, dataRows, sheetName: targetSheet }
 }
 
 async function parseFileHead(file, headerRowCount) {
@@ -190,6 +217,10 @@ const Datasets = () => {
 
   /** Step 0：文件 */
   const [currentFile, setCurrentFile] = useState(null)
+  const [selectedFiles, setSelectedFiles] = useState([])
+  const [excelSheetsByFile, setExcelSheetsByFile] = useState({})
+  const [selectedSheetsByFile, setSelectedSheetsByFile] = useState({})
+  const [mergeSameSchema, setMergeSameSchema] = useState(true)
   const [fileType, setFileType] = useState('CSV')
   const [datasetName, setDatasetName] = useState('')
 
@@ -201,9 +232,13 @@ const Datasets = () => {
   const [dataRows, setDataRows] = useState([])
   const [storageRowIndex, setStorageRowIndex] = useState(0)
   const [labelRowIndex, setLabelRowIndex] = useState(1)
+  const [sourceUnits, setSourceUnits] = useState([])
+  const [sourceGroups, setSourceGroups] = useState([])
+  const [activeGroupKey, setActiveGroupKey] = useState('')
 
   /** Step 2：字段映射 */
   const [mapping, setMapping] = useState({})
+  const [groupMappings, setGroupMappings] = useState({})
 
   /** 版本历史 Drawer */
   const [versionDrawerOpen, setVersionDrawerOpen] = useState(false)
@@ -225,6 +260,19 @@ const Datasets = () => {
   const [deleteDetailsLoading, setDeleteDetailsLoading] = useState(false)
   const [pendingDeleteRecord, setPendingDeleteRecord] = useState(null)
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+
+  const resetParsedArtifacts = () => {
+    setParsed(false)
+    setHeaderRows([])
+    setDataRows([])
+    setStorageRowIndex(0)
+    setLabelRowIndex(1)
+    setSourceUnits([])
+    setSourceGroups([])
+    setActiveGroupKey('')
+    setMapping({})
+    setGroupMappings({})
+  }
 
   /** ── 获取数据集列表 ── */
   const fetchDatasets = useCallback(async (silent = false) => {
@@ -434,18 +482,17 @@ const Datasets = () => {
     setModalOpen(true)
     setCurrentStep(0)
     setCurrentFile(null)
+    setSelectedFiles([])
+    setExcelSheetsByFile({})
+    setSelectedSheetsByFile({})
+    setMergeSameSchema(dataset?.merge_same_schema ?? true)
     setFileType('CSV')
     setDatasetName(dataset?.name ?? '')
     setStorageUnlocked(false)
     setExistingRecipe(null)
     setHeaderRowCount(1)
     setParsing(false)
-    setParsed(false)
-    setHeaderRows([])
-    setDataRows([])
-    setStorageRowIndex(0)
-    setLabelRowIndex(1)
-    setMapping({})
+    resetParsedArtifacts()
 
     if (dataset) {
       try {
@@ -460,39 +507,192 @@ const Datasets = () => {
   }
 
   /** ── Step 0：选择文件（仅记录，不解析） ── */
-  const handleFileSelect = (file) => {
-    setCurrentFile(file)
-    setFileType(/\.xlsx?$/i.test(file.name) ? 'Excel' : 'CSV')
-    setParsed(false)
-    setHeaderRows([])
-    setDataRows([])
-    setMapping({})
-    if (!editingDataset) {
-      setDatasetName(file.name.replace(/\.[^/.]+$/, ''))
+  const handleFileSelect = async (file) => {
+    const signature = buildSourceFileSignature(file)
+    setSelectedFiles((prev) => {
+      const exists = prev.some((f) => buildSourceFileSignature(f) === signature)
+      if (exists) return prev
+      return [...prev, file]
+    })
+
+    if (!currentFile) {
+      setCurrentFile(file)
+      setFileType(/\.xlsx?$/i.test(file.name) ? 'Excel' : 'CSV')
+      if (!editingDataset) {
+        setDatasetName(file.name.replace(/\.[^/.]+$/, ''))
+      }
+    }
+
+    resetParsedArtifacts()
+
+    if (/\.xlsx?$/i.test(file.name)) {
+      try {
+        const sheetNames = await listExcelSheetNames(file)
+        setExcelSheetsByFile((prev) => ({ ...prev, [signature]: sheetNames }))
+        if (sheetNames.length > 0) {
+          setSelectedSheetsByFile((prev) => ({ ...prev, [signature]: [...sheetNames] }))
+        }
+      } catch {
+        message.error(`读取 Sheet 失败：${file.name}`)
+      }
     }
     return false
   }
 
-  /** ── Step 1：用户点「解析文件」按钮 ── */
+  const removeSelectedFile = (file) => {
+    const signature = buildSourceFileSignature(file)
+    const nextFiles = selectedFiles.filter((f) => buildSourceFileSignature(f) !== signature)
+    setSelectedFiles(nextFiles)
+    setExcelSheetsByFile((prev) => {
+      const next = { ...prev }
+      delete next[signature]
+      return next
+    })
+    setSelectedSheetsByFile((prev) => {
+      const next = { ...prev }
+      delete next[signature]
+      return next
+    })
+
+    if (currentFile && buildSourceFileSignature(currentFile) === signature) {
+      const fallback = nextFiles[0] || null
+      setCurrentFile(fallback)
+      setFileType(fallback && /\.xlsx?$/i.test(fallback.name) ? 'Excel' : 'CSV')
+    }
+
+    resetParsedArtifacts()
+  }
+
+  const handleSheetSelectionChange = (signature, values) => {
+    setSelectedSheetsByFile((prev) => ({
+      ...prev,
+      [signature]: values,
+    }))
+    resetParsedArtifacts()
+  }
+
+  const handleSelectAllSheets = (signature, sheetOptions) => {
+    setSelectedSheetsByFile((prev) => ({
+      ...prev,
+      [signature]: [...sheetOptions],
+    }))
+    resetParsedArtifacts()
+  }
+
+  const hasMissingSheetSelection = () => {
+    return selectedFiles.some((file) => {
+      if (!/\.xlsx?$/i.test(file.name)) return false
+      const signature = buildSourceFileSignature(file)
+      return (selectedSheetsByFile[signature] || []).length === 0
+    })
+  }
+
+  /** ── Step 3：用户点「解析文件」按钮 ── */
   const handleParse = async () => {
-    if (!currentFile) return
+    if (selectedFiles.length === 0) return
     setParsing(true)
-    setParsed(false)
-    setHeaderRows([])
-    setDataRows([])
-    setMapping({})
+    resetParsedArtifacts()
     try {
-      const result = await parseFileHead(currentFile, headerRowCount)
-      if (!result.headerRows.length) {
-        message.error('未能识别到表头，请检查文件内容或标题行数设置')
+      const nextStorageRow = 0
+      const nextLabelRow = headerRowCount > 1 ? 1 : 0
+      const parsedUnits = []
+
+      for (const file of selectedFiles) {
+        const signature = buildSourceFileSignature(file)
+        const isExcel = /\.xlsx?$/i.test(file.name)
+        if (!isExcel) {
+          const result = await parseFileHead(file, headerRowCount)
+          if (!result.headerRows.length) continue
+          const storageHeaders = result.headerRows[nextStorageRow] || []
+          const labelHeaders = result.headerRows[nextLabelRow] || storageHeaders
+          const dedupedStorage = deduplicateNames(storageHeaders.map(toStorageName))
+          const schemaFingerprint = await computeSchemaFingerprintFromStorageNames(dedupedStorage)
+          parsedUnits.push({
+            id: buildSourceUnitId(signature, ''),
+            sourceFileSignature: signature,
+            file,
+            fileName: file.name,
+            isExcel: false,
+            sheetName: '',
+            headerRows: result.headerRows,
+            dataRows: result.dataRows,
+            storageHeaders,
+            labelHeaders,
+            dedupedStorage,
+            schemaFingerprint,
+          })
+          continue
+        }
+
+        const allSheets = excelSheetsByFile[signature]?.length > 0
+          ? excelSheetsByFile[signature]
+          : await listExcelSheetNames(file)
+        const selectedSheets = selectedSheetsByFile[signature] && selectedSheetsByFile[signature].length > 0
+          ? selectedSheetsByFile[signature]
+          : allSheets
+
+        for (const sheetName of selectedSheets) {
+          const result = await parseXLSXHeadBySheet(file, headerRowCount, sheetName)
+          if (!result.headerRows.length) continue
+          const storageHeaders = result.headerRows[nextStorageRow] || []
+          const labelHeaders = result.headerRows[nextLabelRow] || storageHeaders
+          const dedupedStorage = deduplicateNames(storageHeaders.map(toStorageName))
+          const schemaFingerprint = await computeSchemaFingerprintFromStorageNames(dedupedStorage)
+          parsedUnits.push({
+            id: buildSourceUnitId(signature, result.sheetName || sheetName),
+            sourceFileSignature: signature,
+            file,
+            fileName: file.name,
+            isExcel: true,
+            sheetName: result.sheetName || sheetName,
+            headerRows: result.headerRows,
+            dataRows: result.dataRows,
+            storageHeaders,
+            labelHeaders,
+            dedupedStorage,
+            schemaFingerprint,
+          })
+        }
+      }
+
+      if (parsedUnits.length === 0) {
+        message.error('未能识别到可导入的表头，请检查文件内容或 Sheet 选择')
         return
       }
-      /** startTransition：让解析结果渲染为低优先级，不阻塞按钮响应 */
+
+      const grouped = buildSourceGroups(parsedUnits, mergeSameSchema)
+      const mappingByGroup = {}
+      grouped.forEach((group) => {
+        const rep = group.sourceUnits[0]
+        const groupMap = {}
+        rep.storageHeaders.forEach((orig, i) => {
+          let storageName = rep.dedupedStorage[i] || toStorageName(orig)
+          let label = rep.labelHeaders[i] || orig
+          if (existingRecipe?.config?.length > 0) {
+            const matched = existingRecipe.config.find((op) => op.from === orig)
+            if (matched) {
+              storageName = matched.to ?? storageName
+              label = matched.label ?? label
+            }
+          }
+          groupMap[orig] = { storageName, label, type: 'string' }
+        })
+        mappingByGroup[group.groupKey] = groupMap
+      })
+
+      const firstGroup = grouped[0]
+      const firstRep = firstGroup.sourceUnits[0]
+
       startTransition(() => {
-        setHeaderRows(result.headerRows)
-        setDataRows(result.dataRows)
-        setStorageRowIndex(0)
-        setLabelRowIndex(result.headerRows.length > 1 ? 1 : 0)
+        setStorageRowIndex(nextStorageRow)
+        setLabelRowIndex(nextLabelRow)
+        setSourceUnits(parsedUnits)
+        setSourceGroups(grouped)
+        setActiveGroupKey(firstGroup.groupKey)
+        setGroupMappings(mappingByGroup)
+        setMapping(mappingByGroup[firstGroup.groupKey] || {})
+        setHeaderRows(firstRep.headerRows)
+        setDataRows(firstRep.dataRows)
         setParsed(true)
       })
     } catch {
@@ -502,8 +702,18 @@ const Datasets = () => {
     }
   }
 
-  /** ── Step 1 → Step 2：构建 mapping 后切步骤 ── */
+  /** ── Step 3 → Step 4：构建 mapping 后切步骤 ── */
   const proceedToMapping = () => {
+    if (parsed && sourceGroups.length > 0) {
+      const key = activeGroupKey || sourceGroups[0].groupKey
+      startTransition(() => {
+        setActiveGroupKey(key)
+        setMapping(groupMappings[key] || {})
+        setCurrentStep(4)
+      })
+      return
+    }
+
     const recipe = existingRecipe
     const init = {}
 
@@ -525,7 +735,7 @@ const Datasets = () => {
       })
       startTransition(() => {
         setMapping(init)
-        setCurrentStep(2)
+        setCurrentStep(4)
       })
       return
     }
@@ -547,7 +757,7 @@ const Datasets = () => {
     })
     startTransition(() => {
       setMapping(init)
-      setCurrentStep(2)
+      setCurrentStep(4)
     })
   }
 
@@ -559,34 +769,59 @@ const Datasets = () => {
 
   /** ── 一键规范化 ── */
   const handleNormalize = () => {
-    const sHeaders = headerRows[storageRowIndex] || []
+    const activeGroup = sourceGroups.find((g) => g.groupKey === activeGroupKey)
+    const representative = activeGroup?.sourceUnits?.[0]
+    const sHeaders = representative?.storageHeaders ?? (headerRows[storageRowIndex] || [])
     const deduped = deduplicateNames(sHeaders.map(toStorageName))
-    setMapping((prev) => {
-      const next = { ...prev }
-      sHeaders.forEach((orig, i) => { next[orig] = { ...next[orig], storageName: deduped[i] } })
-      return next
+    setGroupMappings((prev) => {
+      const nextAll = { ...prev }
+      const current = { ...(nextAll[activeGroupKey] || mapping) }
+      sHeaders.forEach((orig, i) => { current[orig] = { ...current[orig], storageName: deduped[i] } })
+      nextAll[activeGroupKey] = current
+      setMapping(current)
+      return nextAll
     })
     message.success('存储列名已规范化')
   }
 
   /** ── 映射字段变更 ── */
   const handleMappingChange = (orig, field, value) => {
-    setMapping((prev) => ({ ...prev, [orig]: { ...prev[orig], [field]: value } }))
+    setGroupMappings((prev) => {
+      const next = { ...prev }
+      const current = { ...(next[activeGroupKey] || mapping) }
+      current[orig] = { ...current[orig], [field]: value }
+      next[activeGroupKey] = current
+      setMapping(current)
+      return next
+    })
   }
 
   /** ── 实时冲突检测 ── */
-  const allStorageNames = Object.values(mapping).map((m) => m.storageName ?? '')
+  const activeMapping = groupMappings[activeGroupKey] || mapping
+  const allStorageNames = Object.values(activeMapping).map((m) => m.storageName ?? '')
   const getStorageNameError = (orig) => {
-    const name = mapping[orig]?.storageName ?? ''
+    const name = activeMapping[orig]?.storageName ?? ''
     const err = validateStorageName(name)
     if (err) return err
     if (allStorageNames.filter((n) => n === name).length > 1) return '与其他列重复'
     return null
   }
-  const storageHeaders = headerRows[storageRowIndex]?.length > 0
-    ? headerRows[storageRowIndex]
-    : Object.keys(mapping)  // 更新模式下 headerRows 为空，从 mapping 直接取列列表
+  const activeGroup = sourceGroups.find((g) => g.groupKey === activeGroupKey)
+  const representativeUnit = activeGroup?.sourceUnits?.[0]
+  const storageHeaders = representativeUnit?.storageHeaders?.length > 0
+    ? representativeUnit.storageHeaders
+    : (headerRows[storageRowIndex]?.length > 0 ? headerRows[storageRowIndex] : Object.keys(activeMapping))
   const hasAnyError = () => storageHeaders.some((h) => getStorageNameError(h) !== null)
+
+  useEffect(() => {
+    if (!activeGroupKey) return
+    const group = sourceGroups.find((g) => g.groupKey === activeGroupKey)
+    const rep = group?.sourceUnits?.[0]
+    if (!group || !rep) return
+    setMapping(groupMappings[activeGroupKey] || {})
+    setHeaderRows(rep.headerRows || [])
+    setDataRows(rep.dataRows || [])
+  }, [activeGroupKey, sourceGroups, groupMappings])
 
   /** ── 解锁存储列名 ── */
   const handleUnlock = () => {
@@ -605,33 +840,50 @@ const Datasets = () => {
       onOk: () => {
         setStorageUnlocked(true)
         setCurrentFile(null)
-        setParsed(false)
-        setHeaderRows([])
-        setDataRows([])
-        setMapping({})
+        setSelectedFiles([])
+        setExcelSheetsByFile({})
+        setSelectedSheetsByFile({})
+        setParsing(false)
+        resetParsedArtifacts()
         setCurrentStep(0)
         message.warning('存储列名已解锁，请重新上传数据文件')
       },
     })
   }
 
+  const generateIngestBatchId = () => {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID()
+    }
+    const rand = Math.random().toString(16).slice(2, 10)
+    return `ingest_${Date.now()}_${rand}`
+  }
+
   /** ── 保存 ── */
   const handleSave = async () => {
-    if (!currentFile || !projectId) { message.error('文件或项目信息缺失'); return }
+    if (selectedFiles.length === 0 || !projectId) { message.error('文件或项目信息缺失'); return }
     if (hasAnyError()) { message.error('存储列名存在错误，请修正后再保存'); return }
+    if (sourceGroups.length === 0) { message.error('请先解析文件并生成结构分组'); return }
 
     /** 快照当前 Modal 数据（关闭后这些 state 将被重置） */
-    const file = currentFile
-    const type = fileType
-    const name = datasetName || currentFile.name
+    const files = [...selectedFiles]
+    const type = files.some((f) => /\.xlsx?$/i.test(f.name)) ? 'Excel' : fileType
+    const name = datasetName || currentFile?.name || files[0]?.name || '未命名数据源'
     const dsId = editingDataset?.id ?? null
     const isUpdate = !!editingDataset
     const recipe = existingRecipe
-    const sHeaders = [...storageHeaders]
-    const sRowIdx = storageRowIndex
-    const lRowIdx = labelRowIndex
+    const mergeSameSchemaSnapshot = mergeSameSchema
+    const groupsSnapshot = sourceGroups.map((group) => ({
+      groupKey: group.groupKey,
+      schemaFingerprint: group.schemaFingerprint,
+      schemaOrder: group.schemaOrder,
+      sourceUnits: group.sourceUnits.map((unit) => ({ ...unit })),
+    }))
+    const groupMappingsSnapshot = { ...groupMappings }
+    const sRowIdx = 0
+    const lRowIdx = headerRowCount > 1 ? 1 : 0
     const hCount = headerRowCount
-    const currentMapping = { ...mapping }
+    const ingestBatchId = generateIngestBatchId()
 
     /** 新建模式：同项目内数据源名称唯一性校验 */
     if (!isUpdate) {
@@ -676,59 +928,186 @@ const Datasets = () => {
       /** 1. 确保项目目录，获取 folderId */
       const folderId = await ensureProjectFolder(projectId)
 
-      /** 2. 带进度上传文件 */
-      const uploadedFile = await uploadDatasetFileWithProgress(file, folderId, (percent) => {
-        setDatasets((prev) => prev.map((d) => {
-          if (d.id === tempId) return { ...d, uploadProgress: percent }
-          if (d._tempId === tempId) return { ...d, uploadProgress: percent }
-          return d
-        }))
+      /** 2. 物理文件去重上传 */
+      const uploadProgressByFile = {}
+      const uploadedFileIdBySignature = {}
+      const uniqueFiles = []
+      files.forEach((file) => {
+        const signature = buildSourceFileSignature(file)
+        if (uploadedFileIdBySignature[signature]) return
+        uploadedFileIdBySignature[signature] = ''
+        uniqueFiles.push(file)
       })
 
-      const fileId = uploadedFile?.id
-      if (!fileId) throw new Error('文件上传失败，未获取到 fileId')
+      for (const file of uniqueFiles) {
+        const signature = buildSourceFileSignature(file)
+        const uploadedFile = await uploadDatasetFileWithProgress(file, folderId, (percent) => {
+          uploadProgressByFile[signature] = percent
+          const values = Object.values(uploadProgressByFile)
+          const avg = values.length > 0
+            ? Math.round(values.reduce((sum, p) => sum + Number(p || 0), 0) / uniqueFiles.length)
+            : 0
+          setDatasets((prev) => prev.map((d) => {
+            if (d.id === tempId || d._tempId === tempId) return { ...d, uploadProgress: avg }
+            return d
+          }))
+        })
+        if (!uploadedFile?.id) throw new Error(`文件上传失败：${file.name}`)
+        uploadedFileIdBySignature[signature] = uploadedFile.id
+      }
 
-      /** 文件已确认上传成功，推进度到 100% */
       setDatasets((prev) => prev.map((d) => {
         if (d.id === tempId || d._tempId === tempId) return { ...d, uploadProgress: 100 }
         return d
       }))
 
-      /** 3. 创建或更新 Dataset 记录 */
-      let datasetId = dsId
+      /** 3. 匹配/创建目标 Dataset（同构合并、异构拆分） */
+      const datasetIdByGroupKey = {}
+      let rootDatasetId = dsId
+      let rootSchemaFingerprint = editingDataset?.schema_fingerprint || ''
+
       if (!isUpdate) {
-        const newDs = await createDataset({ name, project_id: projectId, type, status: 'processing' })
-        datasetId = newDs.id
-        /** 回填 _datasetId：让 fetchDatasets 知道此临时行对应哪个真实 Dataset，
-         *  从而在 Directus 返回该记录后，不再重复保留临时行。*/
+        const firstGroup = groupsSnapshot[0]
+        const rootDataset = await createDataset({
+          name,
+          project_id: projectId,
+          type,
+          status: 'processing',
+          root_dataset_id: null,
+          schema_fingerprint: firstGroup.schemaFingerprint,
+          schema_order: 1,
+          merge_same_schema: mergeSameSchemaSnapshot,
+        })
+        rootDatasetId = rootDataset.id
+        rootSchemaFingerprint = firstGroup.schemaFingerprint
+        datasetIdByGroupKey[firstGroup.groupKey] = rootDataset.id
         setDatasets((prev) => prev.map((d) =>
-          d.id === tempId ? { ...d, _datasetId: datasetId } : d
+          d.id === tempId ? { ...d, _datasetId: rootDataset.id } : d
         ))
-      } else {
-        await updateDataset(datasetId, { status: 'processing', type })
+      } else if (rootDatasetId) {
+        await updateDataset(rootDatasetId, {
+          status: 'processing',
+          type,
+          merge_same_schema: mergeSameSchemaSnapshot,
+        })
       }
 
-      /** 4. 保存 Recipe */
-      const recipeConfig = sHeaders.map((orig) => ({
-        type: 'rename',
-        from: orig,
-        to: currentMapping[orig]?.storageName ?? orig,
-        label: currentMapping[orig]?.label ?? orig,
-      }))
-      const recipePayload = { config: recipeConfig, header_row_count: hCount, storage_row_index: sRowIdx, label_row_index: lRowIdx }
-      if (recipe) {
-        await updateRecipe(recipe.id, recipePayload)
-      } else {
-        await createRecipe({ dataset_id: datasetId, name: '表头映射规则', ...recipePayload })
+      const existingDatasets = [...datasets]
+      for (const group of groupsSnapshot) {
+        if (datasetIdByGroupKey[group.groupKey]) continue
+
+        let targetDatasetId = null
+        if (isUpdate && rootDatasetId) {
+          if (!mergeSameSchemaSnapshot && group.schemaOrder === 1) {
+            targetDatasetId = rootDatasetId
+          } else if (mergeSameSchemaSnapshot && rootSchemaFingerprint && group.schemaFingerprint === rootSchemaFingerprint) {
+            targetDatasetId = rootDatasetId
+          } else {
+            const existingChild = mergeSameSchemaSnapshot
+              ? existingDatasets.find(
+                (d) => d.root_dataset_id === rootDatasetId && d.schema_fingerprint === group.schemaFingerprint
+              )
+              : existingDatasets.find(
+                (d) => d.root_dataset_id === rootDatasetId && d.schema_order === group.schemaOrder
+              )
+            if (existingChild) {
+              targetDatasetId = existingChild.id
+              await updateDataset(targetDatasetId, {
+                status: 'processing',
+                type,
+                merge_same_schema: mergeSameSchemaSnapshot,
+              })
+            }
+          }
+        }
+
+        if (!targetDatasetId) {
+          if (isUpdate && !mergeSameSchemaSnapshot && group.schemaOrder === 1 && rootDatasetId) {
+            targetDatasetId = rootDatasetId
+          }
+        }
+
+        if (!targetDatasetId) {
+          const childName = isUpdate
+            ? buildSchemaChildName(editingDataset?.name || name, group.schemaOrder)
+            : buildSchemaChildName(name, group.schemaOrder)
+          const created = await createDataset({
+            name: childName,
+            project_id: projectId,
+            type,
+            status: 'processing',
+            root_dataset_id: isUpdate ? rootDatasetId : (group.schemaOrder === 1 ? null : rootDatasetId),
+            schema_fingerprint: group.schemaFingerprint,
+            schema_order: group.schemaOrder,
+            merge_same_schema: mergeSameSchemaSnapshot,
+          })
+          targetDatasetId = created.id
+        }
+
+        datasetIdByGroupKey[group.groupKey] = targetDatasetId
       }
 
-      /** 5. 创建版本记录（触发 Webhook → Worker） */
-      await createDatasetVersion({
-        dataset_id: datasetId,
-        version_name: `v${dayjs().format('YYYYMMDDHHmmss')}`,
-        file_id: fileId,
-        status: 'processing',
+      /** 4. upsert recipe（按分组） */
+      for (const group of groupsSnapshot) {
+        const targetDatasetId = datasetIdByGroupKey[group.groupKey]
+        if (!targetDatasetId) continue
+        const representative = group.sourceUnits[0]
+        const groupMap = groupMappingsSnapshot[group.groupKey] || {}
+        const recipeConfig = representative.storageHeaders.map((orig) => ({
+          type: 'rename',
+          from: orig,
+          to: groupMap[orig]?.storageName ?? orig,
+          label: groupMap[orig]?.label ?? orig,
+        }))
+        const recipePayload = {
+          config: recipeConfig,
+          header_row_count: hCount,
+          storage_row_index: sRowIdx,
+          label_row_index: lRowIdx,
+        }
+
+        let recipeRecord = null
+        if (recipe && targetDatasetId === dsId) {
+          recipeRecord = recipe
+        } else {
+          const recipes = await getRecipes(targetDatasetId)
+          recipeRecord = recipes?.[0] ?? null
+        }
+
+        if (recipeRecord?.id) {
+          await updateRecipe(recipeRecord.id, recipePayload)
+        } else {
+          await createRecipe({ dataset_id: targetDatasetId, name: '表头映射规则', ...recipePayload })
+        }
+      }
+
+      /** 5. 批量创建 versions（触发 Webhook -> Worker） */
+      const versionPayloads = []
+      groupsSnapshot.forEach((group) => {
+        const targetDatasetId = datasetIdByGroupKey[group.groupKey]
+        group.sourceUnits.forEach((unit, idx) => {
+          const fileId = uploadedFileIdBySignature[unit.sourceFileSignature]
+          if (!fileId || !targetDatasetId) return
+          const suffix = unit.sheetName ? `_${unit.sheetName}` : `_${idx + 1}`
+          versionPayloads.push({
+            dataset_id: targetDatasetId,
+            version_name: `v${dayjs().format('YYYYMMDDHHmmss')}${suffix}`,
+            file_id: fileId,
+            status: 'processing',
+            ingest_batch_id: ingestBatchId,
+            sheet_name: unit.sheetName || '',
+            schema_fingerprint: group.schemaFingerprint,
+            source_file_name: unit.fileName || '',
+            source_sheet_name: unit.sheetName || '',
+          })
+        })
       })
+
+      if (versionPayloads.length === 0) {
+        throw new Error('未生成可导入的版本记录')
+      }
+
+      await createDatasetVersionsBulk(versionPayloads)
 
       /** 6. 刷新列表（临时行替换为真实数据） */
       fetchDatasets()
@@ -841,12 +1220,12 @@ const Datasets = () => {
       render: (_, { orig }) => {
         const err = getStorageNameError(orig)
         return (
-          <Tooltip title={isStorageLocked ? '已锁定，点击顶部「解锁修改」方可编辑' : err}>
-            <Input
-              value={mapping[orig]?.storageName ?? ''}
-              disabled={isStorageLocked}
-              status={!isStorageLocked && err ? 'error' : undefined}
-              onChange={(e) => handleMappingChange(orig, 'storageName', e.target.value)}
+              <Tooltip title={isStorageLocked ? '已锁定，点击顶部「解锁修改」方可编辑' : err}>
+                <Input
+                  value={activeMapping[orig]?.storageName ?? ''}
+                  disabled={isStorageLocked}
+                  status={!isStorageLocked && err ? 'error' : undefined}
+                  onChange={(e) => handleMappingChange(orig, 'storageName', e.target.value)}
               placeholder="snake_case 列名"
               style={{ fontFamily: 'monospace' }}
             />
@@ -859,7 +1238,7 @@ const Datasets = () => {
       key: 'label',
       render: (_, { orig }) => (
         <Input
-          value={mapping[orig]?.label ?? ''}
+          value={activeMapping[orig]?.label ?? ''}
           onChange={(e) => handleMappingChange(orig, 'label', e.target.value)}
           placeholder="展示给用户的列名"
         />
@@ -871,7 +1250,7 @@ const Datasets = () => {
       width: 130,
       render: (_, { orig }) => (
         <Select
-          value={mapping[orig]?.type ?? 'string'}
+          value={activeMapping[orig]?.type ?? 'string'}
           onChange={(val) => handleMappingChange(orig, 'type', val)}
           style={{ width: 120 }}
         >
@@ -903,6 +1282,8 @@ const Datasets = () => {
 
   const steps = [
     { title: '上传文件', description: '选择本地文件' },
+    { title: '选择 Sheet', description: '配置 Excel Sheet' },
+    { title: '合并导入', description: '设置同构是否合并' },
     { title: '表头配置', description: '解析并指定行角色' },
     { title: '字段映射', description: '配置列名与类型' },
   ]
@@ -1195,7 +1576,7 @@ const Datasets = () => {
           <div>
             <Dragger
               name="file"
-              multiple={false}
+              multiple
               fileList={[]}
               beforeUpload={handleFileSelect}
               accept=".csv,.txt,.xlsx,.xls"
@@ -1204,31 +1585,176 @@ const Datasets = () => {
             >
               <p className="ant-upload-drag-icon"><InboxOutlined /></p>
               <p className="ant-upload-text">点击或拖拽文件到此处</p>
-              <p className="ant-upload-hint">支持 CSV、TXT、Excel (.xlsx)。映射关系固化后更新数据时持续生效。</p>
+              <p className="ant-upload-hint">支持 CSV、TXT、Excel (.xlsx)。可一次选择多个文件；Excel 支持多 Sheet 导入。</p>
             </Dragger>
 
-            {currentFile && (
-              <div className={styles.fileInfo}>
-                <FileTextOutlined style={{ color: '#1677ff', fontSize: 16 }} />
-                <Text strong style={{ flex: 1 }}>{currentFile.name}</Text>
-                <Text type="secondary" style={{ fontSize: 12 }}>{(currentFile.size / 1024).toFixed(1)} KB</Text>
-                <Button
-                  type="link" size="small" danger icon={<CloseOutlined />}
-                  onClick={() => setCurrentFile(null)} style={{ padding: 0 }}
-                />
+            {selectedFiles.length > 0 && (
+              <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {selectedFiles.map((file) => {
+                  const signature = buildSourceFileSignature(file)
+                  return (
+                    <div key={signature} className={styles.fileInfo} style={{ display: 'block' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <FileTextOutlined style={{ color: '#1677ff', fontSize: 16 }} />
+                        <Text strong style={{ flex: 1 }}>{file.name}</Text>
+                        <Text type="secondary" style={{ fontSize: 12 }}>{(file.size / 1024).toFixed(1)} KB</Text>
+                        <Button
+                          type="link"
+                          size="small"
+                          danger
+                          icon={<CloseOutlined />}
+                          onClick={() => removeSelectedFile(file)}
+                          style={{ padding: 0 }}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             )}
 
             <div style={{ textAlign: 'right', marginTop: 16 }}>
-              <Button type="primary" disabled={!currentFile} onClick={() => setCurrentStep(1)}>
+              <Button type="primary" disabled={selectedFiles.length === 0} onClick={() => setCurrentStep(1)}>
                 下一步
               </Button>
             </div>
           </div>
         )}
 
-        {/** Step 1 — 表头配置 */}
+        {/** Step 1 — 选择 Sheet */}
         {currentStep === 1 && (
+          <div>
+            {selectedFiles.length === 0 ? (
+              <Alert
+                type="warning"
+                showIcon
+                message="请先上传文件"
+                style={{ marginBottom: 16 }}
+              />
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {selectedFiles.map((file) => {
+                  const signature = buildSourceFileSignature(file)
+                  const isExcel = /\.xlsx?$/i.test(file.name)
+                  const sheetOptions = excelSheetsByFile[signature] || []
+                  const selectedSheets = selectedSheetsByFile[signature] || []
+
+                  return (
+                    <div key={signature} className={styles.fileInfo} style={{ display: 'block' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <FileTextOutlined style={{ color: '#1677ff', fontSize: 16 }} />
+                        <Text strong style={{ flex: 1 }}>{file.name}</Text>
+                        <Text type="secondary" style={{ fontSize: 12 }}>{(file.size / 1024).toFixed(1)} KB</Text>
+                      </div>
+                      <div style={{ marginTop: 8, paddingLeft: 24 }}>
+                        {isExcel ? (
+                          sheetOptions.length > 0 ? (
+                            <div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                                <Text type="secondary">选择 Sheet（默认全部）：</Text>
+                                <Button
+                                  type="link"
+                                  size="small"
+                                  onClick={() => handleSelectAllSheets(signature, sheetOptions)}
+                                  style={{ padding: 0, height: 'auto' }}
+                                >
+                                  全选
+                                </Button>
+                                <Button
+                                  type="link"
+                                  size="small"
+                                  onClick={() => handleSheetSelectionChange(signature, [])}
+                                  style={{ padding: 0, height: 'auto' }}
+                                >
+                                  清空
+                                </Button>
+                              </div>
+
+                              <Checkbox.Group
+                                value={selectedSheets}
+                                onChange={(values) => handleSheetSelectionChange(signature, values)}
+                                style={{ display: 'flex', flexDirection: 'column', gap: 6 }}
+                              >
+                                {sheetOptions.map((sheet) => (
+                                  <Checkbox key={sheet} value={sheet}>{sheet}</Checkbox>
+                                ))}
+                              </Checkbox.Group>
+
+                              {selectedSheets.length === 0 && (
+                                <Text type="danger" style={{ fontSize: 12 }}>
+                                  请至少选择一个 Sheet
+                                </Text>
+                              )}
+                            </div>
+                          ) : (
+                            <Text type="warning">未读取到可用 Sheet，请返回上一步重新选择文件</Text>
+                          )
+                        ) : (
+                          <Text type="secondary">CSV/TXT 文件无需选择 Sheet</Text>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            <div style={{ textAlign: 'right', marginTop: 16 }}>
+              <Button style={{ marginRight: 8 }} onClick={() => setCurrentStep(0)}>上一步</Button>
+              <Button
+                type="primary"
+                disabled={selectedFiles.length === 0 || hasMissingSheetSelection()}
+                onClick={() => setCurrentStep(2)}
+              >
+                下一步
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/** Step 2 — 合并导入 */}
+        {currentStep === 2 && (
+          <div>
+            <Alert
+              type="info"
+              showIcon
+              message="导入合并策略"
+              description="开启后：同结构 source unit 自动合并到同一数据表。关闭后：即使同结构也会拆分为独立分组。"
+              style={{ marginBottom: 16 }}
+            />
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Text strong>同结构合并导入：</Text>
+              <Select
+                value={mergeSameSchema ? 'merge' : 'split'}
+                style={{ width: 220 }}
+                disabled={isUpdateMode}
+                onChange={(val) => {
+                  const next = val === 'merge'
+                  setMergeSameSchema(next)
+                  resetParsedArtifacts()
+                }}
+              >
+                <Option value="merge">开启（同结构合并）</Option>
+                <Option value="split">关闭（同结构拆分）</Option>
+              </Select>
+            </div>
+
+            {isUpdateMode && (
+              <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
+                更新模式中该策略为只读，沿用当前数据源历史配置。
+              </Text>
+            )}
+
+            <div style={{ textAlign: 'right', marginTop: 16 }}>
+              <Button style={{ marginRight: 8 }} onClick={() => setCurrentStep(1)}>上一步</Button>
+              <Button type="primary" onClick={() => setCurrentStep(3)}>下一步</Button>
+            </div>
+          </div>
+        )}
+
+        {/** Step 3 — 表头配置 */}
+        {currentStep === 3 && (
           <div>
             {/** 更新模式只读提示 + 已保存的表头列名展示 */}
             {isUpdateMode && !storageUnlocked && (
@@ -1282,7 +1808,10 @@ const Datasets = () => {
                 <Text>标题行数：</Text>
                 <InputNumber
                   min={1} max={2} value={headerRowCount}
-                  onChange={(val) => { setHeaderRowCount(val ?? 1); setParsed(false); setHeaderRows([]); setMapping({}) }}
+                  onChange={(val) => {
+                    setHeaderRowCount(val ?? 1)
+                    resetParsedArtifacts()
+                  }}
                   style={{ width: 72 }}
                 />
                 <Text type="secondary" style={{ fontSize: 12 }}>
@@ -1311,6 +1840,25 @@ const Datasets = () => {
             {/** 解析完成：行预览 */}
             {parsed && headerRows.length > 0 && (
               <>
+                {sourceGroups.length > 0 && (
+                  <div style={{ marginBottom: 12 }}>
+                    <Text strong>
+                      结构分组预览（{mergeSameSchema ? '同结构自动合并' : '同结构按 source unit 拆分'}）
+                    </Text>
+                    <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {sourceGroups.map((group) => (
+                        <div key={group.groupKey} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <Tag color={group.schemaOrder === 1 ? 'blue' : 'purple'}>
+                            schema_{String(group.schemaOrder).padStart(2, '0')}
+                          </Tag>
+                          <Text type="secondary">{group.sourceUnits.length} 个 source unit</Text>
+                          <Text code style={{ fontSize: 11 }}>{group.schemaFingerprint.slice(0, 10)}…</Text>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className={styles.headerPreview}>
                   {headerRows.map((row, idx) => {
                     const isStorage = idx === storageRowIndex
@@ -1336,7 +1884,7 @@ const Datasets = () => {
                   })}
                 </div>
 
-                {headerRows.length >= 2 && (!isUpdateMode || storageUnlocked) && (
+                {headerRows.length >= 2 && sourceUnits.length <= 1 && (!isUpdateMode || storageUnlocked) && (
                   <div style={{ textAlign: 'center', marginBottom: 12 }}>
                     <Button icon={<SwapOutlined />} onClick={swapRows}>互换存储行与展示行</Button>
                   </div>
@@ -1357,7 +1905,7 @@ const Datasets = () => {
             )}
 
             <div style={{ textAlign: 'right', marginTop: 16 }}>
-              <Button style={{ marginRight: 8 }} onClick={() => setCurrentStep(0)}>上一步</Button>
+              <Button style={{ marginRight: 8 }} onClick={() => setCurrentStep(2)}>上一步</Button>
               <Button
                 type="primary"
                 disabled={!isUpdateMode && !storageUnlocked && !parsed}
@@ -1369,8 +1917,8 @@ const Datasets = () => {
           </div>
         )}
 
-        {/** Step 2 — 字段映射 */}
-        {currentStep === 2 && (
+        {/** Step 4 — 字段映射 */}
+        {currentStep === 4 && (
           <div>
             {isStorageLocked && (
               <Alert
@@ -1411,6 +1959,23 @@ const Datasets = () => {
               </div>
             )}
 
+            {sourceGroups.length > 1 && (
+              <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Text strong style={{ marginRight: 4 }}>当前结构组：</Text>
+                <Select
+                  value={activeGroupKey}
+                  style={{ minWidth: 360 }}
+                  onChange={(val) => setActiveGroupKey(val)}
+                >
+                  {sourceGroups.map((group) => (
+                    <Option key={group.groupKey} value={group.groupKey}>
+                      {`schema_${String(group.schemaOrder).padStart(2, '0')} · ${group.sourceUnits.length} units · ${group.schemaFingerprint.slice(0, 10)}...`}
+                    </Option>
+                  ))}
+                </Select>
+              </div>
+            )}
+
             {/** 更新锁定模式：未重新解析文件，无数据预览列，给出说明 */}
             {isUpdateMode && !storageUnlocked && !parsed && (
               <Alert
@@ -1434,7 +1999,7 @@ const Datasets = () => {
             <Divider style={{ margin: '16px 0' }} />
 
             <div style={{ textAlign: 'right' }}>
-              <Button style={{ marginRight: 8 }} onClick={() => setCurrentStep(1)}>上一步</Button>
+              <Button style={{ marginRight: 8 }} onClick={() => setCurrentStep(3)}>上一步</Button>
               <Button
                 type="primary"
                 onClick={handleSave}

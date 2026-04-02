@@ -6,6 +6,10 @@ export interface Dataset {
   project_id: string
   type: 'CSV' | 'Excel'
   status: 'processing' | 'ready' | 'failed'
+  root_dataset_id?: string | null
+  schema_fingerprint?: string | null
+  schema_order?: number | null
+  merge_same_schema?: boolean | null
   date_created?: string
 }
 
@@ -15,6 +19,11 @@ export interface DatasetVersion {
   version_name: string
   file_id: string | null
   status: 'processing' | 'ready' | 'failed'
+  ingest_batch_id?: string | null
+  sheet_name?: string | null
+  schema_fingerprint?: string | null
+  source_file_name?: string | null
+  source_sheet_name?: string | null
   date_created?: string
   /** Worker 失败时写入的错误信息（最长 500 字符） */
   error_message?: string | null
@@ -182,12 +191,20 @@ export async function createDataset(data: {
   project_id: string
   type: 'CSV' | 'Excel'
   status?: string
+  root_dataset_id?: string | null
+  schema_fingerprint?: string | null
+  schema_order?: number | null
+  merge_same_schema?: boolean | null
 }): Promise<Dataset> {
   const datasetRes = await request.post('/items/datasets', {
     name: data.name,
     project_id: data.project_id,
     type: data.type,
     status: data.status || 'processing',
+    ...(data.root_dataset_id !== undefined ? { root_dataset_id: data.root_dataset_id } : {}),
+    ...(data.schema_fingerprint !== undefined ? { schema_fingerprint: data.schema_fingerprint } : {}),
+    ...(data.schema_order !== undefined ? { schema_order: data.schema_order } : {}),
+    ...(data.merge_same_schema !== undefined ? { merge_same_schema: data.merge_same_schema } : {}),
   })
   return (datasetRes as any)?.data ?? datasetRes
 }
@@ -195,7 +212,10 @@ export async function createDataset(data: {
 /**
  * 更新数据源基本信息（名称等）
  */
-export async function updateDataset(id: string, data: Partial<Pick<Dataset, 'name' | 'type' | 'status'>>): Promise<Dataset> {
+export async function updateDataset(
+  id: string,
+  data: Partial<Pick<Dataset, 'name' | 'type' | 'status' | 'merge_same_schema'>>
+): Promise<Dataset> {
   const res = await request.patch(`/items/datasets/${id}`, data)
   return (res as any)?.data ?? res
 }
@@ -227,14 +247,51 @@ export async function createDatasetVersion(data: {
   version_name: string
   file_id: string
   status: string
+  ingest_batch_id?: string
+  sheet_name?: string
+  schema_fingerprint?: string
+  source_file_name?: string
+  source_sheet_name?: string
 }): Promise<DatasetVersion> {
   const versionRes = await request.post('/items/dataset_versions', {
     dataset_id: data.dataset_id,
     version_name: data.version_name,
     file_id: data.file_id,
     status: data.status,
+    ...(data.ingest_batch_id !== undefined ? { ingest_batch_id: data.ingest_batch_id } : {}),
+    ...(data.sheet_name !== undefined ? { sheet_name: data.sheet_name } : {}),
+    ...(data.schema_fingerprint !== undefined ? { schema_fingerprint: data.schema_fingerprint } : {}),
+    ...(data.source_file_name !== undefined ? { source_file_name: data.source_file_name } : {}),
+    ...(data.source_sheet_name !== undefined ? { source_sheet_name: data.source_sheet_name } : {}),
   })
   return (versionRes as any)?.data ?? versionRes
+}
+
+export async function createDatasetVersionsBulk(data: Array<{
+  dataset_id: string
+  version_name: string
+  file_id: string
+  status: string
+  ingest_batch_id?: string
+  sheet_name?: string
+  schema_fingerprint?: string
+  source_file_name?: string
+  source_sheet_name?: string
+}>): Promise<DatasetVersion[]> {
+  if (!Array.isArray(data) || data.length === 0) return []
+  const payload = data.map((item) => ({
+    dataset_id: item.dataset_id,
+    version_name: item.version_name,
+    file_id: item.file_id,
+    status: item.status,
+    ...(item.ingest_batch_id !== undefined ? { ingest_batch_id: item.ingest_batch_id } : {}),
+    ...(item.sheet_name !== undefined ? { sheet_name: item.sheet_name } : {}),
+    ...(item.schema_fingerprint !== undefined ? { schema_fingerprint: item.schema_fingerprint } : {}),
+    ...(item.source_file_name !== undefined ? { source_file_name: item.source_file_name } : {}),
+    ...(item.source_sheet_name !== undefined ? { source_sheet_name: item.source_sheet_name } : {}),
+  }))
+  const res = await request.post('/items/dataset_versions', payload)
+  return (res as any)?.data ?? res ?? []
 }
 
 /**

@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react'
-import { Typography, Tooltip, Button, Dropdown } from 'antd'
+import { Typography, Tooltip, Button, Dropdown, message } from 'antd'
 import {
   SettingOutlined,
   CopyOutlined,
@@ -10,12 +10,15 @@ import {
 import EChartsCommon from '@stateless/EChartsCommon'
 import useWorkbenchState, { COLOR_THEMES } from '../../hooks/useWorkbenchState'
 import { useChartDrag } from '../../hooks/useChartDrag'
+import { useUIPluginHost } from '@src/plugins/UIPluginHostProvider'
+import { getVisualizationActions } from '@src/plugins/slotRegistry'
 import styles from './index.module.less'
 
 const { Text } = Typography
 
 const ChartItem = ({ chart, canvasRef }) => {
   const [hovered, setHovered] = useState(false)
+  const { registryVersion } = useUIPluginHost()
 
   const {
     updateChartPosition, updateChartSize, removeChart, duplicateChart,
@@ -69,6 +72,33 @@ const ChartItem = ({ chart, canvasRef }) => {
     selectChart(chart.id)
   }
 
+  const pluginActionItems = useMemo(() => {
+    const actions = getVisualizationActions().filter((action) => {
+      if (!action.matchChartType) return true
+      return action.matchChartType === chart.type
+    })
+
+    return actions.map((action) => ({
+      key: `plugin:${action.id}`,
+      label: action.label,
+      onClick: () => {
+        try {
+          if (typeof action.run === 'function') {
+            const result = action.run(chart)
+            if (result?.message) {
+              message.info(result.message)
+              return
+            }
+          }
+          message.info(`[Plugin Action] ${action.label}`)
+        } catch (error) {
+          console.error('[PluginAction] failed:', error)
+          message.error(`插件动作执行失败：${action.label}`)
+        }
+      },
+    }))
+  }, [chart, registryVersion])
+
   const moreItems = [
     {
       key: 'config',
@@ -82,6 +112,7 @@ const ChartItem = ({ chart, canvasRef }) => {
       icon: <CopyOutlined />,
       onClick: () => duplicateChart(chart.id),
     },
+    ...pluginActionItems,
     { type: 'divider' },
     {
       key: 'delete',

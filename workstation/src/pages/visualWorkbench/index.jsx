@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Modal, Spin } from 'antd'
 import EditorTopBar from './components/EditorTopBar'
@@ -11,6 +11,7 @@ import useWorkbenchState from './hooks/useWorkbenchState'
 import { useLeaveInterception } from './hooks/useLeaveInterception'
 import { getWorkbookBySlug } from '@src/service/api/workbooks'
 import { getProjectBySlug } from '@src/service/api/projects'
+import { UIPluginHostProvider } from '@src/plugins/UIPluginHostProvider'
 import styles from './index.module.less'
 
 /**
@@ -22,6 +23,7 @@ import styles from './index.module.less'
  */
 const VisualWorkbench = () => {
   const { slug: projectSlug, workbookSlug } = useParams()
+  const [resolvedProjectId, setResolvedProjectId] = useState(null)
 
   const {
     bootstrap, bootstrapping, bootstrapped,
@@ -46,11 +48,16 @@ const VisualWorkbench = () => {
           try {
             const project = await getProjectBySlug(projectSlug)
             projectId = project?.id
+            setResolvedProjectId(project?.id ?? null)
           } catch { /* 降级：不过滤 project_id */ }
+        } else {
+          setResolvedProjectId(null)
         }
         const wb = await getWorkbookBySlug(workbookSlug, projectId)
         if (cancelled) return
         if (wb?.id) workbookId = wb.id
+      } else {
+        setResolvedProjectId(null)
       }
 
       // 每次（重）进入工作台都重置 store，确保不显示上次的草稿缓存
@@ -105,34 +112,36 @@ const VisualWorkbench = () => {
   }
 
   return (
-    <div
-      className={styles.editor}
-      onClick={() => deselectChart()}
-    >
-      {/** 顶部工具条 */}
-      <EditorTopBar />
+    <UIPluginHostProvider projectId={resolvedProjectId}>
+      <div
+        className={styles.editor}
+        onClick={() => deselectChart()}
+      >
+        {/** 顶部工具条 */}
+        <EditorTopBar />
 
-      {/** 主体区域 */}
-      <div className={styles.body}>
-        {/** 类别侧边栏（绝对定位，覆盖画布左侧，可收起）*/}
-        <CategorySidebar />
+        {/** 主体区域 */}
+        <div className={styles.body}>
+          {/** 类别侧边栏（绝对定位，覆盖画布左侧，可收起）*/}
+          <CategorySidebar />
 
-        {/** 画布区域 */}
-        <Canvas />
+          {/** 画布区域 */}
+          <Canvas />
 
-        {/** 右侧图表工具栏（常驻，与画布并列）*/}
-        <ChartPalette />
+          {/** 右侧图表工具栏（常驻，与画布并列）*/}
+          <ChartPalette />
+        </div>
+
+        {/** 底部 Sheet 标签栏 */}
+        <SheetBar />
+
+        {/** 浮动配置面板（Portal 到 body）*/}
+        <ConfigPanel />
+
+        {/** 离开拦截弹窗（受控 Modal，替代 Modal.confirm imperative API）*/}
+        {leaveModal}
       </div>
-
-      {/** 底部 Sheet 标签栏 */}
-      <SheetBar />
-
-      {/** 浮动配置面板（Portal 到 body）*/}
-      <ConfigPanel />
-
-      {/** 离开拦截弹窗（受控 Modal，替代 Modal.confirm imperative API）*/}
-      {leaveModal}
-    </div>
+    </UIPluginHostProvider>
   )
 }
 
