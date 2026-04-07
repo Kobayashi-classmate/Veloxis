@@ -9,9 +9,11 @@
     "init:projects": "node init-projects.mjs",
     "init:plugins": "node init-plugins.mjs",
     "migrate:admin-console-fields": "node migrate-admin-console-fields.mjs",
+    "migrate:organization-model": "node migrate-organization-model.mjs",
     "migrate:dataset-multi-source": "node migrate-dataset-multi-source.mjs",
     "seed:projects": "node seed-projects.mjs",
-    "init:all": "node init-directus.mjs && node init-projects.mjs && node init-plugins.mjs"
+    "init:all": "node init-directus.mjs && node init-projects.mjs && node init-plugins.mjs && node migrate-organization-model.mjs",
+    "init:skills": "bash init-opencode-library.sh"
   },
   "keywords": [],
   "author": "",
