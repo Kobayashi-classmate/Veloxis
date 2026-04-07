@@ -15,7 +15,7 @@ export const useAdminOutlet = () => {
     return {
       loading: false,
       profile: outletContext.profile,
-      tenantId: outletContext.tenantId || '',
+      organizationId: outletContext.organizationId || '',
       permissionCodes: Array.isArray(outletContext.permissionCodes) ? outletContext.permissionCodes : [],
       actor: outletContext.actor || actor,
     }
@@ -25,7 +25,7 @@ export const useAdminOutlet = () => {
   return {
     loading: access.loading,
     profile: access.profile || EMPTY_PROFILE,
-    tenantId: access.tenantId || '',
+    organizationId: access.organizationId || '',
     permissionCodes: Array.isArray(access.permissionCodes) ? access.permissionCodes : [],
     actor,
   }

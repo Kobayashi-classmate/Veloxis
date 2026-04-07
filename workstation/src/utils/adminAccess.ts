@@ -1,12 +1,14 @@
 import type { Role } from '@src/types/permission'
 
-export type AdminRoleCode = 'super_admin' | 'operator' | 'tenant_admin' | 'none'
+export type AdminRoleCode = 'super_admin' | 'operator' | 'organization_admin' | 'none'
 
 export const ADMIN_ROUTE_PATHS = {
   root: '/admin',
   overview: '/admin/overview',
   users: '/admin/users',
   roles: '/admin/roles',
+  organizations: '/admin/organizations',
+  members: '/admin/members',
   projects: '/admin/projects',
   plugins: '/admin/plugins',
   audit: '/admin/audit',
@@ -24,12 +26,12 @@ const SUPER_ADMIN_PATTERNS = new Set([
 
 const OPERATOR_PATTERNS = new Set(['operator', 'ops', 'ops_auditor', 'auditor'])
 
-const TENANT_ADMIN_PATTERNS = new Set(['tenant_admin', 'tenantadmin'])
+const ORGANIZATION_ADMIN_PATTERNS = new Set(['organization_admin', 'organizationadmin'])
 
 const ROLE_LABEL_MAP: Record<AdminRoleCode, string> = {
   super_admin: 'Super Admin',
   operator: 'Operator',
-  tenant_admin: 'Tenant Admin',
+  organization_admin: 'Organization Admin',
   none: 'User',
 }
 
@@ -81,7 +83,7 @@ export const resolveAdminRoleCode = (
 
   if (hasAnyToken(tokens, SUPER_ADMIN_PATTERNS)) return 'super_admin'
   if (hasAnyToken(tokens, OPERATOR_PATTERNS)) return 'operator'
-  if (hasAnyToken(tokens, TENANT_ADMIN_PATTERNS)) return 'tenant_admin'
+  if (hasAnyToken(tokens, ORGANIZATION_ADMIN_PATTERNS)) return 'organization_admin'
 
   return 'none'
 }
@@ -94,6 +96,8 @@ export const getAdminAllowedPaths = (roleCode: AdminRoleCode): string[] => {
         ADMIN_ROUTE_PATHS.overview,
         ADMIN_ROUTE_PATHS.users,
         ADMIN_ROUTE_PATHS.roles,
+        ADMIN_ROUTE_PATHS.organizations,
+        ADMIN_ROUTE_PATHS.members,
         ADMIN_ROUTE_PATHS.projects,
         ADMIN_ROUTE_PATHS.plugins,
         ADMIN_ROUTE_PATHS.audit,
@@ -108,11 +112,13 @@ export const getAdminAllowedPaths = (roleCode: AdminRoleCode): string[] => {
         ADMIN_ROUTE_PATHS.audit,
         ADMIN_ROUTE_PATHS.legacy,
       ]
-    case 'tenant_admin':
+    case 'organization_admin':
       return [
         ADMIN_ROUTE_PATHS.root,
         ADMIN_ROUTE_PATHS.overview,
         ADMIN_ROUTE_PATHS.users,
+        ADMIN_ROUTE_PATHS.organizations,
+        ADMIN_ROUTE_PATHS.members,
         ADMIN_ROUTE_PATHS.projects,
         ADMIN_ROUTE_PATHS.legacy,
       ]
@@ -125,12 +131,14 @@ export type AdminAccessProfile = {
   roleCode: AdminRoleCode
   roleLabel: string
   isAdminConsoleUser: boolean
-  tenantScoped: boolean
+  organizationScoped: boolean
   allowedPaths: string[]
   capabilities: {
     overview: boolean
     users: boolean
     roles: boolean
+    organizations: boolean
+    members: boolean
     projects: boolean
     plugins: boolean
     audit: boolean
@@ -151,12 +159,14 @@ export const buildAdminAccessProfile = (
     roleCode,
     roleLabel: ROLE_LABEL_MAP[roleCode],
     isAdminConsoleUser,
-    tenantScoped: roleCode === 'tenant_admin',
+    organizationScoped: roleCode === 'organization_admin',
     allowedPaths,
     capabilities: {
       overview: isAdminConsoleUser,
-      users: roleCode === 'super_admin' || roleCode === 'tenant_admin',
+      users: roleCode === 'super_admin' || roleCode === 'organization_admin',
       roles: roleCode === 'super_admin',
+      organizations: roleCode === 'super_admin' || roleCode === 'organization_admin',
+      members: roleCode === 'super_admin' || roleCode === 'organization_admin',
       projects: isAdminConsoleUser,
       plugins: roleCode === 'super_admin' || roleCode === 'operator',
       audit: roleCode === 'super_admin' || roleCode === 'operator',
@@ -167,6 +177,8 @@ export const buildAdminAccessProfile = (
 }
 
 export const isAdminPath = (pathname = ''): boolean => {
-  const raw = String(pathname || '').trim().split('?')[0]
+  const raw = String(pathname || '')
+    .trim()
+    .split('?')[0]
   return raw === ADMIN_ROUTE_PATHS.root || raw.startsWith(`${ADMIN_ROUTE_PATHS.root}/`)
 }

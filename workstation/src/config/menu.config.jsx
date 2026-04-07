@@ -390,6 +390,24 @@ const rawAdminMenu = [
     ),
   },
   {
+    label: '组织管理',
+    path: '/admin/organizations',
+    icon: (
+      <AnimatedIcon variant="spin" mode="hover">
+        <ApartmentOutlined />
+      </AnimatedIcon>
+    ),
+  },
+  {
+    label: '成员关系',
+    path: '/admin/members',
+    icon: (
+      <AnimatedIcon variant="spin" mode="hover">
+        <TeamOutlined />
+      </AnimatedIcon>
+    ),
+  },
+  {
     label: '项目管理',
     path: '/admin/projects',
     icon: (

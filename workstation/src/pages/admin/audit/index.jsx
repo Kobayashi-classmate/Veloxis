@@ -18,7 +18,7 @@ const riskColorMap = {
 
 const AuditPage = () => {
   const { message } = App.useApp()
-  const { profile, tenantId } = useAdminOutlet()
+  const { profile, organizationId } = useAdminOutlet()
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -32,8 +32,8 @@ const AuditPage = () => {
     setError('')
     try {
       const records = await fetchAdminAudit({
-        tenantScoped: profile.tenantScoped,
-        tenantId,
+        organizationScoped: profile.organizationScoped,
+        organizationId,
         limit: 200,
       })
       setEvents(records)
@@ -44,7 +44,7 @@ const AuditPage = () => {
     } finally {
       setLoading(false)
     }
-  }, [message, profile.tenantScoped, tenantId])
+  }, [message, profile.organizationScoped, organizationId])
 
   useEffect(() => {
     if (profile.capabilities.audit) {
@@ -53,8 +53,8 @@ const AuditPage = () => {
   }, [loadAuditEvents, profile.capabilities.audit])
 
   const filteredEvents = useMemo(() => {
-    const tenantFiltered = events.filter((item) => item.scope_id === tenantId)
-    const base = profile.tenantScoped && tenantFiltered.length > 0 ? tenantFiltered : events
+    const organizationFiltered = events.filter((item) => item.scope_id === organizationId)
+    const base = profile.organizationScoped && organizationFiltered.length > 0 ? organizationFiltered : events
 
     return base.filter((item) => {
       const actorMatch = !actorKeyword || item.actor.toLowerCase().includes(actorKeyword.toLowerCase())
@@ -62,7 +62,7 @@ const AuditPage = () => {
       const riskMatch = riskFilter === 'all' || item.risk_level === riskFilter
       return actorMatch && moduleMatch && riskMatch
     })
-  }, [actorKeyword, events, moduleFilter, profile.tenantScoped, riskFilter, tenantId])
+  }, [actorKeyword, events, moduleFilter, profile.organizationScoped, riskFilter, organizationId])
 
   const moduleOptions = useMemo(() => {
     const values = Array.from(new Set(events.map((item) => item.module).filter(Boolean)))
@@ -78,7 +78,7 @@ const AuditPage = () => {
       title="Audit"
       subtitle="集中查看高危与关键操作事件，支持按模块、风险等级和操作者检索。"
       roleLabel={profile.roleLabel}
-      tenantScoped={profile.tenantScoped}
+      organizationScoped={profile.organizationScoped}
       extra={
         <Button icon={<ReloadOutlined />} onClick={loadAuditEvents} loading={loading}>
           刷新
@@ -86,13 +86,7 @@ const AuditPage = () => {
       }
     >
       {error ? (
-        <Alert
-          showIcon
-          type="error"
-          message="加载失败"
-          description={error}
-          style={{ marginBottom: 12 }}
-        />
+        <Alert showIcon type="error" message="加载失败" description={error} style={{ marginBottom: 12 }} />
       ) : null}
 
       <Card className={styles.sectionCard}>
@@ -106,10 +100,7 @@ const AuditPage = () => {
           <Select
             value={moduleFilter}
             onChange={setModuleFilter}
-            options={[
-              { label: '全部模块', value: 'all' },
-              ...moduleOptions,
-            ]}
+            options={[{ label: '全部模块', value: 'all' }, ...moduleOptions]}
           />
           <Select
             value={riskFilter}
@@ -200,7 +191,9 @@ const AuditPage = () => {
             <Text>Module: {selectedEvent.module}</Text>
             <Text>Action: {selectedEvent.action}</Text>
             <Text>Target: {selectedEvent.target}</Text>
-            <Text>Scope: {selectedEvent.scope_type}:{selectedEvent.scope_id}</Text>
+            <Text>
+              Scope: {selectedEvent.scope_type}:{selectedEvent.scope_id}
+            </Text>
             <Text>Risk: {selectedEvent.risk_level}</Text>
             <Text>Status: {selectedEvent.status}</Text>
             <Text>Created At: {selectedEvent.created_at}</Text>

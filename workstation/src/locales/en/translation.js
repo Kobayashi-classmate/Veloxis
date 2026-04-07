@@ -114,6 +114,8 @@ const en = {
       overview: 'Overview',
       users: 'Users',
       roles: 'Roles',
+      organizations: 'Organizations',
+      members: 'Members',
       projects: 'Projects',
       plugins: 'Plugins',
       audit: 'Audit',

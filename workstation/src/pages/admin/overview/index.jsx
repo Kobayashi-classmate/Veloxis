@@ -18,11 +18,11 @@ const statusColor = {
 const OverviewPage = () => {
   const { message } = App.useApp()
   const { redirectTo } = useSafeNavigate()
-  const { profile, tenantId } = useAdminOutlet()
+  const { profile, organizationId } = useAdminOutlet()
   const [overview, setOverview] = useState({
     health: {
       platform_status: 'healthy',
-      active_tenants: 0,
+      active_organizations: 0,
       active_projects: 0,
       running_jobs: 0,
       failed_jobs: 0,
@@ -39,8 +39,8 @@ const OverviewPage = () => {
     setError('')
     try {
       const data = await fetchAdminOverview({
-        tenantScoped: profile.tenantScoped,
-        tenantId,
+        organizationScoped: profile.organizationScoped,
+        organizationId,
       })
       setOverview(data)
     } catch (err) {
@@ -50,7 +50,7 @@ const OverviewPage = () => {
     } finally {
       setLoading(false)
     }
-  }, [message, profile.tenantScoped, tenantId])
+  }, [message, profile.organizationScoped, organizationId])
 
   useEffect(() => {
     loadOverview()
@@ -60,9 +60,9 @@ const OverviewPage = () => {
     const health = overview.health
     return [
       {
-        key: 'tenants',
-        label: profile.tenantScoped ? 'Tenant Projects' : 'Active Tenants',
-        value: profile.tenantScoped ? health.active_projects : health.active_tenants,
+        key: 'organizations',
+        label: profile.organizationScoped ? 'Organization Projects' : 'Active Organizations',
+        value: profile.organizationScoped ? health.active_projects : health.active_organizations,
       },
       {
         key: 'jobs',
@@ -80,20 +80,20 @@ const OverviewPage = () => {
         value: health.plugin_enabled_count,
       },
     ]
-  }, [overview.health, profile.tenantScoped])
+  }, [overview.health, profile.organizationScoped])
 
   const scopedChanges = useMemo(() => {
-    return profile.tenantScoped
+    return profile.organizationScoped
       ? overview.recent_changes.filter((item) => item.target.includes('project') || item.module === 'projects')
       : overview.recent_changes
-  }, [overview.recent_changes, profile.tenantScoped])
+  }, [overview.recent_changes, profile.organizationScoped])
 
   return (
     <AdminPageShell
       title="Overview"
-      subtitle="30 秒内判断平台与租户状态，并进入高频管理操作。"
+      subtitle="30 秒内判断平台与组织状态，并进入高频管理操作。"
       roleLabel={profile.roleLabel}
-      tenantScoped={profile.tenantScoped}
+      organizationScoped={profile.organizationScoped}
       extra={
         <Space>
           <Button icon={<ReloadOutlined />} onClick={loadOverview} loading={loading}>
@@ -106,20 +106,18 @@ const OverviewPage = () => {
       }
     >
       {error ? (
-        <Alert
-          showIcon
-          type="error"
-          message="加载失败"
-          description={error}
-          style={{ marginBottom: 12 }}
-        />
+        <Alert showIcon type="error" message="加载失败" description={error} style={{ marginBottom: 12 }} />
       ) : null}
 
       <Alert
         showIcon
         type={statusColor[overview.health.platform_status] || 'info'}
         message={`Platform Status: ${overview.health.platform_status}`}
-        description={profile.tenantScoped ? `当前租户范围：${tenantId || 'tenant_scope'}` : '当前为平台级总览视图'}
+        description={
+          profile.organizationScoped
+            ? `当前组织范围：${organizationId || 'organization_scope'}`
+            : '当前为平台级总览视图'
+        }
       />
 
       <Row gutter={[12, 12]} className={styles.gridCards}>

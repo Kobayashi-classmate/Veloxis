@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { permissionService } from '@src/service/permissionService'
 import { buildAdminAccessProfile } from '@src/utils/adminAccess'
+import { authService } from '@src/service/authService'
 
 const toRoleObject = (role) => {
   if (!role) return null
@@ -27,7 +28,7 @@ const EMPTY_PROFILE = buildAdminAccessProfile([])
 export const useAdminAccess = () => {
   const [loading, setLoading] = useState(true)
   const [profile, setProfile] = useState(EMPTY_PROFILE)
-  const [tenantId, setTenantId] = useState('')
+  const [organizationId, setOrganizationId] = useState('')
   const [permissionCodes, setPermissionCodes] = useState([])
   const [error, setError] = useState(null)
 
@@ -40,14 +41,16 @@ export const useAdminAccess = () => {
       const roles = normalizeRoles(userPermissions?.roles)
       const permissions = Array.isArray(userPermissions?.permissions) ? userPermissions.permissions : []
       const isPlatformAdmin = permissions.includes('*:*')
+      const currentUser = authService.getState().user
+      const fallbackOrganizationId = currentUser?.organization || ''
 
       setPermissionCodes(permissions)
-      setTenantId(userPermissions?.tenant || '')
+      setOrganizationId(userPermissions?.organization || fallbackOrganizationId)
       setProfile(buildAdminAccessProfile(roles, { isPlatformAdmin }))
     } catch (err) {
       setError(err)
       setPermissionCodes([])
-      setTenantId('')
+      setOrganizationId('')
       setProfile(EMPTY_PROFILE)
     } finally {
       setLoading(false)
@@ -61,7 +64,7 @@ export const useAdminAccess = () => {
   return {
     loading,
     profile,
-    tenantId,
+    organizationId,
     permissionCodes,
     error,
     reload: load,

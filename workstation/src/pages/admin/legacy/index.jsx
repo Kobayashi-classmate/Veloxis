@@ -18,7 +18,7 @@ const LegacyPage = () => {
       title="Legacy Admin Entry"
       subtitle="仅保留低频高级配置入口，默认推荐在 Admin Console 完成管理任务。"
       roleLabel={profile.roleLabel}
-      tenantScoped={profile.tenantScoped}
+      organizationScoped={profile.organizationScoped}
     >
       <Alert
         type="info"

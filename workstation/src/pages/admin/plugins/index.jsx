@@ -12,7 +12,7 @@ const { Text } = Typography
 
 const PluginsPage = () => {
   const { message } = App.useApp()
-  const { profile, actor, tenantId } = useAdminOutlet()
+  const { profile, actor, organizationId } = useAdminOutlet()
   const [pluginData, setPluginData] = useState({
     definitions: [],
     installations: [],
@@ -26,8 +26,8 @@ const PluginsPage = () => {
     setError('')
     try {
       const payload = await fetchAdminPlugins({
-        tenantScoped: profile.tenantScoped,
-        tenantId,
+        organizationScoped: profile.organizationScoped,
+        organizationId,
       })
       setPluginData(payload)
     } catch (err) {
@@ -37,7 +37,7 @@ const PluginsPage = () => {
     } finally {
       setLoading(false)
     }
-  }, [message, profile.tenantScoped, tenantId])
+  }, [message, profile.organizationScoped, organizationId])
 
   useEffect(() => {
     if (profile.capabilities.plugins) {
@@ -54,7 +54,7 @@ const PluginsPage = () => {
       title="Plugins"
       subtitle="统一管理插件定义、安装实例与审核审计，避免直接操作底层控制面。"
       roleLabel={profile.roleLabel}
-      tenantScoped={profile.tenantScoped}
+      organizationScoped={profile.organizationScoped}
       extra={
         <Space>
           <Button icon={<ReloadOutlined />} onClick={loadPlugins} loading={loading}>
@@ -65,13 +65,7 @@ const PluginsPage = () => {
       }
     >
       {error ? (
-        <Alert
-          showIcon
-          type="error"
-          message="加载失败"
-          description={error}
-          style={{ marginBottom: 12 }}
-        />
+        <Alert showIcon type="error" message="加载失败" description={error} style={{ marginBottom: 12 }} />
       ) : null}
 
       <Card className={styles.sectionCard}>

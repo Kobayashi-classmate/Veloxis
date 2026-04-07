@@ -47,7 +47,7 @@ const RolesPage = () => {
       title="Roles"
       subtitle="定义角色能力边界，并对高危权限变更执行二次确认与审计。"
       roleLabel={profile.roleLabel}
-      tenantScoped={profile.tenantScoped}
+      organizationScoped={profile.organizationScoped}
       extra={
         <Space>
           <Button icon={<ReloadOutlined />} onClick={loadRoles} loading={loading}>
@@ -58,20 +58,14 @@ const RolesPage = () => {
       }
     >
       {error ? (
-        <Alert
-          type="error"
-          showIcon
-          message="加载失败"
-          description={error}
-          style={{ marginBottom: 12 }}
-        />
+        <Alert type="error" showIcon message="加载失败" description={error} style={{ marginBottom: 12 }} />
       ) : null}
 
       <Alert
         type="warning"
         showIcon
         message="高危提醒"
-        description="涉及权限提升、跨租户授权与超级角色修改的操作必须二次确认并写入审计日志。"
+        description="涉及权限提升、跨组织授权与超级角色修改的操作必须二次确认并写入审计日志。"
       />
 
       <Card className={styles.sectionCard} title="角色列表与风险级别">

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react'
 import PropTypes from 'prop-types'
-import { App, Button, Input, Modal, Space, Tag, Typography } from 'antd'
+import { App, Button, Descriptions, Input, Modal, Space, Tag, Typography } from 'antd'
 import styles from './index.module.less'
 
 const { Text } = Typography
@@ -20,6 +20,30 @@ const levelTextMap = {
 }
 
 const CONFIRM_TEXT = 'CONFIRM'
+const DEFAULT_SUCCESS_MESSAGE = '操作已通过二次确认。'
+const DEFAULT_AUDIT_SUBMITTED_MESSAGE = '审计记录已提交。'
+
+const isPlainObject = (value) => Object.prototype.toString.call(value) === '[object Object]'
+
+const buildSuccessMessage = ({
+  result,
+  successMessage,
+  auditSubmitted: auditSubmittedFromProps,
+  auditSubmittedMessage,
+}) => {
+  const resultObject = isPlainObject(result) ? result : null
+  const resultMessage = typeof result === 'string' ? result : resultObject?.successMessage
+  const baseMessage = resultMessage || successMessage || DEFAULT_SUCCESS_MESSAGE
+  const auditSubmitted =
+    typeof resultObject?.auditSubmitted === 'boolean' ? resultObject.auditSubmitted : Boolean(auditSubmittedFromProps)
+
+  if (!auditSubmitted) {
+    return baseMessage
+  }
+
+  const auditMessage = resultObject?.auditSubmittedMessage || auditSubmittedMessage || DEFAULT_AUDIT_SUBMITTED_MESSAGE
+  return `${baseMessage} ${auditMessage}`.trim()
+}
 
 const AdminDangerAction = ({
   actionKey,
@@ -31,6 +55,10 @@ const AdminDangerAction = ({
   disabledReason,
   actor,
   onConfirm,
+  successMessage = DEFAULT_SUCCESS_MESSAGE,
+  auditSubmitted = false,
+  auditSubmittedMessage,
+  auditPreviewItems = [],
 }) => {
   const { message } = App.useApp()
   const [open, setOpen] = useState(false)
@@ -49,6 +77,15 @@ const AdminDangerAction = ({
     }),
     [actionKey, actor, riskLevel, target]
   )
+
+  const previewItems = useMemo(() => {
+    return [
+      { label: '操作', value: label },
+      { label: '目标', value: target || '-' },
+      { label: '风险级别', value: levelTextMap[riskLevel] || riskLevel },
+      ...auditPreviewItems,
+    ]
+  }, [auditPreviewItems, label, riskLevel, target])
 
   const handleOpen = () => {
     if (disabled) {
@@ -71,10 +108,19 @@ const AdminDangerAction = ({
     setSubmitting(true)
 
     try {
+      let result
       if (onConfirm) {
-        await onConfirm(auditPayload)
+        result = await onConfirm(auditPayload)
       }
-      message.success('操作已通过二次确认，审计记录已进入提交队列。')
+
+      message.success(
+        buildSuccessMessage({
+          result,
+          successMessage,
+          auditSubmitted,
+          auditSubmittedMessage,
+        })
+      )
       setOpen(false)
     } catch (error) {
       message.error(error?.message || '操作提交失败，请稍后重试。')
@@ -111,7 +157,15 @@ const AdminDangerAction = ({
 
           <div>
             <Text strong>审计提交预览</Text>
-            <div className={styles.auditPreview}>{JSON.stringify(auditPayload, null, 2)}</div>
+            <div className={styles.auditPreview}>
+              <Descriptions column={1} size="small">
+                {previewItems.map((item) => (
+                  <Descriptions.Item key={item.label} label={item.label}>
+                    {item.value ?? '-'}
+                  </Descriptions.Item>
+                ))}
+              </Descriptions>
+            </div>
           </div>
 
           <div className={styles.confirmHint}>输入 {CONFIRM_TEXT} 以完成二次确认</div>
@@ -138,6 +192,15 @@ AdminDangerAction.propTypes = {
   disabledReason: PropTypes.string,
   actor: PropTypes.string,
   onConfirm: PropTypes.func,
+  successMessage: PropTypes.string,
+  auditSubmitted: PropTypes.bool,
+  auditSubmittedMessage: PropTypes.string,
+  auditPreviewItems: PropTypes.arrayOf(
+    PropTypes.shape({
+      label: PropTypes.string.isRequired,
+      value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    })
+  ),
 }
 
 export default AdminDangerAction

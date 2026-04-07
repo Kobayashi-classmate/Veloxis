@@ -43,6 +43,18 @@ export const adminRoutes = [
         element: <lazyComponents.AdminRoles />,
       },
       {
+        path: 'organizations',
+        name: 'Organizations',
+        i18nKey: 'menu.admin.organizations',
+        element: <lazyComponents.AdminOrganizations />,
+      },
+      {
+        path: 'members',
+        name: 'Members',
+        i18nKey: 'menu.admin.members',
+        element: <lazyComponents.AdminMembers />,
+      },
+      {
         path: 'projects',
         name: 'Projects',
         i18nKey: 'menu.admin.projects',

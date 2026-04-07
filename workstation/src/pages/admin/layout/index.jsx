@@ -13,7 +13,7 @@ const normalizePath = (value = '') => {
 
 const AdminLayout = () => {
   const { pathname } = useLocation()
-  const { loading, profile, tenantId, permissionCodes } = useAdminAccess()
+  const { loading, profile, organizationId, permissionCodes } = useAdminAccess()
   const currentPath = normalizePath(pathname)
 
   const actor = authService.getState().user?.email || authService.getState().user?.name || 'unknown'
@@ -46,7 +46,7 @@ const AdminLayout = () => {
     <Outlet
       context={{
         profile,
-        tenantId,
+        organizationId,
         permissionCodes,
         actor,
       }}

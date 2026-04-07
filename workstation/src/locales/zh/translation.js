@@ -114,6 +114,8 @@ const zh = {
       overview: '管理总览',
       users: '用户管理',
       roles: '角色管理',
+      organizations: '组织管理',
+      members: '成员关系',
       projects: '项目管理',
       plugins: '插件治理',
       audit: '审计中心',
