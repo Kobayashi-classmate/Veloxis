@@ -1,12 +1,6 @@
 import React, { useRef, useCallback } from 'react'
 import { Typography, Button, Select, Tooltip } from 'antd'
-import {
-  PlusOutlined,
-  AppstoreOutlined,
-  BorderOutlined,
-  EyeInvisibleOutlined,
-  ZoomInOutlined,
-} from '@ant-design/icons'
+import { PlusOutlined, AppstoreOutlined, BorderOutlined, EyeInvisibleOutlined, ZoomInOutlined } from '@ant-design/icons'
 import useWorkbenchState from '../../hooks/useWorkbenchState'
 import { useCanvasDraft } from '../../hooks/useCanvasDraft'
 import ChartItem from '../ChartItem'
@@ -16,25 +10,31 @@ import styles from './index.module.less'
 const { Text } = Typography
 
 const ZOOM_OPTIONS = [
-  { value: 50,  label: '50%'  },
-  { value: 75,  label: '75%'  },
+  { value: 50, label: '50%' },
+  { value: 75, label: '75%' },
   { value: 100, label: '100%' },
   { value: 125, label: '125%' },
   { value: 150, label: '150%' },
 ]
 
 const GRID_MODES = [
-  { mode: 'dots',  icon: <AppstoreOutlined />, tip: '点阵网格' },
-  { mode: 'lines', icon: <BorderOutlined />,   tip: '线条网格' },
-  { mode: 'none',  icon: <EyeInvisibleOutlined />, tip: '无网格' },
+  { mode: 'dots', icon: <AppstoreOutlined />, tip: '点阵网格' },
+  { mode: 'lines', icon: <BorderOutlined />, tip: '线条网格' },
+  { mode: 'none', icon: <EyeInvisibleOutlined />, tip: '无网格' },
 ]
 
 const Canvas = () => {
   const canvasRef = useRef(null)
   const {
-    charts, activeCanvasId, activeCategoryId, addChart, addCanvas,
-    canvasGridMode, canvasZoom,
-    setCanvasGridMode, setCanvasZoom,
+    charts,
+    activeCanvasId,
+    activeCategoryId,
+    addChart,
+    addCanvas,
+    canvasGridMode,
+    canvasZoom,
+    setCanvasGridMode,
+    setCanvasZoom,
   } = useWorkbenchState()
 
   const { bannerState, restoreDraft, discardDraft } = useCanvasDraft()
@@ -81,13 +81,7 @@ const Canvas = () => {
   })()
 
   return (
-    <div
-      ref={canvasRef}
-      className={styles.canvas}
-      style={gridStyle}
-      onDragOver={handleDragOver}
-      onDrop={handleDrop}
-    >
+    <div ref={canvasRef} className={styles.canvas} style={gridStyle} onDragOver={handleDragOver} onDrop={handleDrop}>
       {/* 草稿恢复提示条 */}
       {bannerState.visible && bannerState.canvasId === activeCanvasId && (
         <DraftBanner
@@ -171,10 +165,7 @@ const Canvas = () => {
       )}
 
       {/* 缩放容器 */}
-      <div
-        className={styles.zoomLayer}
-        style={{ transform: `scale(${canvasZoom / 100})`, transformOrigin: '0 0' }}
-      >
+      <div className={styles.zoomLayer} style={{ transform: `scale(${canvasZoom / 100})`, transformOrigin: '0 0' }}>
         {activeCharts.map((chart) => (
           <ChartItem key={chart.id} chart={chart} canvasRef={canvasRef} />
         ))}

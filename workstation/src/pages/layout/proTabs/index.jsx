@@ -14,8 +14,16 @@ import Fullscreen from '../fullscreen'
 import KeepAlive from '@src/components/KeepAlive'
 
 const ProTabs = (props) => {
-  const { activeKey, setActiveKey, panes, setPanes, removeTab, homeTabKey, switchScope, scopeKey: contextScopeKey } =
-    useProTabContext()
+  const {
+    activeKey,
+    setActiveKey,
+    panes,
+    setPanes,
+    removeTab,
+    homeTabKey,
+    switchScope,
+    scopeKey: contextScopeKey,
+  } = useProTabContext()
   const [isReload, setIsReload] = useState(false)
   const [, startTransition] = useTransition()
   const pathRef = useRef('')

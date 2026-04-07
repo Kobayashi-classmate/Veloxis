@@ -25,9 +25,9 @@
 .summaryCard {
   border-radius: 16px;
   border: 1px solid #e2e8f0;
-  background: #ffffff;
+  background: #fff;
   margin-bottom: 28px;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 8px 20px rgb(15 23 42 / 6%);
 }
 
 .summaryHeader {
@@ -98,7 +98,7 @@
   border: 1px solid #e2e8f0;
   background: #fff;
   margin-bottom: 20px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 6%);
 
   :global(.ant-card-body) {
     padding: 24px 28px;
@@ -168,7 +168,7 @@
 
 .colorHex {
   font-size: 11px;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-family: SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
   color: #64748b;
   letter-spacing: 0.5px;
 }
@@ -242,11 +242,12 @@
 }
 
 /* ── StickyActionBar ─────────────────────────────────────────────────────── */
-@keyframes slideUp {
+@keyframes slide-up {
   from {
     opacity: 0;
     transform: translateY(12px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -259,15 +260,15 @@
   z-index: 10;
   margin: 12px -4px 0; /* 负边距让阴影不被父级裁剪 */
   padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.96);
+  background: rgb(255 255 255 / 96%);
   backdrop-filter: blur(8px);
   border: 1px solid #e2e8f0;
   border-radius: 12px;
-  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 -2px 12px rgb(0 0 0 / 8%);
   display: flex;
   align-items: center;
   gap: 10px;
-  animation: slideUp 0.22s ease;
+  animation: slide-up 0.22s ease;
 }
 
 .stickyBarHint {

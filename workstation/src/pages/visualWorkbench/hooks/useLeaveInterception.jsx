@@ -27,27 +27,34 @@ export function useLeaveInterception() {
 
   // ── refs（不触发重渲染，供回调稳定读取）────────────────────────────────────
   const isDirtyRef = useRef(isDirty)
-  useEffect(() => { isDirtyRef.current = isDirty }, [isDirty])
+  useEffect(() => {
+    isDirtyRef.current = isDirty
+  }, [isDirty])
 
   const chartsRef = useRef(charts)
-  useEffect(() => { chartsRef.current = charts }, [charts])
+  useEffect(() => {
+    chartsRef.current = charts
+  }, [charts])
 
   const activeCanvasIdRef = useRef(activeCanvasId)
-  useEffect(() => { activeCanvasIdRef.current = activeCanvasId }, [activeCanvasId])
+  useEffect(() => {
+    activeCanvasIdRef.current = activeCanvasId
+  }, [activeCanvasId])
 
   /** 组件是否仍挂载（防止卸载后 setState） */
   const isMountedRef = useRef(true)
   useEffect(() => {
     isMountedRef.current = true
-    return () => { isMountedRef.current = false }
+    return () => {
+      isMountedRef.current = false
+    }
   }, [])
 
   const [saving, setSaving] = useState(false)
 
   // ── blocker：稳定回调，通过 isDirtyRef 读最新值 ───────────────────────────
   const shouldBlock = useCallback(
-    ({ currentLocation, nextLocation }) =>
-      isDirtyRef.current && currentLocation.pathname !== nextLocation.pathname,
+    ({ currentLocation, nextLocation }) => isDirtyRef.current && currentLocation.pathname !== nextLocation.pathname,
     [] // intentionally stable — reads ref at call time
   )
 
@@ -61,7 +68,9 @@ export function useLeaveInterception() {
    * 而非闭包里快照的旧引用。
    */
   const blockerRef = useRef(blocker)
-  useEffect(() => { blockerRef.current = blocker }, [blocker])
+  useEffect(() => {
+    blockerRef.current = blocker
+  }, [blocker])
 
   // ── 弹窗动作 ─────────────────────────────────────────────────────────────
 
@@ -100,7 +109,9 @@ export function useLeaveInterception() {
       if (activeCanvasIdRef.current && snapshots.length > 0) {
         await upsertDraft(activeCanvasIdRef.current, snapshots)
       }
-    } catch { /* 草稿保存失败不阻止离开 */ }
+    } catch {
+      /* 草稿保存失败不阻止离开 */
+    }
     if (isMountedRef.current) setSaving(false)
     blockerRef.current?.proceed?.()
   }
@@ -114,7 +125,9 @@ export function useLeaveInterception() {
         if (activeCanvasIdRef.current && snapshots.length > 0) {
           upsertDraft(activeCanvasIdRef.current, snapshots)
         }
-      } catch { /* 忽略 */ }
+      } catch {
+        /* 忽略 */
+      }
       e.preventDefault()
       e.returnValue = ''
     }

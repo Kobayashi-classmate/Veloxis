@@ -128,7 +128,9 @@ const ProTabProvider = ({ children }) => {
           closable: false,
         }
         const nextPanes = [homePane, ...nextPanesRaw.filter((pane) => pane && pane.key !== ensured.homeTabKey)]
-        const nextActiveKey = nextPanes.some((pane) => pane.key === ensured.activeKey) ? ensured.activeKey : ensured.homeTabKey
+        const nextActiveKey = nextPanes.some((pane) => pane.key === ensured.activeKey)
+          ? ensured.activeKey
+          : ensured.homeTabKey
         const nextState = {
           ...ensured,
           panes: nextPanes,

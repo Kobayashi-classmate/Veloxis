@@ -1,24 +1,67 @@
 import React, { useState, useEffect, useCallback, useRef, startTransition } from 'react'
 import { useParams } from 'react-router-dom'
 import {
-  Typography, Button, Table, Space, Modal, Steps, Upload, message,
-  Input, Select, Tag, Tooltip, Drawer, Alert, InputNumber, Empty, Checkbox,
-  Divider, Spin, Progress, Tabs,
+  Typography,
+  Button,
+  Table,
+  Space,
+  Modal,
+  Steps,
+  Upload,
+  message,
+  Input,
+  Select,
+  Tag,
+  Tooltip,
+  Drawer,
+  Alert,
+  InputNumber,
+  Empty,
+  Checkbox,
+  Divider,
+  Spin,
+  Progress,
+  Tabs,
 } from 'antd'
 import {
-  InboxOutlined, PlusOutlined, DatabaseOutlined, EditOutlined,
-  SyncOutlined, DeleteOutlined, HistoryOutlined, SwapOutlined,
-  ThunderboltOutlined, WarningOutlined, CheckCircleOutlined, CloseCircleOutlined,
-  UnlockOutlined, CheckOutlined, CloseOutlined, FileTextOutlined,
-  PlayCircleOutlined, DownloadOutlined, QuestionCircleOutlined, FolderOutlined,
+  InboxOutlined,
+  PlusOutlined,
+  DatabaseOutlined,
+  EditOutlined,
+  SyncOutlined,
+  DeleteOutlined,
+  HistoryOutlined,
+  SwapOutlined,
+  ThunderboltOutlined,
+  WarningOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  UnlockOutlined,
+  CheckOutlined,
+  CloseOutlined,
+  FileTextOutlined,
+  PlayCircleOutlined,
+  DownloadOutlined,
+  QuestionCircleOutlined,
+  FolderOutlined,
 } from '@ant-design/icons'
 import { pinyin } from 'pinyin-pro'
 import dayjs from 'dayjs'
 import {
-  getDatasets, uploadDatasetFileWithProgress, ensureProjectFolder,
-  createDataset, updateDataset, deleteDataset,
-  createDatasetVersionsBulk, createRecipe, getRecipes, updateRecipe,
-  getDatasetVersions, getFileMetadata, deleteFile, clearVersionFileId,
+  getDatasets,
+  uploadDatasetFileWithProgress,
+  ensureProjectFolder,
+  createDataset,
+  updateDataset,
+  deleteDataset,
+  createDatasetVersionsBulk,
+  createRecipe,
+  getRecipes,
+  updateRecipe,
+  getDatasetVersions,
+  getFileMetadata,
+  deleteFile,
+  clearVersionFileId,
   retriggerImport,
 } from '@src/service/api/datasets'
 import { getProjectBySlug } from '@src/service/api/projects'
@@ -52,7 +95,10 @@ function toStorageName(raw) {
 function deduplicateNames(names) {
   const seen = {}
   return names.map((name) => {
-    if (!seen[name]) { seen[name] = 1; return name }
+    if (!seen[name]) {
+      seen[name] = 1
+      return name
+    }
     seen[name]++
     return `${name}_${seen[name]}`
   })
@@ -142,13 +188,24 @@ const InlineNameCell = ({ record, onSave }) => {
   const inputRef = useRef(null)
 
   useEffect(() => {
-    if (editing) { inputRef.current?.focus(); inputRef.current?.select() }
+    if (editing) {
+      inputRef.current?.focus()
+      inputRef.current?.select()
+    }
   }, [editing])
 
   const handleSave = async () => {
     const trimmed = value.trim()
-    if (!trimmed) { message.warning('名称不能为空'); setValue(record.name); setEditing(false); return }
-    if (trimmed === record.name) { setEditing(false); return }
+    if (!trimmed) {
+      message.warning('名称不能为空')
+      setValue(record.name)
+      setEditing(false)
+      return
+    }
+    if (trimmed === record.name) {
+      setEditing(false)
+      return
+    }
     try {
       await onSave(record.id, trimmed)
       setEditing(false)
@@ -159,7 +216,10 @@ const InlineNameCell = ({ record, onSave }) => {
     }
   }
 
-  const handleCancel = () => { setValue(record.name); setEditing(false) }
+  const handleCancel = () => {
+    setValue(record.name)
+    setEditing(false)
+  }
 
   if (editing) {
     return (
@@ -173,8 +233,21 @@ const InlineNameCell = ({ record, onSave }) => {
           size="small"
           style={{ width: 200 }}
         />
-        <Button type="link" size="small" icon={<CheckOutlined />} onClick={handleSave} style={{ color: '#16a34a', padding: 0 }} />
-        <Button type="link" size="small" icon={<CloseOutlined />} onClick={handleCancel} danger style={{ padding: 0 }} />
+        <Button
+          type="link"
+          size="small"
+          icon={<CheckOutlined />}
+          onClick={handleSave}
+          style={{ color: '#16a34a', padding: 0 }}
+        />
+        <Button
+          type="link"
+          size="small"
+          icon={<CloseOutlined />}
+          onClick={handleCancel}
+          danger
+          style={{ padding: 0 }}
+        />
       </Space>
     )
   }
@@ -201,7 +274,9 @@ const Datasets = () => {
   const [projectId, setProjectId] = useState(null)
   useEffect(() => {
     if (!slug) return
-    getProjectBySlug(slug).then((p) => { if (p?.id) setProjectId(p.id) })
+    getProjectBySlug(slug).then((p) => {
+      if (p?.id) setProjectId(p.id)
+    })
   }, [slug])
 
   /** 列表状态 */
@@ -226,8 +301,8 @@ const Datasets = () => {
 
   /** Step 1：表头配置 */
   const [headerRowCount, setHeaderRowCount] = useState(1)
-  const [parsing, setParsing] = useState(false)       /** 解析中 */
-  const [parsed, setParsed] = useState(false)          /** 已解析完成 */
+  const [parsing, setParsing] = useState(false) /** 解析中 */
+  const [parsed, setParsed] = useState(false) /** 已解析完成 */
   const [headerRows, setHeaderRows] = useState([])
   const [dataRows, setDataRows] = useState([])
   const [storageRowIndex, setStorageRowIndex] = useState(0)
@@ -275,33 +350,36 @@ const Datasets = () => {
   }
 
   /** ── 获取数据集列表 ── */
-  const fetchDatasets = useCallback(async (silent = false) => {
-    if (!projectId) return
-    if (!silent) setLoading(true)
-    try {
-      const data = await getDatasets(projectId)
-      setDatasets((prev) => {
-        /**
-         * 保留仍在上传文件阶段的临时行（status === 'uploading' 且 _isTemp）。
-         * 此时 Directus 尚无对应真实记录，无法从 data 中找到它，需要暂时保留。
-         * 一旦 createDatasetVersion 调用成功后的 fetchDatasets() 执行，
-         * Directus 已有真实记录，data 中会包含对应项，
-         * 此时临时行必须从 uploadingRows 中排除（避免与真实记录重复显示）。
-         */
-        const realIds = new Set((data || []).map((d) => d.id))
-        const uploadingRows = prev.filter(
-          (d) => d._isTemp && d.status === 'uploading' && !realIds.has(d._datasetId)
-        )
-        return [...uploadingRows, ...(data || [])]
-      })
-    } catch {
-      if (!silent) message.error('获取数据源失败')
-    } finally {
-      if (!silent) setLoading(false)
-    }
-  }, [projectId])
+  const fetchDatasets = useCallback(
+    async (silent = false) => {
+      if (!projectId) return
+      if (!silent) setLoading(true)
+      try {
+        const data = await getDatasets(projectId)
+        setDatasets((prev) => {
+          /**
+           * 保留仍在上传文件阶段的临时行（status === 'uploading' 且 _isTemp）。
+           * 此时 Directus 尚无对应真实记录，无法从 data 中找到它，需要暂时保留。
+           * 一旦 createDatasetVersion 调用成功后的 fetchDatasets() 执行，
+           * Directus 已有真实记录，data 中会包含对应项，
+           * 此时临时行必须从 uploadingRows 中排除（避免与真实记录重复显示）。
+           */
+          const realIds = new Set((data || []).map((d) => d.id))
+          const uploadingRows = prev.filter((d) => d._isTemp && d.status === 'uploading' && !realIds.has(d._datasetId))
+          return [...uploadingRows, ...(data || [])]
+        })
+      } catch {
+        if (!silent) message.error('获取数据源失败')
+      } finally {
+        if (!silent) setLoading(false)
+      }
+    },
+    [projectId]
+  )
 
-  useEffect(() => { fetchDatasets() }, [fetchDatasets])
+  useEffect(() => {
+    fetchDatasets()
+  }, [fetchDatasets])
 
   const hasProcessing = datasets.some((d) => d.status === 'processing' || d.status === 'uploading')
   useEffect(() => {
@@ -344,8 +422,11 @@ const Datasets = () => {
         }
       })
       setFileMeta((prev) => ({ ...prev, ...meta }))
-    } catch { /* 忽略 */ }
-    finally { setFileMetaLoading(false) }
+    } catch {
+      /* 忽略 */
+    } finally {
+      setFileMetaLoading(false)
+    }
   }, [])
 
   const openVersionDrawer = (record) => {
@@ -433,10 +514,7 @@ const Datasets = () => {
 
     try {
       // 并行查询版本和文件大小
-      const [allVersions, recipes] = await Promise.all([
-        getDatasetVersions(record.id),
-        getRecipes(record.id),
-      ])
+      const [allVersions, recipes] = await Promise.all([getDatasetVersions(record.id), getRecipes(record.id)])
 
       const uniqueFileIds = [...new Set(allVersions.map((v) => v.file_id).filter(Boolean))]
       const fileMetaResults = await Promise.allSettled(uniqueFileIds.map((fid) => getFileMetadata(fid)))
@@ -502,7 +580,9 @@ const Datasets = () => {
           const savedCount = recipes[0]?.header_row_count ?? 1
           setHeaderRowCount(savedCount)
         }
-      } catch { /* 忽略 */ }
+      } catch {
+        /* 忽略 */
+      }
     }
   }
 
@@ -624,12 +704,12 @@ const Datasets = () => {
           continue
         }
 
-        const allSheets = excelSheetsByFile[signature]?.length > 0
-          ? excelSheetsByFile[signature]
-          : await listExcelSheetNames(file)
-        const selectedSheets = selectedSheetsByFile[signature] && selectedSheetsByFile[signature].length > 0
-          ? selectedSheetsByFile[signature]
-          : allSheets
+        const allSheets =
+          excelSheetsByFile[signature]?.length > 0 ? excelSheetsByFile[signature] : await listExcelSheetNames(file)
+        const selectedSheets =
+          selectedSheetsByFile[signature] && selectedSheetsByFile[signature].length > 0
+            ? selectedSheetsByFile[signature]
+            : allSheets
 
         for (const sheetName of selectedSheets) {
           const result = await parseXLSXHeadBySheet(file, headerRowCount, sheetName)
@@ -722,7 +802,7 @@ const Datasets = () => {
      * Recipe config 中每条 rename op 的 from = 原始列名，to = 存储列名，label = 展示名。
      * 此时 headerRows 为空，不能依赖它。
      */
-    const usedRecipeDirectly = (isUpdateMode && !storageUnlocked) && !parsed && recipe?.config?.length > 0
+    const usedRecipeDirectly = isUpdateMode && !storageUnlocked && !parsed && recipe?.config?.length > 0
     if (usedRecipeDirectly) {
       recipe.config.forEach((op) => {
         if (op.from) {
@@ -751,7 +831,10 @@ const Datasets = () => {
       let label = lHeaders[i] ?? orig
       if (recipe?.config) {
         const matched = recipe.config.find((op) => op.from === orig)
-        if (matched) { storageName = matched.to ?? orig; label = matched.label ?? label }
+        if (matched) {
+          storageName = matched.to ?? orig
+          label = matched.label ?? label
+        }
       }
       init[orig] = { storageName, label, type: 'string' }
     })
@@ -776,7 +859,9 @@ const Datasets = () => {
     setGroupMappings((prev) => {
       const nextAll = { ...prev }
       const current = { ...(nextAll[activeGroupKey] || mapping) }
-      sHeaders.forEach((orig, i) => { current[orig] = { ...current[orig], storageName: deduped[i] } })
+      sHeaders.forEach((orig, i) => {
+        current[orig] = { ...current[orig], storageName: deduped[i] }
+      })
       nextAll[activeGroupKey] = current
       setMapping(current)
       return nextAll
@@ -808,9 +893,12 @@ const Datasets = () => {
   }
   const activeGroup = sourceGroups.find((g) => g.groupKey === activeGroupKey)
   const representativeUnit = activeGroup?.sourceUnits?.[0]
-  const storageHeaders = representativeUnit?.storageHeaders?.length > 0
-    ? representativeUnit.storageHeaders
-    : (headerRows[storageRowIndex]?.length > 0 ? headerRows[storageRowIndex] : Object.keys(activeMapping))
+  const storageHeaders =
+    representativeUnit?.storageHeaders?.length > 0
+      ? representativeUnit.storageHeaders
+      : headerRows[storageRowIndex]?.length > 0
+        ? headerRows[storageRowIndex]
+        : Object.keys(activeMapping)
   const hasAnyError = () => storageHeaders.some((h) => getStorageNameError(h) !== null)
 
   useEffect(() => {
@@ -830,7 +918,9 @@ const Datasets = () => {
       icon: <WarningOutlined style={{ color: '#faad14' }} />,
       content: (
         <div>
-          <p>修改存储列名后，系统将要求您<strong>重新上传数据文件</strong>，原有 Doris 表数据将被覆盖。</p>
+          <p>
+            修改存储列名后，系统将要求您<strong>重新上传数据文件</strong>，原有 Doris 表数据将被覆盖。
+          </p>
           <p style={{ color: '#ff4d4f' }}>此操作不可撤销，请确认后继续。</p>
         </div>
       ),
@@ -861,9 +951,18 @@ const Datasets = () => {
 
   /** ── 保存 ── */
   const handleSave = async () => {
-    if (selectedFiles.length === 0 || !projectId) { message.error('文件或项目信息缺失'); return }
-    if (hasAnyError()) { message.error('存储列名存在错误，请修正后再保存'); return }
-    if (sourceGroups.length === 0) { message.error('请先解析文件并生成结构分组'); return }
+    if (selectedFiles.length === 0 || !projectId) {
+      message.error('文件或项目信息缺失')
+      return
+    }
+    if (hasAnyError()) {
+      message.error('存储列名存在错误，请修正后再保存')
+      return
+    }
+    if (sourceGroups.length === 0) {
+      message.error('请先解析文件并生成结构分组')
+      return
+    }
 
     /** 快照当前 Modal 数据（关闭后这些 state 将被重置） */
     const files = [...selectedFiles]
@@ -918,7 +1017,7 @@ const Datasets = () => {
       }
       /** 更新模式：替换原行；新建模式：插到列表头部 */
       if (isUpdate) {
-        return prev.map((d) => d.id === dsId ? { ...d, status: 'uploading', uploadProgress: 0, _tempId: tempId } : d)
+        return prev.map((d) => (d.id === dsId ? { ...d, status: 'uploading', uploadProgress: 0, _tempId: tempId } : d))
       }
       return [tempRow, ...prev]
     })
@@ -944,22 +1043,25 @@ const Datasets = () => {
         const uploadedFile = await uploadDatasetFileWithProgress(file, folderId, (percent) => {
           uploadProgressByFile[signature] = percent
           const values = Object.values(uploadProgressByFile)
-          const avg = values.length > 0
-            ? Math.round(values.reduce((sum, p) => sum + Number(p || 0), 0) / uniqueFiles.length)
-            : 0
-          setDatasets((prev) => prev.map((d) => {
-            if (d.id === tempId || d._tempId === tempId) return { ...d, uploadProgress: avg }
-            return d
-          }))
+          const avg =
+            values.length > 0 ? Math.round(values.reduce((sum, p) => sum + Number(p || 0), 0) / uniqueFiles.length) : 0
+          setDatasets((prev) =>
+            prev.map((d) => {
+              if (d.id === tempId || d._tempId === tempId) return { ...d, uploadProgress: avg }
+              return d
+            })
+          )
         })
         if (!uploadedFile?.id) throw new Error(`文件上传失败：${file.name}`)
         uploadedFileIdBySignature[signature] = uploadedFile.id
       }
 
-      setDatasets((prev) => prev.map((d) => {
-        if (d.id === tempId || d._tempId === tempId) return { ...d, uploadProgress: 100 }
-        return d
-      }))
+      setDatasets((prev) =>
+        prev.map((d) => {
+          if (d.id === tempId || d._tempId === tempId) return { ...d, uploadProgress: 100 }
+          return d
+        })
+      )
 
       /** 3. 匹配/创建目标 Dataset（同构合并、异构拆分） */
       const datasetIdByGroupKey = {}
@@ -981,9 +1083,7 @@ const Datasets = () => {
         rootDatasetId = rootDataset.id
         rootSchemaFingerprint = firstGroup.schemaFingerprint
         datasetIdByGroupKey[firstGroup.groupKey] = rootDataset.id
-        setDatasets((prev) => prev.map((d) =>
-          d.id === tempId ? { ...d, _datasetId: rootDataset.id } : d
-        ))
+        setDatasets((prev) => prev.map((d) => (d.id === tempId ? { ...d, _datasetId: rootDataset.id } : d)))
       } else if (rootDatasetId) {
         await updateDataset(rootDatasetId, {
           status: 'processing',
@@ -1000,16 +1100,20 @@ const Datasets = () => {
         if (isUpdate && rootDatasetId) {
           if (!mergeSameSchemaSnapshot && group.schemaOrder === 1) {
             targetDatasetId = rootDatasetId
-          } else if (mergeSameSchemaSnapshot && rootSchemaFingerprint && group.schemaFingerprint === rootSchemaFingerprint) {
+          } else if (
+            mergeSameSchemaSnapshot &&
+            rootSchemaFingerprint &&
+            group.schemaFingerprint === rootSchemaFingerprint
+          ) {
             targetDatasetId = rootDatasetId
           } else {
             const existingChild = mergeSameSchemaSnapshot
               ? existingDatasets.find(
-                (d) => d.root_dataset_id === rootDatasetId && d.schema_fingerprint === group.schemaFingerprint
-              )
+                  (d) => d.root_dataset_id === rootDatasetId && d.schema_fingerprint === group.schemaFingerprint
+                )
               : existingDatasets.find(
-                (d) => d.root_dataset_id === rootDatasetId && d.schema_order === group.schemaOrder
-              )
+                  (d) => d.root_dataset_id === rootDatasetId && d.schema_order === group.schemaOrder
+                )
             if (existingChild) {
               targetDatasetId = existingChild.id
               await updateDataset(targetDatasetId, {
@@ -1036,7 +1140,7 @@ const Datasets = () => {
             project_id: projectId,
             type,
             status: 'processing',
-            root_dataset_id: isUpdate ? rootDatasetId : (group.schemaOrder === 1 ? null : rootDatasetId),
+            root_dataset_id: isUpdate ? rootDatasetId : group.schemaOrder === 1 ? null : rootDatasetId,
             schema_fingerprint: group.schemaFingerprint,
             schema_order: group.schemaOrder,
             merge_same_schema: mergeSameSchemaSnapshot,
@@ -1111,13 +1215,14 @@ const Datasets = () => {
 
       /** 6. 刷新列表（临时行替换为真实数据） */
       fetchDatasets()
-
     } catch (err) {
       console.error('Save dataset error:', err)
       /** 上传/创建失败：移除临时行，显示错误 */
       setDatasets((prev) => {
         if (isUpdate) {
-          return prev.map((d) => d._tempId === tempId ? { ...d, status: 'failed', uploadProgress: 0, _tempId: undefined } : d)
+          return prev.map((d) =>
+            d._tempId === tempId ? { ...d, status: 'failed', uploadProgress: 0, _tempId: undefined } : d
+          )
         }
         return prev.filter((d) => d.id !== tempId)
       })
@@ -1163,9 +1268,23 @@ const Datasets = () => {
             </div>
           )
         }
-        if (status === 'ready') return <Tag icon={<CheckCircleOutlined />} color="success">就绪</Tag>
-        if (status === 'failed') return <Tag icon={<CloseCircleOutlined />} color="error">失败</Tag>
-        return <Tag icon={<SyncOutlined spin />} color="warning">处理中</Tag>
+        if (status === 'ready')
+          return (
+            <Tag icon={<CheckCircleOutlined />} color="success">
+              就绪
+            </Tag>
+          )
+        if (status === 'failed')
+          return (
+            <Tag icon={<CloseCircleOutlined />} color="error">
+              失败
+            </Tag>
+          )
+        return (
+          <Tag icon={<SyncOutlined spin />} color="warning">
+            处理中
+          </Tag>
+        )
       },
     },
     {
@@ -1173,7 +1292,7 @@ const Datasets = () => {
       dataIndex: 'date_updated',
       key: 'date_updated',
       width: 180,
-      render: (val) => val ? dayjs(val).format('YYYY-MM-DD HH:mm:ss') : '—',
+      render: (val) => (val ? dayjs(val).format('YYYY-MM-DD HH:mm:ss') : '—'),
     },
     {
       title: '操作',
@@ -1184,13 +1303,36 @@ const Datasets = () => {
         return (
           <Space size={4}>
             <Tooltip title={isUploading ? '上传中，请稍候' : '上传新版本数据'}>
-              <Button type="link" size="small" icon={<SyncOutlined />} onClick={() => openModal(record)} disabled={isUploading}>更新</Button>
+              <Button
+                type="link"
+                size="small"
+                icon={<SyncOutlined />}
+                onClick={() => openModal(record)}
+                disabled={isUploading}
+              >
+                更新
+              </Button>
             </Tooltip>
             <Tooltip title={isUploading ? '上传中，请稍候' : '查看导入版本历史'}>
-              <Button type="link" size="small" icon={<HistoryOutlined />} onClick={() => openVersionDrawer(record)} disabled={isUploading}>历史</Button>
+              <Button
+                type="link"
+                size="small"
+                icon={<HistoryOutlined />}
+                onClick={() => openVersionDrawer(record)}
+                disabled={isUploading}
+              >
+                历史
+              </Button>
             </Tooltip>
             <Tooltip title={isUploading ? '上传中，请稍候' : '删除数据源'}>
-              <Button type="link" size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(record)} disabled={isUploading} />
+              <Button
+                type="link"
+                size="small"
+                danger
+                icon={<DeleteOutlined />}
+                onClick={() => handleDelete(record)}
+                disabled={isUploading}
+              />
             </Tooltip>
           </Space>
         )
@@ -1207,10 +1349,18 @@ const Datasets = () => {
       width: 160,
       render: (orig) => (
         <Space size={4}>
-          <Text strong style={{ fontFamily: 'monospace' }}>{orig}</Text>
-          {/[\u4e00-\u9fa5]/.test(orig)
-            ? <Tag color="orange" style={{ fontSize: 10 }}>中文</Tag>
-            : <Tag color="cyan" style={{ fontSize: 10 }}>EN</Tag>}
+          <Text strong style={{ fontFamily: 'monospace' }}>
+            {orig}
+          </Text>
+          {/[\u4e00-\u9fa5]/.test(orig) ? (
+            <Tag color="orange" style={{ fontSize: 10 }}>
+              中文
+            </Tag>
+          ) : (
+            <Tag color="cyan" style={{ fontSize: 10 }}>
+              EN
+            </Tag>
+          )}
         </Space>
       ),
     },
@@ -1220,12 +1370,12 @@ const Datasets = () => {
       render: (_, { orig }) => {
         const err = getStorageNameError(orig)
         return (
-              <Tooltip title={isStorageLocked ? '已锁定，点击顶部「解锁修改」方可编辑' : err}>
-                <Input
-                  value={activeMapping[orig]?.storageName ?? ''}
-                  disabled={isStorageLocked}
-                  status={!isStorageLocked && err ? 'error' : undefined}
-                  onChange={(e) => handleMappingChange(orig, 'storageName', e.target.value)}
+          <Tooltip title={isStorageLocked ? '已锁定，点击顶部「解锁修改」方可编辑' : err}>
+            <Input
+              value={activeMapping[orig]?.storageName ?? ''}
+              disabled={isStorageLocked}
+              status={!isStorageLocked && err ? 'error' : undefined}
+              onChange={(e) => handleMappingChange(orig, 'storageName', e.target.value)}
               placeholder="snake_case 列名"
               style={{ fontFamily: 'monospace' }}
             />
@@ -1262,20 +1412,24 @@ const Datasets = () => {
       ),
     },
     // 数据预览列：仅在有解析结果时展示（新建模式 / 解锁后重新解析）
-    ...(parsed ? [{
-      title: '数据预览',
-      key: 'preview',
-      width: 130,
-      render: (_, { orig }) => {
-        const colIdx = storageHeaders.indexOf(orig)
-        const val = dataRows[0]?.[colIdx] ?? ''
-        return (
-          <Text type="secondary" ellipsis style={{ maxWidth: 120, fontFamily: 'monospace', fontSize: 12 }}>
-            {val || '—'}
-          </Text>
-        )
-      },
-    }] : []),
+    ...(parsed
+      ? [
+          {
+            title: '数据预览',
+            key: 'preview',
+            width: 130,
+            render: (_, { orig }) => {
+              const colIdx = storageHeaders.indexOf(orig)
+              const val = dataRows[0]?.[colIdx] ?? ''
+              return (
+                <Text type="secondary" ellipsis style={{ maxWidth: 120, fontFamily: 'monospace', fontSize: 12 }}>
+                  {val || '—'}
+                </Text>
+              )
+            },
+          },
+        ]
+      : []),
   ]
 
   const mappingData = storageHeaders.map((orig) => ({ key: orig, orig }))
@@ -1312,7 +1466,6 @@ const Datasets = () => {
         if (!groups[v.file_hash]) groups[v.file_hash] = []
         groups[v.file_hash].push(v.version_name)
       }
-
     })
     return groups
   })()
@@ -1360,16 +1513,30 @@ const Datasets = () => {
       key: 'status',
       width: 100,
       render: (status) => {
-        if (status === 'ready') return <Tag icon={<CheckCircleOutlined />} color="success">就绪</Tag>
-        if (status === 'failed') return <Tag icon={<CloseCircleOutlined />} color="error">失败</Tag>
-        return <Tag icon={<SyncOutlined spin />} color="warning">处理中</Tag>
+        if (status === 'ready')
+          return (
+            <Tag icon={<CheckCircleOutlined />} color="success">
+              就绪
+            </Tag>
+          )
+        if (status === 'failed')
+          return (
+            <Tag icon={<CloseCircleOutlined />} color="error">
+              失败
+            </Tag>
+          )
+        return (
+          <Tag icon={<SyncOutlined spin />} color="warning">
+            处理中
+          </Tag>
+        )
       },
     },
     {
       title: '导入时间',
       dataIndex: 'date_updated',
       key: 'date_updated',
-      render: (v) => v ? dayjs(v).format('MM-DD HH:mm:ss') : '—',
+      render: (v) => (v ? dayjs(v).format('MM-DD HH:mm:ss') : '—'),
     },
     {
       title: '操作',
@@ -1426,7 +1593,9 @@ const Datasets = () => {
         return (
           <Space size={4} wrap>
             {names.map((vn) => (
-              <Text key={vn} code style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{vn}</Text>
+              <Text key={vn} code style={{ fontSize: 11, whiteSpace: 'nowrap' }}>
+                {vn}
+              </Text>
             ))}
           </Space>
         )
@@ -1441,7 +1610,9 @@ const Datasets = () => {
         if (!meta) return <Text type="secondary">—</Text>
         return (
           <Tooltip title={meta.filename_download}>
-            <Text ellipsis style={{ maxWidth: 160 }}>{meta.filename_download}</Text>
+            <Text ellipsis style={{ maxWidth: 160 }}>
+              {meta.filename_download}
+            </Text>
           </Tooltip>
         )
       },
@@ -1465,7 +1636,9 @@ const Datasets = () => {
         const shortHash = record.file_hash.slice(0, 8)
         return (
           <Tooltip title={`SHA-256: ${record.file_hash}`}>
-            <Text code style={{ fontSize: 11 }}>{shortHash}…</Text>
+            <Text code style={{ fontSize: 11 }}>
+              {shortHash}…
+            </Text>
           </Tooltip>
         )
       },
@@ -1476,9 +1649,23 @@ const Datasets = () => {
       key: 'status',
       width: 90,
       render: (status) => {
-        if (status === 'ready') return <Tag icon={<CheckCircleOutlined />} color="success">就绪</Tag>
-        if (status === 'failed') return <Tag icon={<CloseCircleOutlined />} color="error">失败</Tag>
-        return <Tag icon={<SyncOutlined spin />} color="warning">处理中</Tag>
+        if (status === 'ready')
+          return (
+            <Tag icon={<CheckCircleOutlined />} color="success">
+              就绪
+            </Tag>
+          )
+        if (status === 'failed')
+          return (
+            <Tag icon={<CloseCircleOutlined />} color="error">
+              失败
+            </Tag>
+          )
+        return (
+          <Tag icon={<SyncOutlined spin />} color="warning">
+            处理中
+          </Tag>
+        )
       },
     },
     {
@@ -1486,8 +1673,8 @@ const Datasets = () => {
       key: 'action',
       width: 120,
       render: (_, record) => {
-        const isLatestReady = record._isLatestReadyInGroup ?? (latestReadyVersion?.id === record.id)
-        const isProcessing = record._isProcessingInGroup ?? (record.status === 'processing')
+        const isLatestReady = record._isLatestReadyInGroup ?? latestReadyVersion?.id === record.id
+        const isProcessing = record._isProcessingInGroup ?? record.status === 'processing'
         const hasFile = !!record.file_id
         const canDeleteFile = hasFile && !isLatestReady && !isProcessing
 
@@ -1506,12 +1693,17 @@ const Datasets = () => {
               </Tooltip>
             )}
             {/** 删除文件 */}
-            <Tooltip title={
-              !hasFile ? '文件已删除' :
-              isLatestReady ? '最新成功版本的文件不可删除' :
-              isProcessing ? '处理中的版本文件不可删除' :
-              '删除文件（保留版本记录）'
-            }>
+            <Tooltip
+              title={
+                !hasFile
+                  ? '文件已删除'
+                  : isLatestReady
+                    ? '最新成功版本的文件不可删除'
+                    : isProcessing
+                      ? '处理中的版本文件不可删除'
+                      : '删除文件（保留版本记录）'
+              }
+            >
               <Button
                 type="link"
                 size="small"
@@ -1533,16 +1725,22 @@ const Datasets = () => {
     <div className={styles.page}>
       <div className={styles.header}>
         <div className={styles.headerLeft}>
-          <Title level={4} style={{ margin: 0 }}>数据源管理</Title>
+          <Title level={4} style={{ margin: 0 }}>
+            数据源管理
+          </Title>
           <Text type="secondary">上传或连接源数据，配置表头映射关系，固化后续数据更新时自动应用。</Text>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => openModal()}>接入新数据</Button>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => openModal()}>
+          接入新数据
+        </Button>
       </div>
 
       {!loading && datasets.length === 0 ? (
         <div className={styles.emptyWrap}>
           <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无数据源，点击「接入新数据」开始上传">
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => openModal()}>接入第一个数据源</Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => openModal()}>
+              接入第一个数据源
+            </Button>
           </Empty>
         </div>
       ) : (
@@ -1583,9 +1781,13 @@ const Datasets = () => {
               style={{ padding: '20px 0' }}
               showUploadList={false}
             >
-              <p className="ant-upload-drag-icon"><InboxOutlined /></p>
+              <p className="ant-upload-drag-icon">
+                <InboxOutlined />
+              </p>
               <p className="ant-upload-text">点击或拖拽文件到此处</p>
-              <p className="ant-upload-hint">支持 CSV、TXT、Excel (.xlsx)。可一次选择多个文件；Excel 支持多 Sheet 导入。</p>
+              <p className="ant-upload-hint">
+                支持 CSV、TXT、Excel (.xlsx)。可一次选择多个文件；Excel 支持多 Sheet 导入。
+              </p>
             </Dragger>
 
             {selectedFiles.length > 0 && (
@@ -1596,8 +1798,12 @@ const Datasets = () => {
                     <div key={signature} className={styles.fileInfo} style={{ display: 'block' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <FileTextOutlined style={{ color: '#1677ff', fontSize: 16 }} />
-                        <Text strong style={{ flex: 1 }}>{file.name}</Text>
-                        <Text type="secondary" style={{ fontSize: 12 }}>{(file.size / 1024).toFixed(1)} KB</Text>
+                        <Text strong style={{ flex: 1 }}>
+                          {file.name}
+                        </Text>
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          {(file.size / 1024).toFixed(1)} KB
+                        </Text>
                         <Button
                           type="link"
                           size="small"
@@ -1625,12 +1831,7 @@ const Datasets = () => {
         {currentStep === 1 && (
           <div>
             {selectedFiles.length === 0 ? (
-              <Alert
-                type="warning"
-                showIcon
-                message="请先上传文件"
-                style={{ marginBottom: 16 }}
-              />
+              <Alert type="warning" showIcon message="请先上传文件" style={{ marginBottom: 16 }} />
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {selectedFiles.map((file) => {
@@ -1643,8 +1844,12 @@ const Datasets = () => {
                     <div key={signature} className={styles.fileInfo} style={{ display: 'block' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <FileTextOutlined style={{ color: '#1677ff', fontSize: 16 }} />
-                        <Text strong style={{ flex: 1 }}>{file.name}</Text>
-                        <Text type="secondary" style={{ fontSize: 12 }}>{(file.size / 1024).toFixed(1)} KB</Text>
+                        <Text strong style={{ flex: 1 }}>
+                          {file.name}
+                        </Text>
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          {(file.size / 1024).toFixed(1)} KB
+                        </Text>
                       </div>
                       <div style={{ marginTop: 8, paddingLeft: 24 }}>
                         {isExcel ? (
@@ -1676,7 +1881,9 @@ const Datasets = () => {
                                 style={{ display: 'flex', flexDirection: 'column', gap: 6 }}
                               >
                                 {sheetOptions.map((sheet) => (
-                                  <Checkbox key={sheet} value={sheet}>{sheet}</Checkbox>
+                                  <Checkbox key={sheet} value={sheet}>
+                                    {sheet}
+                                  </Checkbox>
                                 ))}
                               </Checkbox.Group>
 
@@ -1700,7 +1907,9 @@ const Datasets = () => {
             )}
 
             <div style={{ textAlign: 'right', marginTop: 16 }}>
-              <Button style={{ marginRight: 8 }} onClick={() => setCurrentStep(0)}>上一步</Button>
+              <Button style={{ marginRight: 8 }} onClick={() => setCurrentStep(0)}>
+                上一步
+              </Button>
               <Button
                 type="primary"
                 disabled={selectedFiles.length === 0 || hasMissingSheetSelection()}
@@ -1747,8 +1956,12 @@ const Datasets = () => {
             )}
 
             <div style={{ textAlign: 'right', marginTop: 16 }}>
-              <Button style={{ marginRight: 8 }} onClick={() => setCurrentStep(1)}>上一步</Button>
-              <Button type="primary" onClick={() => setCurrentStep(3)}>下一步</Button>
+              <Button style={{ marginRight: 8 }} onClick={() => setCurrentStep(1)}>
+                上一步
+              </Button>
+              <Button type="primary" onClick={() => setCurrentStep(3)}>
+                下一步
+              </Button>
             </div>
           </div>
         )}
@@ -1760,7 +1973,8 @@ const Datasets = () => {
             {isUpdateMode && !storageUnlocked && (
               <>
                 <Alert
-                  type="info" showIcon
+                  type="info"
+                  showIcon
                   message="表头配置已锁定"
                   description="更新数据时表头行配置不可修改，将沿用首次导入时的配置。若需修改，请先在字段映射步骤点击「解锁修改」。"
                   style={{ marginBottom: 16 }}
@@ -1774,10 +1988,14 @@ const Datasets = () => {
                       </div>
                       <div className={styles.headerPreviewCells}>
                         {existingRecipe.config.slice(0, 8).map((op, ci) => (
-                          <span key={ci} className={styles.headerPreviewCell}>{op.from}</span>
+                          <span key={ci} className={styles.headerPreviewCell}>
+                            {op.from}
+                          </span>
                         ))}
                         {existingRecipe.config.length > 8 && (
-                          <Text type="secondary" style={{ fontSize: 12 }}>+{existingRecipe.config.length - 8} 列</Text>
+                          <Text type="secondary" style={{ fontSize: 12 }}>
+                            +{existingRecipe.config.length - 8} 列
+                          </Text>
                         )}
                       </div>
                     </div>
@@ -1789,10 +2007,14 @@ const Datasets = () => {
                         </div>
                         <div className={styles.headerPreviewCells}>
                           {existingRecipe.config.slice(0, 8).map((op, ci) => (
-                            <span key={ci} className={styles.headerPreviewCell}>{op.label ?? op.from}</span>
+                            <span key={ci} className={styles.headerPreviewCell}>
+                              {op.label ?? op.from}
+                            </span>
                           ))}
                           {existingRecipe.config.length > 8 && (
-                            <Text type="secondary" style={{ fontSize: 12 }}>+{existingRecipe.config.length - 8} 列</Text>
+                            <Text type="secondary" style={{ fontSize: 12 }}>
+                              +{existingRecipe.config.length - 8} 列
+                            </Text>
                           )}
                         </div>
                       </div>
@@ -1807,7 +2029,9 @@ const Datasets = () => {
               <div className={styles.parseBar}>
                 <Text>标题行数：</Text>
                 <InputNumber
-                  min={1} max={2} value={headerRowCount}
+                  min={1}
+                  max={2}
+                  value={headerRowCount}
                   onChange={(val) => {
                     setHeaderRowCount(val ?? 1)
                     resetParsedArtifacts()
@@ -1852,7 +2076,9 @@ const Datasets = () => {
                             schema_{String(group.schemaOrder).padStart(2, '0')}
                           </Tag>
                           <Text type="secondary">{group.sourceUnits.length} 个 source unit</Text>
-                          <Text code style={{ fontSize: 11 }}>{group.schemaFingerprint.slice(0, 10)}…</Text>
+                          <Text code style={{ fontSize: 11 }}>
+                            {group.schemaFingerprint.slice(0, 10)}…
+                          </Text>
                         </div>
                       ))}
                     </div>
@@ -1875,9 +2101,15 @@ const Datasets = () => {
                         </div>
                         <div className={styles.headerPreviewCells}>
                           {row.slice(0, 8).map((cell, ci) => (
-                            <span key={ci} className={styles.headerPreviewCell}>{cell}</span>
+                            <span key={ci} className={styles.headerPreviewCell}>
+                              {cell}
+                            </span>
                           ))}
-                          {row.length > 8 && <Text type="secondary" style={{ fontSize: 12 }}>+{row.length - 8} 列</Text>}
+                          {row.length > 8 && (
+                            <Text type="secondary" style={{ fontSize: 12 }}>
+                              +{row.length - 8} 列
+                            </Text>
+                          )}
                         </div>
                       </div>
                     )
@@ -1886,7 +2118,9 @@ const Datasets = () => {
 
                 {headerRows.length >= 2 && sourceUnits.length <= 1 && (!isUpdateMode || storageUnlocked) && (
                   <div style={{ textAlign: 'center', marginBottom: 12 }}>
-                    <Button icon={<SwapOutlined />} onClick={swapRows}>互换存储行与展示行</Button>
+                    <Button icon={<SwapOutlined />} onClick={swapRows}>
+                      互换存储行与展示行
+                    </Button>
                   </div>
                 )}
               </>
@@ -1905,12 +2139,10 @@ const Datasets = () => {
             )}
 
             <div style={{ textAlign: 'right', marginTop: 16 }}>
-              <Button style={{ marginRight: 8 }} onClick={() => setCurrentStep(2)}>上一步</Button>
-              <Button
-                type="primary"
-                disabled={!isUpdateMode && !storageUnlocked && !parsed}
-                onClick={proceedToMapping}
-              >
+              <Button style={{ marginRight: 8 }} onClick={() => setCurrentStep(2)}>
+                上一步
+              </Button>
+              <Button type="primary" disabled={!isUpdateMode && !storageUnlocked && !parsed} onClick={proceedToMapping}>
                 下一步
               </Button>
             </div>
@@ -1923,22 +2155,28 @@ const Datasets = () => {
             {isStorageLocked && (
               <Alert
                 className={styles.lockAlert}
-                type="warning" showIcon
+                type="warning"
+                showIcon
                 message="存储列名已锁定"
                 description={
                   <span>
-                    Doris 表已建立，存储列名不可直接修改。若需修改列名，请点击「解锁修改」，系统将要求重新上传数据，<strong>原有数据将被覆盖，此操作不可撤销。</strong>
+                    Doris 表已建立，存储列名不可直接修改。若需修改列名，请点击「解锁修改」，系统将要求重新上传数据，
+                    <strong>原有数据将被覆盖，此操作不可撤销。</strong>
                   </span>
                 }
                 action={
-                  <Button size="small" danger icon={<UnlockOutlined />} onClick={handleUnlock}>解锁修改</Button>
+                  <Button size="small" danger icon={<UnlockOutlined />} onClick={handleUnlock}>
+                    解锁修改
+                  </Button>
                 }
               />
             )}
 
             {!isUpdateMode && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                <Text strong style={{ flexShrink: 0 }}>数据集名称：</Text>
+                <Text strong style={{ flexShrink: 0 }}>
+                  数据集名称：
+                </Text>
                 <Input
                   value={datasetName}
                   onChange={(e) => setDatasetName(e.target.value)}
@@ -1955,18 +2193,18 @@ const Datasets = () => {
                 <Button size="small" type="primary" ghost icon={<ThunderboltOutlined />} onClick={handleNormalize}>
                   一键转拼音 snake_case
                 </Button>
-                <Text type="secondary" style={{ fontSize: 12 }}>中文列名将转为拼音，重复列名自动追加 _2、_3…</Text>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  中文列名将转为拼音，重复列名自动追加 _2、_3…
+                </Text>
               </div>
             )}
 
             {sourceGroups.length > 1 && (
               <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Text strong style={{ marginRight: 4 }}>当前结构组：</Text>
-                <Select
-                  value={activeGroupKey}
-                  style={{ minWidth: 360 }}
-                  onChange={(val) => setActiveGroupKey(val)}
-                >
+                <Text strong style={{ marginRight: 4 }}>
+                  当前结构组：
+                </Text>
+                <Select value={activeGroupKey} style={{ minWidth: 360 }} onChange={(val) => setActiveGroupKey(val)}>
                   {sourceGroups.map((group) => (
                     <Option key={group.groupKey} value={group.groupKey}>
                       {`schema_${String(group.schemaOrder).padStart(2, '0')} · ${group.sourceUnits.length} units · ${group.schemaFingerprint.slice(0, 10)}...`}
@@ -1993,18 +2231,16 @@ const Datasets = () => {
               pagination={false}
               size="small"
               scroll={{ y: 320 }}
-              rowClassName={({ orig }) => !isStorageLocked && getStorageNameError(orig) ? styles.conflictRow : ''}
+              rowClassName={({ orig }) => (!isStorageLocked && getStorageNameError(orig) ? styles.conflictRow : '')}
             />
 
             <Divider style={{ margin: '16px 0' }} />
 
             <div style={{ textAlign: 'right' }}>
-              <Button style={{ marginRight: 8 }} onClick={() => setCurrentStep(3)}>上一步</Button>
-              <Button
-                type="primary"
-                onClick={handleSave}
-                disabled={!isStorageLocked && hasAnyError()}
-              >
+              <Button style={{ marginRight: 8 }} onClick={() => setCurrentStep(3)}>
+                上一步
+              </Button>
+              <Button type="primary" onClick={handleSave} disabled={!isStorageLocked && hasAnyError()}>
                 {isUpdateMode ? '保存并更新数据' : '保存映射并导入'}
               </Button>
             </div>
@@ -2065,9 +2301,18 @@ const Datasets = () => {
 
       {/** ── 删除确认 Modal（带明细） ── */}
       <Modal
-        title={<Space><DeleteOutlined style={{ color: '#ff4d4f' }} />{`确认删除「${pendingDeleteRecord?.name ?? ''}」？`}</Space>}
+        title={
+          <Space>
+            <DeleteOutlined style={{ color: '#ff4d4f' }} />
+            {`确认删除「${pendingDeleteRecord?.name ?? ''}」？`}
+          </Space>
+        }
         open={deleteModalOpen}
-        onCancel={() => { setDeleteModalOpen(false); setPendingDeleteRecord(null); setDeleteDetails(null) }}
+        onCancel={() => {
+          setDeleteModalOpen(false)
+          setPendingDeleteRecord(null)
+          setDeleteDetails(null)
+        }}
         okText="确认删除"
         okType="danger"
         cancelText="取消"
@@ -2077,7 +2322,9 @@ const Datasets = () => {
         {deleteDetailsLoading ? (
           <div style={{ textAlign: 'center', padding: '24px 0' }}>
             <Spin size="small" />
-            <div style={{ marginTop: 8 }}><Text type="secondary">正在查询关联数据…</Text></div>
+            <div style={{ marginTop: 8 }}>
+              <Text type="secondary">正在查询关联数据…</Text>
+            </div>
           </div>
         ) : deleteDetails?.error ? (
           <Alert type="warning" message="无法查询关联数据明细，继续操作将尽力清理。" showIcon />
@@ -2089,10 +2336,19 @@ const Datasets = () => {
               message="将清理以下内容"
               description={
                 <ul style={{ margin: '8px 0 0', paddingLeft: 20 }}>
-                  <li>版本记录：<strong>{deleteDetails.versionCount}</strong> 条</li>
-                  <li>Directus 文件：<strong>{deleteDetails.fileCount}</strong> 个（共 <strong>{formatFileSize(deleteDetails.totalSize)}</strong>）</li>
-                  <li>字段映射配置：<strong>{deleteDetails.recipeCount}</strong> 条</li>
-                  <li style={{ color: '#8c8c8c' }}>Doris 中的数据表<strong>不会自动清理</strong>，如需清理请联系管理员。</li>
+                  <li>
+                    版本记录：<strong>{deleteDetails.versionCount}</strong> 条
+                  </li>
+                  <li>
+                    Directus 文件：<strong>{deleteDetails.fileCount}</strong> 个（共{' '}
+                    <strong>{formatFileSize(deleteDetails.totalSize)}</strong>）
+                  </li>
+                  <li>
+                    字段映射配置：<strong>{deleteDetails.recipeCount}</strong> 条
+                  </li>
+                  <li style={{ color: '#8c8c8c' }}>
+                    Doris 中的数据表<strong>不会自动清理</strong>，如需清理请联系管理员。
+                  </li>
                 </ul>
               }
               style={{ marginBottom: 0 }}

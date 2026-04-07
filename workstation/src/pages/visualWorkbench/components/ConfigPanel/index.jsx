@@ -1,18 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import ReactDOM from 'react-dom'
-import {
-  Typography,
-  Button,
-  Tabs,
-  Switch,
-  Divider,
-  Input,
-  InputNumber,
-  Table,
-  Tooltip,
-  Tag,
-  Space,
-} from 'antd'
+import { Typography, Button, Tabs, Switch, Divider, Input, InputNumber, Table, Tooltip, Tag, Space } from 'antd'
 import {
   CloseOutlined,
   PlusOutlined,
@@ -167,9 +155,9 @@ const DataTab = ({ chart }) => {
 
     updateChartOption(chart.id, {
       xAxis: { ...chart.option?.xAxis, data: xData },
-      series:
-        chart.option?.series?.map((series, index) => (index === 0 ? { ...series, data: yData } : series)) ??
-        [{ type: chart.type === 'area' ? 'line' : chart.type, data: yData }],
+      series: chart.option?.series?.map((series, index) => (index === 0 ? { ...series, data: yData } : series)) ?? [
+        { type: chart.type === 'area' ? 'line' : chart.type, data: yData },
+      ],
     })
   }
 
@@ -276,10 +264,7 @@ const DataTab = ({ chart }) => {
       )}
 
       {dataSource === 'manual' && (
-        <Section
-          title="手动数据输入"
-          desc={`共 ${manualRows.length} 行，最多 12 行。改动会实时同步到图表。`}
-        >
+        <Section title="手动数据输入" desc={`共 ${manualRows.length} 行，最多 12 行。改动会实时同步到图表。`}>
           <Table
             dataSource={manualRows}
             columns={columns}

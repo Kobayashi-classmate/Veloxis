@@ -42,7 +42,8 @@ const Setting = () => {
 
   const prefersDark =
     typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
-  const effectiveThemeMode = themeSettings.themeMode === 'system' ? (prefersDark ? 'dark' : 'light') : themeSettings.themeMode
+  const effectiveThemeMode =
+    themeSettings.themeMode === 'system' ? (prefersDark ? 'dark' : 'light') : themeSettings.themeMode
 
   const changeSetting = (key, value) => {
     updateSettings({ [key]: value })
@@ -78,13 +79,13 @@ const Setting = () => {
                     {displayName}
                   </Title>
                   {showSecondaryEmail ? <Text className={styles.accountSub}>{user?.email}</Text> : null}
-                  {!showSecondaryEmail ? <Text className={styles.accountSub}>{user?.tenant || '-'}</Text> : null}
+                  {!showSecondaryEmail ? <Text className={styles.accountSub}>{user?.organization || '-'}</Text> : null}
                 </div>
               </div>
 
               <Space wrap className={styles.accountTags}>
                 <Tag color="blue">Email: {user?.email || '-'}</Tag>
-                <Tag color="cyan">Tenant: {user?.tenant || '-'}</Tag>
+                <Tag color="cyan">Organization: {user?.organization || '-'}</Tag>
               </Space>
 
               <Button type="primary" icon={<UserOutlined />} block onClick={() => navigate('/profile')}>
@@ -178,11 +179,17 @@ const Setting = () => {
                 </div>
                 <div className={styles.switchRow}>
                   <Text>{t('settingDrawer.other.fixedHeader')}</Text>
-                  <Switch checked={themeSettings.fixedHeader} onChange={(checked) => changeSetting('fixedHeader', checked)} />
+                  <Switch
+                    checked={themeSettings.fixedHeader}
+                    onChange={(checked) => changeSetting('fixedHeader', checked)}
+                  />
                 </div>
                 <div className={styles.switchRow}>
                   <Text>{t('settingDrawer.other.fixedSider')}</Text>
-                  <Switch checked={themeSettings.fixSiderbar} onChange={(checked) => changeSetting('fixSiderbar', checked)} />
+                  <Switch
+                    checked={themeSettings.fixSiderbar}
+                    onChange={(checked) => changeSetting('fixSiderbar', checked)}
+                  />
                 </div>
                 <div className={styles.switchRow}>
                   <Text>{t('settingDrawer.other.compactMode')}</Text>
@@ -193,7 +200,10 @@ const Setting = () => {
                 </div>
                 <div className={styles.switchRow}>
                   <Text>{t('settingDrawer.other.colorWeak')}</Text>
-                  <Switch checked={themeSettings.colorWeak} onChange={(checked) => changeSetting('colorWeak', checked)} />
+                  <Switch
+                    checked={themeSettings.colorWeak}
+                    onChange={(checked) => changeSetting('colorWeak', checked)}
+                  />
                 </div>
                 <div className={styles.switchRow}>
                   <Text>{t('settingDrawer.other.grayMode')}</Text>
@@ -201,11 +211,17 @@ const Setting = () => {
                 </div>
                 <div className={styles.switchRow}>
                   <Text>{t('settingDrawer.effects.pointerFollow')}</Text>
-                  <Switch checked={themeSettings.pointerMove} onChange={(checked) => changeSetting('pointerMove', checked)} />
+                  <Switch
+                    checked={themeSettings.pointerMove}
+                    onChange={(checked) => changeSetting('pointerMove', checked)}
+                  />
                 </div>
                 <div className={styles.switchRow}>
                   <Text>{t('settingDrawer.effects.pointerTrail')}</Text>
-                  <Switch checked={themeSettings.magicTrail} onChange={(checked) => changeSetting('magicTrail', checked)} />
+                  <Switch
+                    checked={themeSettings.magicTrail}
+                    onChange={(checked) => changeSetting('magicTrail', checked)}
+                  />
                 </div>
               </div>
             </Card>

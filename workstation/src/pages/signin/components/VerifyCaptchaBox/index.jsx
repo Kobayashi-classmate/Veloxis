@@ -8,16 +8,7 @@ const TONE_CLASS_MAP = {
   danger: styles.hintDanger,
 }
 
-const VerifyCaptchaBox = ({
-  state,
-  disabled,
-  label,
-  hint,
-  hintTone,
-  providerName,
-  providerSub,
-  onToggle,
-}) => {
+const VerifyCaptchaBox = ({ state, disabled, label, hint, hintTone, providerName, providerSub, onToggle }) => {
   const checked = state === 'success'
   const loading = state === 'loading'
   const handleToggle = useCallback(() => {
@@ -36,15 +27,16 @@ const VerifyCaptchaBox = ({
     [checked, disabled, loading, onToggle]
   )
 
-  const stateClass = state === 'unavailable'
-    ? styles.stateUnavailable
-    : state === 'error'
-      ? styles.stateError
-      : loading
-        ? styles.stateLoading
-        : checked
-          ? styles.stateChecked
-          : styles.stateIdle
+  const stateClass =
+    state === 'unavailable'
+      ? styles.stateUnavailable
+      : state === 'error'
+        ? styles.stateError
+        : loading
+          ? styles.stateLoading
+          : checked
+            ? styles.stateChecked
+            : styles.stateIdle
   const hintToneClass = TONE_CLASS_MAP[hintTone] || styles.hintMuted
 
   return (

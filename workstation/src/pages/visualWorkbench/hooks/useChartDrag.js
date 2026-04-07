@@ -76,9 +76,7 @@ export function useChartDrag({ chartId, x, y, w, h, allowOverlap = false, onMove
 
         if (!allowOverlap) {
           // 取得其他图表的矩形
-          const otherCharts = useWorkbenchState.getState().charts.filter(
-            (ch) => ch.id !== chartId
-          )
+          const otherCharts = useWorkbenchState.getState().charts.filter((ch) => ch.id !== chartId)
           const others = otherCharts.map((o) => ({ x: o.x, y: o.y, w: o.w, h: o.h }))
 
           // 寻找最近合法落点（若无碰撞直接用 fx/fy，有碰撞时搜索最近空位）
@@ -143,9 +141,7 @@ export function useChartDrag({ chartId, x, y, w, h, allowOverlap = false, onMove
 
         if (!allowOverlap) {
           // 碰撞检测：若新尺寸与其他图表重叠，则 DOM 还原并不写 store
-          const otherCharts = useWorkbenchState.getState().charts.filter(
-            (ch) => ch.id !== chartId
-          )
+          const otherCharts = useWorkbenchState.getState().charts.filter((ch) => ch.id !== chartId)
           const collision = otherCharts.some((o) =>
             rectsOverlap({ x, y, w: fw, h: fh }, { x: o.x, y: o.y, w: o.w, h: o.h })
           )

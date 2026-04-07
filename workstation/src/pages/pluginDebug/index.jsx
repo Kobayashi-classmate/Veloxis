@@ -107,7 +107,7 @@ const PluginDebugPage = () => {
         setLoading(false)
       }
     },
-    [reload],
+    [reload]
   )
 
   const onDisable = useCallback(
@@ -124,7 +124,7 @@ const PluginDebugPage = () => {
         setLoading(false)
       }
     },
-    [reload],
+    [reload]
   )
 
   const onUninstall = useCallback(
@@ -141,7 +141,7 @@ const PluginDebugPage = () => {
         setLoading(false)
       }
     },
-    [reload],
+    [reload]
   )
 
   const onViewAudit = useCallback(async (installationId) => {
@@ -162,7 +162,12 @@ const PluginDebugPage = () => {
       { title: 'ID', dataIndex: 'id', key: 'id', width: 220 },
       { title: 'Plugin', dataIndex: 'plugin_id', key: 'plugin_id', width: 280 },
       { title: 'Version', dataIndex: 'version', key: 'version', width: 100 },
-      { title: 'Scope', key: 'scope', width: 140, render: (_, row) => `${row.scope_type}${row.scope_id ? `:${row.scope_id}` : ''}` },
+      {
+        title: 'Scope',
+        key: 'scope',
+        width: 140,
+        render: (_, row) => `${row.scope_type}${row.scope_id ? `:${row.scope_id}` : ''}`,
+      },
       {
         title: 'Status',
         dataIndex: 'status',
@@ -175,15 +180,23 @@ const PluginDebugPage = () => {
         key: 'actions',
         render: (_, row) => (
           <Space>
-            <Button size="small" onClick={() => onEnable(row.id)}>Enable</Button>
-            <Button size="small" onClick={() => onDisable(row.id)}>Disable</Button>
-            <Button size="small" danger onClick={() => onUninstall(row.id)}>Uninstall</Button>
-            <Button size="small" onClick={() => onViewAudit(row.id)}>Audit</Button>
+            <Button size="small" onClick={() => onEnable(row.id)}>
+              Enable
+            </Button>
+            <Button size="small" onClick={() => onDisable(row.id)}>
+              Disable
+            </Button>
+            <Button size="small" danger onClick={() => onUninstall(row.id)}>
+              Uninstall
+            </Button>
+            <Button size="small" onClick={() => onViewAudit(row.id)}>
+              Audit
+            </Button>
           </Space>
         ),
       },
     ],
-    [onEnable, onDisable, onUninstall, onViewAudit],
+    [onEnable, onDisable, onUninstall, onViewAudit]
   )
 
   const registryColumns = [
@@ -198,7 +211,13 @@ const PluginDebugPage = () => {
     { title: 'Action', dataIndex: 'action', key: 'action', width: 140 },
     { title: 'From', dataIndex: 'from_status', key: 'from_status', width: 100 },
     { title: 'To', dataIndex: 'to_status', key: 'to_status', width: 100 },
-    { title: 'Success', dataIndex: 'success', key: 'success', width: 100, render: (success) => <Tag color={success ? 'green' : 'red'}>{String(success)}</Tag> },
+    {
+      title: 'Success',
+      dataIndex: 'success',
+      key: 'success',
+      width: 100,
+      render: (success) => <Tag color={success ? 'green' : 'red'}>{String(success)}</Tag>,
+    },
     { title: 'Request ID', dataIndex: 'request_id', key: 'request_id', width: 180 },
     { title: 'Created At', dataIndex: 'date_created', key: 'date_created' },
   ]
@@ -212,10 +231,24 @@ const PluginDebugPage = () => {
 
       <Card style={{ marginTop: 16 }} loading={loading}>
         <Space direction="vertical" style={{ width: '100%' }} size={12}>
-          <Input value={artifactPath} onChange={(event) => setArtifactPath(event.target.value)} addonBefore="artifactPath" />
+          <Input
+            value={artifactPath}
+            onChange={(event) => setArtifactPath(event.target.value)}
+            addonBefore="artifactPath"
+          />
           <Space style={{ width: '100%' }}>
-            <Input value={pluginId} onChange={(event) => setPluginId(event.target.value)} addonBefore="pluginId" style={{ minWidth: 320 }} />
-            <Input value={version} onChange={(event) => setVersion(event.target.value)} addonBefore="version" style={{ width: 180 }} />
+            <Input
+              value={pluginId}
+              onChange={(event) => setPluginId(event.target.value)}
+              addonBefore="pluginId"
+              style={{ minWidth: 320 }}
+            />
+            <Input
+              value={version}
+              onChange={(event) => setVersion(event.target.value)}
+              addonBefore="version"
+              style={{ width: 180 }}
+            />
           </Space>
           <Space>
             <Select
@@ -223,7 +256,7 @@ const PluginDebugPage = () => {
               onChange={setScopeType}
               options={[
                 { label: 'global', value: 'global' },
-                { label: 'tenant', value: 'tenant' },
+                { label: 'organization', value: 'organization' },
                 { label: 'project', value: 'project' },
               ]}
               style={{ width: 140 }}
@@ -231,11 +264,13 @@ const PluginDebugPage = () => {
             <Input
               value={scopeId}
               onChange={(event) => setScopeId(event.target.value)}
-              placeholder="scopeId (tenant/project required)"
+              placeholder="scopeId (organization/project required)"
               style={{ width: 280 }}
               disabled={scopeType === 'global'}
             />
-            <Button type="primary" onClick={installAndValidate}>Install + Validate</Button>
+            <Button type="primary" onClick={installAndValidate}>
+              Install + Validate
+            </Button>
             <Button onClick={createInstallation}>Create Installation</Button>
             <Button onClick={reload}>Reload</Button>
           </Space>
@@ -247,11 +282,22 @@ const PluginDebugPage = () => {
       </Card>
 
       <Card title="Installations" style={{ marginTop: 16 }}>
-        <Table rowKey="id" columns={installationColumns} dataSource={installationRows} pagination={false} scroll={{ x: 1080 }} />
+        <Table
+          rowKey="id"
+          columns={installationColumns}
+          dataSource={installationRows}
+          pagination={false}
+          scroll={{ x: 1080 }}
+        />
       </Card>
 
       <Card title="Audit Logs" style={{ marginTop: 16 }}>
-        <Table rowKey={(row, idx) => row.id ?? `${row.action}-${idx}`} columns={auditColumns} dataSource={auditRows} pagination={false} />
+        <Table
+          rowKey={(row, idx) => row.id ?? `${row.action}-${idx}`}
+          columns={auditColumns}
+          dataSource={auditRows}
+          pagination={false}
+        />
       </Card>
     </div>
   )

@@ -29,13 +29,7 @@ export function useCanvasDraft() {
     savedAt: null,
   })
 
-  const {
-    activeCanvasId,
-    charts,
-    isDirty,
-    setChartsForCanvas,
-    markDirty,
-  } = useWorkbenchState()
+  const { activeCanvasId, charts, isDirty, setChartsForCanvas, markDirty } = useWorkbenchState()
 
   // 防止并发草稿写入
   const savingRef = useRef(false)
@@ -137,9 +131,8 @@ export function useCanvasDraft() {
           return
         }
         // Directus 可能将 JSON TEXT 字段自动反序列化为对象，需兼容两种情况
-        const snapshots = typeof draft.snapshot_json === 'string'
-          ? JSON.parse(draft.snapshot_json)
-          : draft.snapshot_json
+        const snapshots =
+          typeof draft.snapshot_json === 'string' ? JSON.parse(draft.snapshot_json) : draft.snapshot_json
         if (!Array.isArray(snapshots)) {
           message.warning('草稿格式异常，无法恢复')
           setBannerState({ visible: false, canvasId: null, savedAt: null })
@@ -159,18 +152,15 @@ export function useCanvasDraft() {
   )
 
   // ── 丢弃草稿：从服务端删除草稿记录 ─────────────────────────────────────────
-  const discardDraft = useCallback(
-    async (canvasId) => {
-      try {
-        await deleteDraft(canvasId)
-        setBannerState({ visible: false, canvasId: null, savedAt: null })
-        message.info('草稿已丢弃')
-      } catch {
-        message.error('草稿丢弃失败')
-      }
-    },
-    []
-  )
+  const discardDraft = useCallback(async (canvasId) => {
+    try {
+      await deleteDraft(canvasId)
+      setBannerState({ visible: false, canvasId: null, savedAt: null })
+      message.info('草稿已丢弃')
+    } catch {
+      message.error('草稿丢弃失败')
+    }
+  }, [])
 
   return { bannerState, restoreDraft, discardDraft, autoSaving }
 }

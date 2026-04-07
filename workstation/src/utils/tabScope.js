@@ -10,7 +10,9 @@ const ensurePathPrefix = (value) => {
 }
 
 export const normalizePath = (value = '/') => {
-  const raw = String(value || '').split('?')[0].trim()
+  const raw = String(value || '')
+    .split('?')[0]
+    .trim()
   const prefixed = ensurePathPrefix(raw || '/')
   const compact = prefixed.replace(/\/{2,}/g, '/')
   if (compact.length > 1) {

@@ -256,11 +256,7 @@ const ChartPalette = () => {
       const matchedGroup = effectiveGroup === 'all' || m.group === effectiveGroup
       if (!matchedGroup) return false
       if (!q) return true
-      return (
-        m.label.toLowerCase().includes(q) ||
-        m.type.toLowerCase().includes(q) ||
-        m.group.toLowerCase().includes(q)
-      )
+      return m.label.toLowerCase().includes(q) || m.type.toLowerCase().includes(q) || m.group.toLowerCase().includes(q)
     })
   }, [search, effectiveGroup, paletteChartMeta])
 
@@ -284,11 +280,7 @@ const ChartPalette = () => {
   const renderPaletteItem = useCallback(
     (meta) => (
       <Tooltip key={meta.type} title={`拖拽到画布添加${meta.label}`} placement="left">
-        <div
-          className={styles.paletteItem}
-          draggable
-          onDragStart={(event) => handleDragStart(event, meta.type)}
-        >
+        <div className={styles.paletteItem} draggable onDragStart={(event) => handleDragStart(event, meta.type)}>
           <div className={styles.palettePreview}>
             <div className={styles.paletteSymbol}>{meta.icon}</div>
             {CHART_SVG_PREVIEWS[meta.type]}

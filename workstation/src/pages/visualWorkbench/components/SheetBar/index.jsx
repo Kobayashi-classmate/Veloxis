@@ -12,20 +12,8 @@ import {
   UpOutlined,
   DownOutlined,
 } from '@ant-design/icons'
-import {
-  DndContext,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragOverlay,
-  closestCenter,
-} from '@dnd-kit/core'
-import {
-  SortableContext,
-  useSortable,
-  horizontalListSortingStrategy,
-  arrayMove,
-} from '@dnd-kit/sortable'
+import { DndContext, PointerSensor, useSensor, useSensors, DragOverlay, closestCenter } from '@dnd-kit/core'
+import { SortableContext, useSortable, horizontalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import useWorkbenchState from '../../hooks/useWorkbenchState'
 import styles from './index.module.less'
@@ -34,23 +22,8 @@ const { Text } = Typography
 
 // ── 可拖拽标签页 ─────────────────────────────────────────────────────────────
 
-const SortableTabItem = ({
-  canvas,
-  isActive,
-  onClick,
-  groups,
-  chartCount,
-  accentColor,
-  activeTabStyle,
-}) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({
+const SortableTabItem = ({ canvas, isActive, onClick, groups, chartCount, accentColor, activeTabStyle }) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: canvas.id,
     data: { type: 'canvas', groupId: canvas.groupId },
   })
@@ -78,18 +51,8 @@ const SortableTabItem = ({
   )
 }
 
-const SortableTab = ({
-  canvas,
-  isActive,
-  onClick,
-  groups,
-  chartCount,
-  accentColor,
-  isDragOverlay = false,
-}) => {
-  const activeTabStyle = isActive
-    ? { boxShadow: `0 -2px 0 ${accentColor} inset` }
-    : {}
+const SortableTab = ({ canvas, isActive, onClick, groups, chartCount, accentColor, isDragOverlay = false }) => {
+  const activeTabStyle = isActive ? { boxShadow: `0 -2px 0 ${accentColor} inset` } : {}
 
   if (isDragOverlay) {
     return (
@@ -140,8 +103,7 @@ const TabContent = ({
   const [nameVal, setNameVal] = useState(canvas.name)
   const inputRef = useRef(null)
 
-  const { renameCanvas, removeCanvas, duplicateCanvas, addGroup, moveCanvasToGroup } =
-    useWorkbenchState()
+  const { renameCanvas, removeCanvas, duplicateCanvas, addGroup, moveCanvasToGroup } = useWorkbenchState()
 
   useEffect(() => {
     if (editing) inputRef.current?.focus()
@@ -231,9 +193,7 @@ const TabContent = ({
         {...dragAttributes}
         {...dragListeners}
       >
-        {groupName && (
-          <Text className={styles.tabGroupTag}>{groupName}</Text>
-        )}
+        {groupName && <Text className={styles.tabGroupTag}>{groupName}</Text>}
 
         {editing ? (
           <Input
@@ -251,16 +211,10 @@ const TabContent = ({
           <Text className={styles.tabName}>{canvas.name}</Text>
         )}
 
-        {chartCount > 0 && !editing && (
-          <span className={styles.chartCount}>{chartCount}</span>
-        )}
+        {chartCount > 0 && !editing && <span className={styles.chartCount}>{chartCount}</span>}
 
         {!editing && (
-          <CloseOutlined
-            className={styles.tabClose}
-            onClick={handleDelete}
-            onMouseDown={(e) => e.stopPropagation()}
-          />
+          <CloseOutlined className={styles.tabClose} onClick={handleDelete} onMouseDown={(e) => e.stopPropagation()} />
         )}
       </div>
     </Dropdown>
@@ -302,17 +256,11 @@ const SheetBar = () => {
   )
 
   const categoryCanvases = useMemo(
-    () =>
-      canvases
-        .filter((cv) => cv.categoryId === activeCategoryId)
-        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
+    () => canvases.filter((cv) => cv.categoryId === activeCategoryId).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
     [canvases, activeCategoryId]
   )
   const categoryGroups = useMemo(
-    () =>
-      groups
-        .filter((g) => g.categoryId === activeCategoryId)
-        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
+    () => groups.filter((g) => g.categoryId === activeCategoryId).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
     [groups, activeCategoryId]
   )
   const activeCategory = categories.find((c) => c.id === activeCategoryId)
@@ -327,18 +275,11 @@ const SheetBar = () => {
 
   const getChartCount = (canvasId) => chartCountMap[canvasId] ?? 0
 
-  const draggingCanvas = activeId && activeType === 'canvas'
-    ? categoryCanvases.find((cv) => cv.id === activeId)
-    : null
-  const draggingGroup = activeId && activeType === 'group'
-    ? categoryGroups.find((g) => g.id === activeId)
-    : null
+  const draggingCanvas = activeId && activeType === 'canvas' ? categoryCanvases.find((cv) => cv.id === activeId) : null
+  const draggingGroup = activeId && activeType === 'group' ? categoryGroups.find((g) => g.id === activeId) : null
 
   const groupIdSet = new Set(categoryGroups.map((g) => g.id))
-  const topLevelItems = [
-    ...categoryCanvases.filter((cv) => !cv.groupId),
-    ...categoryGroups,
-  ].sort((a, b) => {
+  const topLevelItems = [...categoryCanvases.filter((cv) => !cv.groupId), ...categoryGroups].sort((a, b) => {
     const orderA = a.order ?? 0
     const orderB = b.order ?? 0
     if (orderA !== orderB) return orderA - orderB
@@ -407,8 +348,7 @@ const SheetBar = () => {
       // 分组内排序（含跨分组后定位）
       const latestCategoryCanvases = useWorkbenchState
         .getState()
-        .canvases
-        .filter((cv) => cv.categoryId === activeCategoryId)
+        .canvases.filter((cv) => cv.categoryId === activeCategoryId)
         .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
 
       const scopeCanvases = latestCategoryCanvases.filter((cv) => cv.groupId === targetGroupId)
@@ -417,9 +357,7 @@ const SheetBar = () => {
       const newIndex = scopeIds.indexOf(over.id)
       if (oldIndex === -1 || newIndex === -1) return
 
-      const otherIds = latestCategoryCanvases
-        .filter((cv) => !scopeIds.includes(cv.id))
-        .map((cv) => cv.id)
+      const otherIds = latestCategoryCanvases.filter((cv) => !scopeIds.includes(cv.id)).map((cv) => cv.id)
       await reorderCanvas(activeCategoryId, [...otherIds, ...arrayMove(scopeIds, oldIndex, newIndex)])
       return
     }
@@ -451,14 +389,9 @@ const SheetBar = () => {
       })
     })
 
-    const orderedCanvasIds = [
-      ...(canvasLayout.none ?? []),
-      ...nextGroupOrder.flatMap((gid) => canvasLayout[gid] ?? []),
-    ]
+    const orderedCanvasIds = [...(canvasLayout.none ?? []), ...nextGroupOrder.flatMap((gid) => canvasLayout[gid] ?? [])]
 
-    await Promise.all(
-      membershipChanges.map(({ canvasId, groupId }) => moveCanvasToGroup(canvasId, groupId))
-    )
+    await Promise.all(membershipChanges.map(({ canvasId, groupId }) => moveCanvasToGroup(canvasId, groupId)))
     await reorderGroup(activeCategoryId, nextGroupOrder)
     await reorderCanvas(activeCategoryId, orderedCanvasIds)
   }
@@ -511,9 +444,7 @@ const SheetBar = () => {
   ]
 
   const activeCanvas = categoryCanvases.find((cv) => cv.id === activeCanvasId)
-  const activeGroup = activeCanvas?.groupId
-    ? categoryGroups.find((g) => g.id === activeCanvas.groupId) ?? null
-    : null
+  const activeGroup = activeCanvas?.groupId ? (categoryGroups.find((g) => g.id === activeCanvas.groupId) ?? null) : null
 
   const settingsMenuItems = [
     {
@@ -599,83 +530,70 @@ const SheetBar = () => {
           setActiveType(null)
         }}
       >
-        <SortableContext
-          items={allSortableIds}
-          strategy={horizontalListSortingStrategy}
-        >
+        <SortableContext items={allSortableIds} strategy={horizontalListSortingStrategy}>
           <div className={styles.sheetBar}>
-          {activeCategory && (
-            <div className={styles.sheetBarLeft} style={{ borderLeftColor: accentColor }}>
-              <span className={styles.categoryIcon}>{activeCategory.icon}</span>
-              <Text className={styles.categoryLabel} ellipsis style={{ color: accentColor }}>
-                {activeCategory.name}
-              </Text>
-            </div>
-          )}
-
-          <Dropdown
-            menu={{ items: blankAreaMenuItems }}
-            trigger={['contextMenu']}
-            overlayClassName={styles.blankAreaMenu}
-          >
-            <div className={styles.tabList}>
-              {renderTabs()}
-              <div className={styles.addTabWrapper}>
-                <Dropdown
-                  menu={{ items: addMenuItems }}
-                  trigger={['click']}
-                  placement="topRight"
-                  onOpenChange={(open) => setAddMenuOpen(open)}
-                >
-                  <Tooltip title="新建画布 / 分组" placement="left" open={addMenuOpen ? false : undefined}>
-                    <Button
-                      type="text"
-                      size="small"
-                      icon={<PlusOutlined />}
-                      className={styles.addTabBtn}
-                    />
-                  </Tooltip>
-                </Dropdown>
-                <Dropdown
-                  menu={{ items: settingsMenuItems }}
-                  trigger={['click']}
-                  placement="topRight"
-                  onOpenChange={(open) => setSettingsMenuOpen(open)}
-                >
-                  <Tooltip title="工作台管理" placement="left" open={settingsMenuOpen ? false : undefined}>
-                    <Button
-                      type="text"
-                      size="small"
-                      icon={<SettingOutlined />}
-                      className={styles.settingsBtn}
-                    />
-                  </Tooltip>
-                </Dropdown>
+            {activeCategory && (
+              <div className={styles.sheetBarLeft} style={{ borderLeftColor: accentColor }}>
+                <span className={styles.categoryIcon}>{activeCategory.icon}</span>
+                <Text className={styles.categoryLabel} ellipsis style={{ color: accentColor }}>
+                  {activeCategory.name}
+                </Text>
               </div>
-            </div>
-          </Dropdown>
-        </div>
-      </SortableContext>
+            )}
 
-      <DragOverlay dropAnimation={null}>
-        {draggingCanvas ? (
-          <SortableTab
-            canvas={draggingCanvas}
-            isActive={draggingCanvas.id === activeCanvasId}
-            onClick={() => {}}
-            groups={categoryGroups}
-            chartCount={charts.filter((ch) => ch.canvasId === draggingCanvas.id).length}
-            accentColor={accentColor}
-            isDragOverlay
-          />
-        ) : draggingGroup ? (
-          <GroupOverlay
-            group={draggingGroup}
-            inGroup={categoryCanvases.filter((cv) => cv.groupId === draggingGroup.id)}
-          />
-        ) : null}
-      </DragOverlay>
-    </DndContext>
+            <Dropdown
+              menu={{ items: blankAreaMenuItems }}
+              trigger={['contextMenu']}
+              overlayClassName={styles.blankAreaMenu}
+            >
+              <div className={styles.tabList}>
+                {renderTabs()}
+                <div className={styles.addTabWrapper}>
+                  <Dropdown
+                    menu={{ items: addMenuItems }}
+                    trigger={['click']}
+                    placement="topRight"
+                    onOpenChange={(open) => setAddMenuOpen(open)}
+                  >
+                    <Tooltip title="新建画布 / 分组" placement="left" open={addMenuOpen ? false : undefined}>
+                      <Button type="text" size="small" icon={<PlusOutlined />} className={styles.addTabBtn} />
+                    </Tooltip>
+                  </Dropdown>
+                  <Dropdown
+                    menu={{ items: settingsMenuItems }}
+                    trigger={['click']}
+                    placement="topRight"
+                    onOpenChange={(open) => setSettingsMenuOpen(open)}
+                  >
+                    <Tooltip title="工作台管理" placement="left" open={settingsMenuOpen ? false : undefined}>
+                      <Button type="text" size="small" icon={<SettingOutlined />} className={styles.settingsBtn} />
+                    </Tooltip>
+                  </Dropdown>
+                </div>
+              </div>
+            </Dropdown>
+          </div>
+        </SortableContext>
+
+        <DragOverlay dropAnimation={null}>
+          {draggingCanvas ? (
+            <SortableTab
+              canvas={draggingCanvas}
+              isActive={draggingCanvas.id === activeCanvasId}
+              onClick={() => {}}
+              groups={categoryGroups}
+              chartCount={charts.filter((ch) => ch.canvasId === draggingCanvas.id).length}
+              accentColor={accentColor}
+              isDragOverlay
+            />
+          ) : draggingGroup ? (
+            <GroupOverlay
+              group={draggingGroup}
+              inGroup={categoryCanvases.filter((cv) => cv.groupId === draggingGroup.id)}
+            />
+          ) : null}
+        </DragOverlay>
+      </DndContext>
       <OrderManagerModal
         key={orderModalKey}
         open={orderModalOpen}
@@ -695,9 +613,7 @@ const OrderManagerModal = ({ open, onClose, groups, canvases, onSave }) => {
       none: canvases.filter((cv) => !cv.groupId).map((cv) => cv.id),
     }
     groups.forEach((group) => {
-      layout[group.id] = canvases
-        .filter((cv) => cv.groupId === group.id)
-        .map((cv) => cv.id)
+      layout[group.id] = canvases.filter((cv) => cv.groupId === group.id).map((cv) => cv.id)
     })
     return layout
   })
@@ -866,23 +782,8 @@ const OrderManagerModal = ({ open, onClose, groups, canvases, onSave }) => {
 
 // ── 分组节 sortable wrapper ───────────────────────────────────────────────────
 
-const SortableGroupSection = ({
-  group,
-  inGroup,
-  activeCanvas,
-  activeCanvasId,
-  setActiveCanvas,
-  accentColor,
-}) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-    isOver,
-  } = useSortable({
+const SortableGroupSection = ({ group, inGroup, activeCanvas, activeCanvasId, setActiveCanvas, accentColor }) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver } = useSortable({
     id: group.id,
     data: { type: 'group' },
   })
@@ -972,23 +873,15 @@ const SortableGroupSection = ({
           <Dropdown
             menu={{
               items: groupMenuItems,
-              selectedKeys: activeCanvasId && inGroup.some((cv) => cv.id === activeCanvasId)
-                ? [activeCanvasId]
-                : [],
+              selectedKeys: activeCanvasId && inGroup.some((cv) => cv.id === activeCanvasId) ? [activeCanvasId] : [],
             }}
             trigger={['click']}
             placement="bottomLeft"
           >
-            <div
-              className={styles.groupHeader}
-              {...attributes}
-              {...listeners}
-            >
+            <div className={styles.groupHeader} {...attributes} {...listeners}>
               <FolderOutlined />
               <span>{group.name}</span>
-              {activeInGroup && (
-                <span className={styles.groupActiveCanvas}>{activeInGroup}</span>
-              )}
+              {activeInGroup && <span className={styles.groupActiveCanvas}>{activeInGroup}</span>}
               <span className={styles.groupCount}>{inGroup.length}</span>
             </div>
           </Dropdown>

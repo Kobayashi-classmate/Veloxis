@@ -32,17 +32,9 @@ const DraftBanner = ({ savedAt, onRestore, onDiscard }) => {
   return (
     <div className={styles.banner}>
       <HistoryOutlined className={styles.bannerIcon} />
-      <Text className={styles.bannerText}>
-        发现未恢复的草稿（保存于 {timeStr}），是否恢复？
-      </Text>
+      <Text className={styles.bannerText}>发现未恢复的草稿（保存于 {timeStr}），是否恢复？</Text>
       <div className={styles.bannerActions}>
-        <Button
-          size="small"
-          type="primary"
-          icon={<CheckOutlined />}
-          className={styles.restoreBtn}
-          onClick={onRestore}
-        >
+        <Button size="small" type="primary" icon={<CheckOutlined />} className={styles.restoreBtn} onClick={onRestore}>
           恢复草稿
         </Button>
         <Button

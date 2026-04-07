@@ -77,7 +77,8 @@ const SignIn = () => {
   const [internalChallenge, setInternalChallenge] = useState(null)
   const [internalProof, setInternalProof] = useState(null)
   const [internalChallengeLoading, setInternalChallengeLoading] = useState(false)
-  const captchaReadyForSubmit = captchaProvider === 'turnstile' ? Boolean(captchaToken) : Boolean(internalProof?.behaviorProof)
+  const captchaReadyForSubmit =
+    captchaProvider === 'turnstile' ? Boolean(captchaToken) : Boolean(internalProof?.behaviorProof)
 
   const submittingRef = useRef(false)
   const verifyResetTimerRef = useRef(null)
@@ -332,7 +333,17 @@ const SignIn = () => {
     setCaptchaModalOpen(true)
     setCaptchaModalSubmitting(false)
     resetCaptchaWidgets()
-  }, [captchaAvailable, captchaConfigLoading, clearCaptchaTicket, clearModalAutoCloseTimers, clearVerifyResetTimer, clearVerifySuccessTimer, message, resetCaptchaWidgets, triggerVerifyErrorState])
+  }, [
+    captchaAvailable,
+    captchaConfigLoading,
+    clearCaptchaTicket,
+    clearModalAutoCloseTimers,
+    clearVerifyResetTimer,
+    clearVerifySuccessTimer,
+    message,
+    resetCaptchaWidgets,
+    triggerVerifyErrorState,
+  ])
 
   const closeCaptchaModal = useCallback(() => {
     clearModalAutoCloseTimers()
@@ -342,7 +353,13 @@ const SignIn = () => {
     clearCaptchaTicket()
     triggerVerifyErrorState()
     resetCaptchaWidgets()
-  }, [clearCaptchaTicket, clearModalAutoCloseTimers, clearVerifySuccessTimer, resetCaptchaWidgets, triggerVerifyErrorState])
+  }, [
+    clearCaptchaTicket,
+    clearModalAutoCloseTimers,
+    clearVerifySuccessTimer,
+    resetCaptchaWidgets,
+    triggerVerifyErrorState,
+  ])
 
   const handleCaptchaConfirm = useCallback(() => {
     if (!captchaReadyForSubmit) {
@@ -358,7 +375,14 @@ const SignIn = () => {
     setVerifyUiState('success')
     scheduleVerifySuccessExpiry()
     message.success('登录校验已完成，请继续提交')
-  }, [captchaReadyForSubmit, clearCaptchaTicket, clearModalAutoCloseTimers, clearVerifyResetTimer, message, scheduleVerifySuccessExpiry])
+  }, [
+    captchaReadyForSubmit,
+    clearCaptchaTicket,
+    clearModalAutoCloseTimers,
+    clearVerifyResetTimer,
+    message,
+    scheduleVerifySuccessExpiry,
+  ])
 
   const handleCaptchaToggle = useCallback(
     (nextChecked) => {
@@ -450,15 +474,16 @@ const SignIn = () => {
           : captchaVerified || verifyUiState === 'success'
             ? 'success'
             : 'idle'
-  const verifyMainText = verifyBoxState === 'loading'
-    ? '正在处理登录校验...'
-    : verifyBoxState === 'success'
-      ? '当前请求已验证'
-      : verifyBoxState === 'error'
-        ? '校验未通过'
-        : verifyBoxState === 'unavailable'
-          ? '校验服务不可用'
-          : '验证本次登录'
+  const verifyMainText =
+    verifyBoxState === 'loading'
+      ? '正在处理登录校验...'
+      : verifyBoxState === 'success'
+        ? '当前请求已验证'
+        : verifyBoxState === 'error'
+          ? '校验未通过'
+          : verifyBoxState === 'unavailable'
+            ? '校验服务不可用'
+            : '验证本次登录'
   const verifyVendorName = captchaProvider === 'turnstile' ? 'Cloudflare' : 'Veloxis'
   const verifyVendorSub = captchaProvider === 'turnstile' ? 'Turnstile' : 'Access Guard'
   const verifyStatusText = captchaConfigLoading
@@ -475,11 +500,12 @@ const SignIn = () => {
       : captchaVerified || captchaChallengeCompleted
         ? '当前账号可直接提交登录请求'
         : '勾选下方校验框后继续'
-  const verifyStatusClass = captchaVerified || captchaChallengeCompleted
-    ? styles.securityStripOk
-    : !captchaAvailable
-      ? styles.securityStripDanger
-      : styles.securityStripPending
+  const verifyStatusClass =
+    captchaVerified || captchaChallengeCompleted
+      ? styles.securityStripOk
+      : !captchaAvailable
+        ? styles.securityStripDanger
+        : styles.securityStripPending
   const verifyHintText = captchaConfigLoading
     ? '校验策略加载中，请稍候'
     : verifyBoxState === 'loading'
@@ -488,16 +514,17 @@ const SignIn = () => {
         : '正在确认校验结果，请稍候...'
       : verifyBoxState === 'error'
         ? '校验未通过，请重新发起'
-      : verifyBoxState === 'unavailable'
+        : verifyBoxState === 'unavailable'
           ? '校验服务暂不可用，请稍后重试'
           : verifyBoxState === 'success'
-        ? '校验已完成，点击“进入系统”即可继续'
-        : '点击复选框并完成弹窗校验'
-  const verifyHintTone = verifyBoxState === 'error' || verifyBoxState === 'unavailable'
-    ? 'danger'
-    : verifyBoxState === 'success'
-      ? 'success'
-      : 'muted'
+            ? '校验已完成，点击“进入系统”即可继续'
+            : '点击复选框并完成弹窗校验'
+  const verifyHintTone =
+    verifyBoxState === 'error' || verifyBoxState === 'unavailable'
+      ? 'danger'
+      : verifyBoxState === 'success'
+        ? 'success'
+        : 'muted'
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -513,7 +540,8 @@ const SignIn = () => {
                   以统一入口连接项目、数据与团队协作
                 </Title>
                 <Paragraph className={styles.heroDesc}>
-                  Veloxis 为组织提供清晰的访问控制、稳定的登录校验与连续的工作台体验，让成员在同一入口下推进业务与管理任务。
+                  Veloxis
+                  为组织提供清晰的访问控制、稳定的登录校验与连续的工作台体验，让成员在同一入口下推进业务与管理任务。
                 </Paragraph>
 
                 <div className={styles.capabilityGrid}>
@@ -675,12 +703,7 @@ const SignIn = () => {
                     type="primary"
                     block
                     htmlType="submit"
-                    disabled={
-                      submitting ||
-                      captchaConfigLoading ||
-                      !captchaAvailable ||
-                      !captchaChallengeCompleted
-                    }
+                    disabled={submitting || captchaConfigLoading || !captchaAvailable || !captchaChallengeCompleted}
                   >
                     进入系统
                   </Button>
@@ -719,7 +742,12 @@ const SignIn = () => {
                   ) : !captchaAvailable ? (
                     <Text type="danger">校验服务暂不可用，请稍后重试</Text>
                   ) : captchaProvider === 'turnstile' ? (
-                    <TurnstileCaptcha ref={turnstileRef} siteKey={captchaTurnstileSiteKey} action="signin" onTokenChange={setCaptchaToken} />
+                    <TurnstileCaptcha
+                      ref={turnstileRef}
+                      siteKey={captchaTurnstileSiteKey}
+                      action="signin"
+                      onTokenChange={setCaptchaToken}
+                    />
                   ) : (
                     <BehaviorCaptcha
                       key={internalChallenge?.challengeId || 'captcha-empty'}

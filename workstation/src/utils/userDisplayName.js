@@ -27,4 +27,3 @@ export const resolveUserDisplayName = (user, unnamedLabel = '未命名用户') =
 
   return unnamedLabel
 }
-

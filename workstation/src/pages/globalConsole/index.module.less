@@ -8,10 +8,10 @@
 .overviewHeader {
   margin-bottom: 24px;
   padding: 24px;
-  background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+  background: linear-gradient(135deg, #fff 0%, #f1f5f9 100%);
   border-radius: 12px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 5%);
+  border: 1px solid rgb(226 232 240 / 80%);
 }
 
 .welcomeBox {
@@ -22,7 +22,7 @@
 }
 
 .healthBar {
-  background: rgba(255, 255, 255, 0.6);
+  background: rgb(255 255 255 / 60%);
   padding: 16px;
   border-radius: 8px;
   border: 1px dashed #cbd5e1;
@@ -51,7 +51,7 @@
   :global {
     .ant-card {
       border-radius: 12px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 1px 3px rgb(0 0 0 / 10%);
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       border: 1px solid #e2e8f0;
 
@@ -95,7 +95,7 @@
   }
 
   :global(.ant-progress) {
-    margin: 4px 0 0 0;
+    margin: 4px 0 0;
   }
 }
 
@@ -105,7 +105,7 @@
   align-items: center;
   gap: 12px;
   padding: 16px;
-  background: #ffffff;
+  background: #fff;
   border: 1px solid #f1f5f9;
   border-radius: 8px;
   cursor: pointer;
@@ -114,7 +114,7 @@
 
   &:hover {
     border-color: #1677ff;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 4px 12px rgb(0 0 0 / 8%);
     transform: translateY(-2px);
   }
 }
@@ -155,11 +155,11 @@
   cursor: pointer;
   border: 1px solid #e2e8f0;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 5%);
 
   &:hover {
     transform: translateY(-4px);
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 10%);
     border-color: #1677ff;
   }
 }
@@ -222,7 +222,7 @@
 }
 
 /* 移动端适配 */
-@media (max-width: 768px) {
+@media (width <= 768px) {
   .container {
     padding: 12px;
   }

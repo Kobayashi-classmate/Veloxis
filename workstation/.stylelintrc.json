@@ -1,6 +1,7 @@
 {
   "extends": "stylelint-config-standard",
   "rules": {
+    "declaration-property-value-no-unknown": null,
     "value-keyword-case": null,
     "selector-class-pattern": null,
     "no-invalid-position-at-import-rule": null,

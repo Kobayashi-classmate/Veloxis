@@ -272,7 +272,15 @@ const BehaviorCaptcha = ({ challenge, loading, onProofChange }) => {
     <div style={{ border: '1px solid #d9e4ff', borderRadius: 8, padding: 10, background: '#f9fbff' }}>
       <canvas
         ref={canvasRef}
-        style={{ width: '100%', maxWidth: puzzle.canvas.width, margin: '0 auto', borderRadius: 6, touchAction: 'none', cursor: 'crosshair', display: 'block' }}
+        style={{
+          width: '100%',
+          maxWidth: puzzle.canvas.width,
+          margin: '0 auto',
+          borderRadius: 6,
+          touchAction: 'none',
+          cursor: 'crosshair',
+          display: 'block',
+        }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}

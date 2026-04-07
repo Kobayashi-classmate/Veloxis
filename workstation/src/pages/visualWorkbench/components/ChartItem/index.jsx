@@ -1,12 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react'
 import { Typography, Tooltip, Button, Dropdown, message } from 'antd'
-import {
-  SettingOutlined,
-  CopyOutlined,
-  DeleteOutlined,
-  DragOutlined,
-  MoreOutlined,
-} from '@ant-design/icons'
+import { SettingOutlined, CopyOutlined, DeleteOutlined, DragOutlined, MoreOutlined } from '@ant-design/icons'
 import EChartsCommon from '@stateless/EChartsCommon'
 import useWorkbenchState, { COLOR_THEMES } from '../../hooks/useWorkbenchState'
 import { useChartDrag } from '../../hooks/useChartDrag'
@@ -21,22 +15,22 @@ const ChartItem = ({ chart, canvasRef }) => {
   const { registryVersion } = useUIPluginHost()
 
   const {
-    updateChartPosition, updateChartSize, removeChart, duplicateChart,
-    openConfigPanel, selectChart, deselectChart, selectedChartId,
+    updateChartPosition,
+    updateChartSize,
+    removeChart,
+    duplicateChart,
+    openConfigPanel,
+    selectChart,
+    deselectChart,
+    selectedChartId,
   } = useWorkbenchState()
 
   const isSelected = selectedChartId === chart.id
 
   // mouseup 时才调一次 — 不在 mousemove 中触发
-  const onMoveEnd = useCallback(
-    (nx, ny) => updateChartPosition(chart.id, nx, ny),
-    [chart.id, updateChartPosition]
-  )
+  const onMoveEnd = useCallback((nx, ny) => updateChartPosition(chart.id, nx, ny), [chart.id, updateChartPosition])
 
-  const onResizeEnd = useCallback(
-    (nw, nh) => updateChartSize(chart.id, nw, nh),
-    [chart.id, updateChartSize]
-  )
+  const onResizeEnd = useCallback((nw, nh) => updateChartSize(chart.id, nw, nh), [chart.id, updateChartSize])
 
   // itemRef 由 hook 内部创建并返回，挂到根节点
   const { itemRef, onDragStart, onResizeStart } = useChartDrag({
@@ -161,12 +155,7 @@ const ChartItem = ({ chart, canvasRef }) => {
               />
             </Tooltip>
             <Dropdown menu={{ items: moreItems }} trigger={['click']} placement="bottomRight">
-              <Button
-                type="text"
-                size="small"
-                icon={<MoreOutlined />}
-                className={styles.toolBtn}
-              />
+              <Button type="text" size="small" icon={<MoreOutlined />} className={styles.toolBtn} />
             </Dropdown>
           </div>
         )}

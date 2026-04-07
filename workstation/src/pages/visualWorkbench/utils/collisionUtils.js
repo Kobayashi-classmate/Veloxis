@@ -18,17 +18,11 @@
  * @returns {boolean}
  */
 export function rectsOverlap(a, b) {
-  return (
-    a.x < b.x + b.w &&
-    a.x + a.w > b.x &&
-    a.y < b.y + b.h &&
-    a.y + a.h > b.y
-  )
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
 }
 
 export function findLegalPosition(candidate, others, fallback = { x: 0, y: 0 }) {
-  const hasCollision = (pos) =>
-    others.some((o) => rectsOverlap({ ...candidate, x: pos.x, y: pos.y }, o))
+  const hasCollision = (pos) => others.some((o) => rectsOverlap({ ...candidate, x: pos.x, y: pos.y }, o))
 
   if (!hasCollision(candidate)) return { x: candidate.x, y: candidate.y }
 
@@ -41,14 +35,14 @@ export function findLegalPosition(candidate, others, fallback = { x: 0, y: 0 }) 
   for (let radius = STEP; radius <= MAX_RADIUS; radius += STEP) {
     const diag = radius * 0.7071 // ≈ radius / √2
     const candidates = [
-      { x: candidate.x + radius, y: candidate.y },        // 右
-      { x: candidate.x - radius, y: candidate.y },        // 左
-      { x: candidate.x,          y: candidate.y + radius }, // 下
-      { x: candidate.x,          y: candidate.y - radius }, // 上
-      { x: candidate.x + diag,   y: candidate.y + diag },   // 右下
-      { x: candidate.x - diag,   y: candidate.y + diag },   // 左下
-      { x: candidate.x + diag,   y: candidate.y - diag },   // 右上
-      { x: candidate.x - diag,   y: candidate.y - diag },   // 左上
+      { x: candidate.x + radius, y: candidate.y }, // 右
+      { x: candidate.x - radius, y: candidate.y }, // 左
+      { x: candidate.x, y: candidate.y + radius }, // 下
+      { x: candidate.x, y: candidate.y - radius }, // 上
+      { x: candidate.x + diag, y: candidate.y + diag }, // 右下
+      { x: candidate.x - diag, y: candidate.y + diag }, // 左下
+      { x: candidate.x + diag, y: candidate.y - diag }, // 右上
+      { x: candidate.x - diag, y: candidate.y - diag }, // 左上
     ].map((p) => ({ x: Math.max(0, Math.round(p.x)), y: Math.max(0, Math.round(p.y)) }))
 
     for (const pos of candidates) {

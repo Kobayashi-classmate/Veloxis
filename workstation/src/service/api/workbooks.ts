@@ -40,9 +40,9 @@ function generateWorkbookSlug(name: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9\s-]/g, '') // 去除非 ASCII 字符
     .trim()
-    .replace(/\s+/g, '-')         // 空格转连字符
-    .replace(/-+/g, '-')          // 合并多连字符
-    .slice(0, 20)                 // 最长 20 字符
+    .replace(/\s+/g, '-') // 空格转连字符
+    .replace(/-+/g, '-') // 合并多连字符
+    .slice(0, 20) // 最长 20 字符
 
   return ascii ? `wb-${ts}-${ascii}` : `wb-${ts}`
 }
@@ -211,10 +211,7 @@ export async function createWorkbook(data: {
   return (res as any)?.data ?? res
 }
 
-export async function updateWorkbook(
-  id: string,
-  data: Partial<Pick<Workbook, 'name' | 'description'>>
-): Promise<void> {
+export async function updateWorkbook(id: string, data: Partial<Pick<Workbook, 'name' | 'description'>>): Promise<void> {
   await request.patch(`/items/workbooks/${id}`, data)
 }
 
@@ -330,10 +327,7 @@ export async function getCanvasWithSnapshot(canvasId: string): Promise<WbCanvas 
  * 将整张画布的图表快照保存到 wb_canvases.snapshot_json
  * 1 次 PATCH = 整张画布所有图表，取代逐条 wb_charts 操作
  */
-export async function saveCanvasSnapshot(
-  canvasId: string,
-  snapshots: ChartSnapshot[]
-): Promise<void> {
+export async function saveCanvasSnapshot(canvasId: string, snapshots: ChartSnapshot[]): Promise<void> {
   await request.patch(`/items/wb_canvases/${canvasId}`, {
     snapshot_json: JSON.stringify(snapshots),
     snapshot_at: new Date().toISOString(),
@@ -359,10 +353,7 @@ export async function createChart(data: Omit<WbChart, 'id'>): Promise<WbChart> {
   return (res as any)?.data ?? res
 }
 
-export async function updateChart(
-  id: string,
-  data: Partial<Omit<WbChart, 'id' | 'canvas_id'>>
-): Promise<void> {
+export async function updateChart(id: string, data: Partial<Omit<WbChart, 'id' | 'canvas_id'>>): Promise<void> {
   await request.patch(`/items/wb_charts/${id}`, data)
 }
 
@@ -392,10 +383,7 @@ export async function getDraft(canvasId: string): Promise<WbCanvasDraft | null> 
 /**
  * 创建或更新草稿（按 canvas_id 唯一，先查再 POST/PATCH）
  */
-export async function upsertDraft(
-  canvasId: string,
-  snapshots: ChartSnapshot[]
-): Promise<WbCanvasDraft> {
+export async function upsertDraft(canvasId: string, snapshots: ChartSnapshot[]): Promise<WbCanvasDraft> {
   const snapshotJson = JSON.stringify(snapshots)
   const existing = await getDraft(canvasId)
   if (existing) {

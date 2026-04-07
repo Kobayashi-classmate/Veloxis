@@ -78,7 +78,7 @@ export interface WorkerPluginInstallationRecord {
   plugin_id: string
   version: string
   type: string
-  scope_type: 'global' | 'tenant' | 'project'
+  scope_type: 'global' | 'organization' | 'project'
   scope_id?: string | null
   status: string
   granted_permissions?: string[]
@@ -112,7 +112,8 @@ export async function queryDatasetFromWorker(
   datasetId: string,
   payload: WorkerDatasetQueryPayload
 ): Promise<WorkerDatasetQueryResult> {
-  const { projectId: _deprecatedProjectId, ...queryPayload } = payload
+  const queryPayload = { ...payload } as Record<string, unknown>
+  delete queryPayload.projectId
   const res = await request.post(`/worker-api/datasets/${datasetId}/query`, queryPayload)
   return (res as any)?.data ?? res
 }
@@ -131,10 +132,7 @@ export async function getChartBindingDataFromWorker(chartId: string): Promise<an
   return (res as any)?.data ?? res
 }
 
-export async function enqueueSchemaRegeneration(
-  datasetId: string,
-  _deprecatedTableName?: string
-): Promise<any> {
+export async function enqueueSchemaRegeneration(datasetId: string, _deprecatedTableName?: string): Promise<any> {
   const res = await request.post('/worker-api/jobs/regenerate-schema', { datasetId })
   return (res as any)?.data ?? res
 }
@@ -180,7 +178,7 @@ export async function getPluginRegistryDetail(pluginId: string, version: string)
 export async function createPluginInstallation(payload: {
   pluginId: string
   version: string
-  scopeType: 'global' | 'tenant' | 'project'
+  scopeType: 'global' | 'organization' | 'project'
   scopeId?: string
   requestedPermissions?: string[]
   config?: Record<string, unknown>
@@ -222,10 +220,10 @@ export async function getPluginInstallations(params?: {
   version?: string
   type?: string
   status?: string
-  scopeType?: 'global' | 'tenant' | 'project'
+  scopeType?: 'global' | 'organization' | 'project'
   scopeId?: string
   includeManifest?: boolean
-  effectiveScopeType?: 'tenant' | 'project'
+  effectiveScopeType?: 'organization' | 'project'
   effectiveScopeId?: string
 }): Promise<WorkerPluginInstallationRecord[]> {
   const res = await request.get('/worker-api/plugins/installations', { params })

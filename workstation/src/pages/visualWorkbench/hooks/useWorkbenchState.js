@@ -1,8 +1,17 @@
 import { create } from 'zustand'
 import {
-  getCategories, createCategory, updateCategory, deleteCategory,
-  getCanvasGroups, createCanvasGroup, updateCanvasGroup, deleteCanvasGroup,
-  getCanvases, createCanvas, updateCanvas, deleteCanvas,
+  getCategories,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+  getCanvasGroups,
+  createCanvasGroup,
+  updateCanvasGroup,
+  deleteCanvasGroup,
+  getCanvases,
+  createCanvas,
+  updateCanvas,
+  deleteCanvas,
   getCanvasWithSnapshot,
 } from '@src/service/api/workbooks'
 import { findLegalPosition } from '../utils/collisionUtils'
@@ -53,10 +62,7 @@ export const CHART_DEFAULTS = {
       {
         type: 'scatter',
         symbolSize: 12,
-        data: Array.from({ length: 30 }, () => [
-          Math.round(Math.random() * 100),
-          Math.round(Math.random() * 200),
-        ]),
+        data: Array.from({ length: 30 }, () => [Math.round(Math.random() * 100), Math.round(Math.random() * 200)]),
       },
     ],
   },
@@ -77,18 +83,18 @@ export const CHART_DEFAULTS = {
 }
 
 export const CHART_META = [
-  { type: 'line',    label: '折线图', icon: '📈', group: '趋势' },
-  { type: 'bar',     label: '柱状图', icon: '📊', group: '对比' },
-  { type: 'pie',     label: '饼图',   icon: '🥧', group: '占比' },
-  { type: 'scatter', label: '散点图', icon: '✦',  group: '分布' },
-  { type: 'area',    label: '面积图', icon: '📉', group: '趋势' },
+  { type: 'line', label: '折线图', icon: '📈', group: '趋势' },
+  { type: 'bar', label: '柱状图', icon: '📊', group: '对比' },
+  { type: 'pie', label: '饼图', icon: '🥧', group: '占比' },
+  { type: 'scatter', label: '散点图', icon: '✦', group: '分布' },
+  { type: 'area', label: '面积图', icon: '📉', group: '趋势' },
 ]
 
 export const COLOR_THEMES = [
   { id: 'default', label: '默认', colors: ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de'] },
-  { id: 'warm',    label: '暖色', colors: ['#dd6b66', '#759aa0', '#e69d87', '#8dc1a9', '#ea7e53'] },
-  { id: 'cool',    label: '冷色', colors: ['#516b91', '#59c4e6', '#edafda', '#93b7e3', '#a5e7f0'] },
-  { id: 'mono',    label: '单色', colors: ['#1677ff', '#4096ff', '#69b1ff', '#91caff', '#bae0ff'] },
+  { id: 'warm', label: '暖色', colors: ['#dd6b66', '#759aa0', '#e69d87', '#8dc1a9', '#ea7e53'] },
+  { id: 'cool', label: '冷色', colors: ['#516b91', '#59c4e6', '#edafda', '#93b7e3', '#a5e7f0'] },
+  { id: 'mono', label: '单色', colors: ['#1677ff', '#4096ff', '#69b1ff', '#91caff', '#bae0ff'] },
 ]
 
 // ─── 纯函数工具 ───────────────────────────────────────────────────────────────
@@ -108,7 +114,7 @@ function normalizeSnapshot(snap) {
     y: snap.y ?? 40,
     w: snap.w ?? 380,
     h: snap.h ?? 260,
-    option: snap.option ?? (CHART_DEFAULTS[snap.type] ?? CHART_DEFAULTS.line),
+    option: snap.option ?? CHART_DEFAULTS[snap.type] ?? CHART_DEFAULTS.line,
     colorTheme: snap.colorTheme ?? 'default',
     showLegend: snap.showLegend ?? true,
     showLabel: snap.showLabel ?? false,
@@ -202,8 +208,8 @@ const useWorkbenchState = create((set, get) => ({
   isDirty: false,
 
   /** ── 画布视图 ── */
-  canvasGridMode: 'dots',   // 'dots' | 'lines' | 'none'
-  canvasZoom: 100,          // 50 | 75 | 100 | 125 | 150
+  canvasGridMode: 'dots', // 'dots' | 'lines' | 'none'
+  canvasZoom: 100, // 50 | 75 | 100 | 125 | 150
 
   /** ─────────────────────────── Bootstrap ──────────────────────────────── */
 
@@ -259,17 +265,23 @@ const useWorkbenchState = create((set, get) => ({
           })
         } catch {
           // 自动创建失败，保持空态让界面引导手动创建
-          set({ categories: [], activeCategoryId: null, canvases: [], activeCanvasId: null, groups: [], charts: [], bootstrapped: true, bootstrapping: false })
+          set({
+            categories: [],
+            activeCategoryId: null,
+            canvases: [],
+            activeCanvasId: null,
+            groups: [],
+            charts: [],
+            bootstrapped: true,
+            bootstrapping: false,
+          })
         }
         return
       }
 
       const firstCat = cats[0]
 
-      const [canvases, groups] = await Promise.all([
-        getCanvases(firstCat.id),
-        getCanvasGroups(firstCat.id),
-      ])
+      const [canvases, groups] = await Promise.all([getCanvases(firstCat.id), getCanvasGroups(firstCat.id)])
 
       const normalizedCats = cats.map((c) => ({
         id: c.id,
@@ -308,7 +320,9 @@ const useWorkbenchState = create((set, get) => ({
             order: 0,
           }
           normalizedCanvases.push(firstCanvas)
-        } catch { /* 自动创建失败时保持 null，让 SheetBar 引导手动创建 */ }
+        } catch {
+          /* 自动创建失败时保持 null，让 SheetBar 引导手动创建 */
+        }
       }
 
       // 从 snapshot_json 读取图表（一次请求，替代逐条读 wb_charts）
@@ -354,10 +368,7 @@ const useWorkbenchState = create((set, get) => ({
       return
     }
 
-    const [canvases, groups] = await Promise.all([
-      getCanvases(categoryId),
-      getCanvasGroups(categoryId),
-    ])
+    const [canvases, groups] = await Promise.all([getCanvases(categoryId), getCanvasGroups(categoryId)])
 
     const normalizedCanvases = canvases.map((cv) => ({
       id: cv.id,
@@ -386,7 +397,9 @@ const useWorkbenchState = create((set, get) => ({
           order: 0,
         }
         normalizedCanvases.push(firstCanvas)
-      } catch { /* 保持 null */ }
+      } catch {
+        /* 保持 null */
+      }
     }
 
     set((s) => ({
@@ -411,8 +424,7 @@ const useWorkbenchState = create((set, get) => ({
     if (loadedCanvasIds.has(canvasId)) return
 
     const canvasWithSnap = await getCanvasWithSnapshot(canvasId)
-    const charts = parseSnapshotJson(canvasWithSnap?.snapshot_json)
-      .map((ch) => ({ ...ch, canvasId }))
+    const charts = parseSnapshotJson(canvasWithSnap?.snapshot_json).map((ch) => ({ ...ch, canvasId }))
 
     set((s) => ({
       charts: [...s.charts.filter((c) => c.canvasId !== canvasId), ...charts],
@@ -429,8 +441,21 @@ const useWorkbenchState = create((set, get) => ({
     const raw = await createCategory({ workbook_id: workbookId, name, color, icon, order: categories.length })
     const dedupedName = deduplicateCanvasName('新画布', canvases, raw.id)
     const canvasRaw = await createCanvas({ category_id: raw.id, name: dedupedName, order: 0 })
-    const cat = { id: raw.id, workbook_id: raw.workbook_id, name: raw.name, color: raw.color ?? color, icon: raw.icon ?? icon, order: raw.order ?? categories.length }
-    const canvas = { id: canvasRaw.id, categoryId: canvasRaw.category_id, groupId: null, name: canvasRaw.name, order: 0 }
+    const cat = {
+      id: raw.id,
+      workbook_id: raw.workbook_id,
+      name: raw.name,
+      color: raw.color ?? color,
+      icon: raw.icon ?? icon,
+      order: raw.order ?? categories.length,
+    }
+    const canvas = {
+      id: canvasRaw.id,
+      categoryId: canvasRaw.category_id,
+      groupId: null,
+      name: canvasRaw.name,
+      order: 0,
+    }
     set((s) => ({
       categories: [...s.categories, cat],
       canvases: [...s.canvases, canvas],
@@ -467,10 +492,7 @@ const useWorkbenchState = create((set, get) => ({
         canvases: s.canvases.filter((cv) => cv.categoryId !== id),
         charts: s.charts.filter((ch) => !canvasIds.includes(ch.canvasId)),
         loadedCanvasIds: newLoadedIds,
-        activeCategoryId:
-          s.activeCategoryId === id
-            ? remaining[0]?.id ?? null
-            : s.activeCategoryId,
+        activeCategoryId: s.activeCategoryId === id ? (remaining[0]?.id ?? null) : s.activeCategoryId,
       }
     })
   },
@@ -482,9 +504,16 @@ const useWorkbenchState = create((set, get) => ({
   /** 分组 */
   addGroup: async (categoryId, name) => {
     const { groups, canvases } = get()
-    const topLevelCount = groups.filter((g) => g.categoryId === categoryId).length + canvases.filter((cv) => cv.categoryId === categoryId && !cv.groupId).length
+    const topLevelCount =
+      groups.filter((g) => g.categoryId === categoryId).length +
+      canvases.filter((cv) => cv.categoryId === categoryId && !cv.groupId).length
     const raw = await createCanvasGroup({ category_id: categoryId, name, order: topLevelCount })
-    const group = { id: raw.id, categoryId: raw.category_id ?? categoryId, name: raw.name, order: raw.order ?? topLevelCount }
+    const group = {
+      id: raw.id,
+      categoryId: raw.category_id ?? categoryId,
+      name: raw.name,
+      order: raw.order ?? topLevelCount,
+    }
     set((s) => ({ groups: [...s.groups, group] }))
     return group.id
   },
@@ -508,9 +537,22 @@ const useWorkbenchState = create((set, get) => ({
   addCanvas: async (categoryId, name = '新画布', groupId = null) => {
     const { canvases, groups } = get()
     const dedupedName = deduplicateCanvasName(name, canvases, categoryId)
-    const topLevelCount = canvases.filter((cv) => cv.categoryId === categoryId && !cv.groupId).length + groups.filter((g) => g.categoryId === categoryId).length
-    const raw = await createCanvas({ category_id: categoryId, name: dedupedName, group_id: groupId, order: topLevelCount })
-    const canvas = { id: raw.id, categoryId: raw.category_id ?? categoryId, groupId: raw.group_id ?? null, name: raw.name, order: raw.order ?? topLevelCount }
+    const topLevelCount =
+      canvases.filter((cv) => cv.categoryId === categoryId && !cv.groupId).length +
+      groups.filter((g) => g.categoryId === categoryId).length
+    const raw = await createCanvas({
+      category_id: categoryId,
+      name: dedupedName,
+      group_id: groupId,
+      order: topLevelCount,
+    })
+    const canvas = {
+      id: raw.id,
+      categoryId: raw.category_id ?? categoryId,
+      groupId: raw.group_id ?? null,
+      name: raw.name,
+      order: raw.order ?? topLevelCount,
+    }
     set((s) => ({
       canvases: [...s.canvases, canvas],
       activeCanvasId: canvas.id,
@@ -563,9 +605,7 @@ const useWorkbenchState = create((set, get) => ({
     const categoryGroupIds = groups.filter((g) => g.categoryId === categoryId).map((g) => g.id)
     const validOrder = orderedGroupIds.filter((id) => categoryGroupIds.includes(id))
 
-    const oldOrderMap = new Map(
-      groups.filter((g) => g.categoryId === categoryId).map((g) => [g.id, g.order ?? 0])
-    )
+    const oldOrderMap = new Map(groups.filter((g) => g.categoryId === categoryId).map((g) => [g.id, g.order ?? 0]))
     const updatedGroups = groups.map((g) => {
       const newIndex = validOrder.indexOf(g.id)
       return newIndex >= 0 ? { ...g, order: newIndex } : g
@@ -594,10 +634,9 @@ const useWorkbenchState = create((set, get) => ({
       return true
     })
 
-    const missing = [
-      ...categoryUngroupedCanvases.map((cv) => cv.id),
-      ...categoryGroups.map((g) => g.id),
-    ].filter((id) => !seen.has(id))
+    const missing = [...categoryUngroupedCanvases.map((cv) => cv.id), ...categoryGroups.map((g) => g.id)].filter(
+      (id) => !seen.has(id)
+    )
 
     const finalOrder = [...validOrder, ...missing]
     const nextOrderMap = new Map(finalOrder.map((id, index) => [id, index]))
@@ -648,8 +687,19 @@ const useWorkbenchState = create((set, get) => ({
     if (!canvas) return
     const baseName = canvas.name + ' (副本)'
     const dedupedName = deduplicateCanvasName(baseName, canvases, canvas.categoryId)
-    const raw = await createCanvas({ category_id: canvas.categoryId, name: dedupedName, group_id: canvas.groupId, order: canvases.length })
-    const newCanvas = { id: raw.id, categoryId: raw.category_id, groupId: raw.group_id ?? null, name: raw.name, order: raw.order ?? canvases.length }
+    const raw = await createCanvas({
+      category_id: canvas.categoryId,
+      name: dedupedName,
+      group_id: canvas.groupId,
+      order: canvases.length,
+    })
+    const newCanvas = {
+      id: raw.id,
+      categoryId: raw.category_id,
+      groupId: raw.group_id ?? null,
+      name: raw.name,
+      order: raw.order ?? canvases.length,
+    }
 
     // 克隆图表：只在内存中创建新 id，不调 API
     const chartsOnCanvas = charts.filter((ch) => ch.canvasId === id)
@@ -674,16 +724,13 @@ const useWorkbenchState = create((set, get) => ({
     await deleteCanvas(id)
     set((s) => {
       const remaining = s.canvases.filter((cv) => cv.id !== id)
-      const sameCategory = remaining.filter(
-        (cv) => cv.categoryId === s.canvases.find((c) => c.id === id)?.categoryId
-      )
+      const sameCategory = remaining.filter((cv) => cv.categoryId === s.canvases.find((c) => c.id === id)?.categoryId)
       const newLoadedIds = new Set([...s.loadedCanvasIds].filter((cid) => cid !== id))
       return {
         canvases: remaining,
         charts: s.charts.filter((ch) => ch.canvasId !== id),
         loadedCanvasIds: newLoadedIds,
-        activeCanvasId:
-          s.activeCanvasId === id ? (sameCategory[0]?.id ?? null) : s.activeCanvasId,
+        activeCanvasId: s.activeCanvasId === id ? (sameCategory[0]?.id ?? null) : s.activeCanvasId,
       }
     })
   },
@@ -749,11 +796,10 @@ const useWorkbenchState = create((set, get) => ({
       const others = charts
         .filter((ch) => ch.canvasId === chart.canvasId && ch.id !== id)
         .map((ch) => ({ x: ch.x, y: ch.y, w: ch.w, h: ch.h }))
-      const pos = findLegalPosition(
-        { x: preferX, y: preferY, w: chart.w, h: chart.h },
-        others,
-        { x: preferX, y: preferY }
-      )
+      const pos = findLegalPosition({ x: preferX, y: preferY, w: chart.w, h: chart.h }, others, {
+        x: preferX,
+        y: preferY,
+      })
       finalX = pos.x
       finalY = pos.y
     }
@@ -773,10 +819,7 @@ const useWorkbenchState = create((set, get) => ({
       charts: s.charts.filter((ch) => ch.id !== id),
       selectedChartId: s.selectedChartId === id ? null : s.selectedChartId,
       isDirty: true,
-      configPanel:
-        s.configPanel.chartId === id
-          ? { ...s.configPanel, visible: false, chartId: null }
-          : s.configPanel,
+      configPanel: s.configPanel.chartId === id ? { ...s.configPanel, visible: false, chartId: null } : s.configPanel,
     }))
   },
 
@@ -792,9 +835,7 @@ const useWorkbenchState = create((set, get) => ({
     const nw = Math.max(200, w)
     const nh = Math.max(160, h)
     set((s) => ({
-      charts: s.charts.map((ch) =>
-        ch.id === id ? { ...ch, w: nw, h: nh } : ch
-      ),
+      charts: s.charts.map((ch) => (ch.id === id ? { ...ch, w: nw, h: nh } : ch)),
       isDirty: true,
     }))
   },
@@ -804,9 +845,7 @@ const useWorkbenchState = create((set, get) => ({
     if (!chart) return
     const merged = { ...chart.option, ...optionPatch }
     set((s) => ({
-      charts: s.charts.map((ch) =>
-        ch.id === id ? { ...ch, option: merged } : ch
-      ),
+      charts: s.charts.map((ch) => (ch.id === id ? { ...ch, option: merged } : ch)),
       isDirty: true,
     }))
   },
@@ -824,10 +863,7 @@ const useWorkbenchState = create((set, get) => ({
    */
   setChartsForCanvas: (canvasId, chartSnapshots) => {
     set((s) => ({
-      charts: [
-        ...s.charts.filter((ch) => ch.canvasId !== canvasId),
-        ...chartSnapshots.map(normalizeSnapshot),
-      ],
+      charts: [...s.charts.filter((ch) => ch.canvasId !== canvasId), ...chartSnapshots.map(normalizeSnapshot)],
       isDirty: true,
     }))
   },
@@ -840,11 +876,9 @@ const useWorkbenchState = create((set, get) => ({
     set({ configPanel: { visible: true, chartId, x, y: Math.max(60, anchorY) } })
   },
 
-  closeConfigPanel: () =>
-    set((s) => ({ configPanel: { ...s.configPanel, visible: false, chartId: null } })),
+  closeConfigPanel: () => set((s) => ({ configPanel: { ...s.configPanel, visible: false, chartId: null } })),
 
-  moveConfigPanel: (x, y) =>
-    set((s) => ({ configPanel: { ...s.configPanel, x, y } })),
+  moveConfigPanel: (x, y) => set((s) => ({ configPanel: { ...s.configPanel, x, y } })),
 
   /** 选中图表 */
   selectChart: (id) => set({ selectedChartId: id }),
@@ -859,8 +893,7 @@ const useWorkbenchState = create((set, get) => ({
   setCanvasZoom: (zoom) => set({ canvasZoom: zoom }),
 
   /** 类别侧边栏 */
-  toggleCategorySidebar: () =>
-    set((s) => ({ categorySidebarOpen: !s.categorySidebarOpen })),
+  toggleCategorySidebar: () => set((s) => ({ categorySidebarOpen: !s.categorySidebarOpen })),
 
   closeCategorySidebar: () => set({ categorySidebarOpen: false }),
 

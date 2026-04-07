@@ -103,12 +103,20 @@
   border-radius: 50%;
   background: #f59e0b;
   flex-shrink: 0;
-  animation: pulseDot 1.4s ease-in-out infinite;
+  animation: pulse-dot 1.4s ease-in-out infinite;
 }
 
-@keyframes pulseDot {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50%       { opacity: 0.5; transform: scale(0.8); }
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.5;
+    transform: scale(0.8);
+  }
 }
 
 .saveStatusText {
@@ -163,4 +171,3 @@
   font-size: 12px !important;
   height: 30px !important;
 }
-

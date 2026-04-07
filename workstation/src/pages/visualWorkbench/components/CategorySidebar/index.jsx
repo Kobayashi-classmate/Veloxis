@@ -35,7 +35,10 @@ const CategoryRow = ({ category, isActive, onClick }) => {
       key: 'rename',
       label: '重命名',
       icon: <EditOutlined />,
-      onClick: () => { setNameVal(category.name); setEditingName(true) },
+      onClick: () => {
+        setNameVal(category.name)
+        setEditingName(true)
+      },
     },
     { type: 'divider' },
     {
@@ -57,10 +60,7 @@ const CategoryRow = ({ category, isActive, onClick }) => {
   ]
 
   return (
-    <div
-      className={`${styles.categoryRow} ${isActive ? styles.categoryRowActive : ''}`}
-      onClick={onClick}
-    >
+    <div className={`${styles.categoryRow} ${isActive ? styles.categoryRowActive : ''}`} onClick={onClick}>
       <span className={styles.categoryIcon}>{category.icon}</span>
       {editingName ? (
         <Input
@@ -75,7 +75,10 @@ const CategoryRow = ({ category, isActive, onClick }) => {
           suffix={
             <CheckOutlined
               style={{ color: '#1677ff', cursor: 'pointer' }}
-              onClick={(e) => { e.stopPropagation(); handleRename() }}
+              onClick={(e) => {
+                e.stopPropagation()
+                handleRename()
+              }}
             />
           }
         />
@@ -86,12 +89,7 @@ const CategoryRow = ({ category, isActive, onClick }) => {
       )}
       <div className={styles.categoryActions} onClick={(e) => e.stopPropagation()}>
         <Dropdown menu={{ items: menuItems }} trigger={['click']} placement="bottomRight">
-          <Button
-            type="text"
-            size="small"
-            icon={<MoreOutlined />}
-            className={styles.moreBtn}
-          />
+          <Button type="text" size="small" icon={<MoreOutlined />} className={styles.moreBtn} />
         </Dropdown>
       </div>
     </div>
@@ -106,7 +104,10 @@ const AddCategoryModal = ({ open, onClose }) => {
   const { addCategory } = useWorkbenchState()
 
   const handleOk = () => {
-    if (!name.trim()) { message.warning('请输入类别名称'); return }
+    if (!name.trim()) {
+      message.warning('请输入类别名称')
+      return
+    }
     addCategory(name.trim(), color, selectedIcon)
     setName('')
     setSelectedIcon('📁')
@@ -127,7 +128,9 @@ const AddCategoryModal = ({ open, onClose }) => {
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 16 }}>
         <div>
-          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>类别名称</Text>
+          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>
+            类别名称
+          </Text>
           <Input
             placeholder="如：财务工作台、绩效考核..."
             value={name}
@@ -138,16 +141,24 @@ const AddCategoryModal = ({ open, onClose }) => {
           />
         </div>
         <div>
-          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>图标</Text>
+          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
+            图标
+          </Text>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {CATEGORY_ICONS.map((icon) => (
               <div
                 key={icon}
                 onClick={() => setSelectedIcon(icon)}
                 style={{
-                  width: 36, height: 36, borderRadius: 8, display: 'flex',
-                  alignItems: 'center', justifyContent: 'center', fontSize: 20,
-                  cursor: 'pointer', border: `2px solid ${selectedIcon === icon ? '#1677ff' : '#e2e8f0'}`,
+                  width: 36,
+                  height: 36,
+                  borderRadius: 8,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 20,
+                  cursor: 'pointer',
+                  border: `2px solid ${selectedIcon === icon ? '#1677ff' : '#e2e8f0'}`,
                   background: selectedIcon === icon ? '#eff6ff' : '#fafafa',
                 }}
               >
@@ -157,13 +168,10 @@ const AddCategoryModal = ({ open, onClose }) => {
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>主题色</Text>
-          <ColorPicker
-            value={color}
-            onChange={(c) => setColor(c.toHexString())}
-            size="small"
-            showText
-          />
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            主题色
+          </Text>
+          <ColorPicker value={color} onChange={(c) => setColor(c.toHexString())} size="small" showText />
         </div>
       </div>
     </Modal>
@@ -179,9 +187,7 @@ const CategorySidebar = () => {
   return (
     <>
       {/* 遮罩层（点击关闭）*/}
-      {categorySidebarOpen && (
-        <div className={styles.overlay} onClick={closeCategorySidebar} />
-      )}
+      {categorySidebarOpen && <div className={styles.overlay} onClick={closeCategorySidebar} />}
 
       {/* 侧边栏 */}
       <div className={`${styles.sidebar} ${categorySidebarOpen ? styles.sidebarOpen : ''}`}>
@@ -206,7 +212,9 @@ const CategorySidebar = () => {
           {categories.length === 0 ? (
             <div className={styles.emptyHint}>
               <Text type="secondary" style={{ fontSize: 12, display: 'block', textAlign: 'center', lineHeight: 1.7 }}>
-                暂无类别<br />点击下方按钮新建第一个类别
+                暂无类别
+                <br />
+                点击下方按钮新建第一个类别
               </Text>
             </div>
           ) : (
@@ -215,7 +223,10 @@ const CategorySidebar = () => {
                 key={cat.id}
                 category={cat}
                 isActive={cat.id === activeCategoryId}
-                onClick={() => { setActiveCategory(cat.id); closeCategorySidebar() }}
+                onClick={() => {
+                  setActiveCategory(cat.id)
+                  closeCategorySidebar()
+                }}
               />
             ))
           )}
@@ -227,12 +238,14 @@ const CategorySidebar = () => {
             block
             icon={<PlusOutlined />}
             className={styles.addBtn}
-            onClick={(e) => { e.stopPropagation(); setAddModalOpen(true) }}
+            onClick={(e) => {
+              e.stopPropagation()
+              setAddModalOpen(true)
+            }}
           >
             新建类别
           </Button>
         </div>
-
       </div>
 
       {/* 新建类别弹窗 */}

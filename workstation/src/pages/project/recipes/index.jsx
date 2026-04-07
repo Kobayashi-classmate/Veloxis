@@ -1,12 +1,28 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import {
-  Typography, Table, Button, Tag, Space, Modal, Form,
-  Input, Select, Tooltip, Empty, message, Drawer, Divider,
+  Typography,
+  Table,
+  Button,
+  Tag,
+  Space,
+  Modal,
+  Form,
+  Input,
+  Select,
+  Tooltip,
+  Empty,
+  message,
+  Drawer,
+  Divider,
 } from 'antd'
 import {
-  PlusOutlined, EditOutlined, DeleteOutlined,
-  ThunderboltOutlined, EyeOutlined, DatabaseOutlined,
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  ThunderboltOutlined,
+  EyeOutlined,
+  DatabaseOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
@@ -24,16 +40,20 @@ const { Option } = Select
 /** ─── 操作类型标签 ─────────────────────────────────────────────────────────── */
 
 const OP_LABELS = {
-  rename:    { label: '重命名', color: 'blue' },
-  filter:    { label: '过滤',   color: 'orange' },
-  uppercase: { label: '大写',   color: 'purple' },
-  lowercase: { label: '小写',   color: 'geekblue' },
+  rename: { label: '重命名', color: 'blue' },
+  filter: { label: '过滤', color: 'orange' },
+  uppercase: { label: '大写', color: 'purple' },
+  lowercase: { label: '小写', color: 'geekblue' },
 }
 
 /** ─── 配方操作步骤预览 ──────────────────────────────────────────────────────── */
 const RecipeOpsPreview = ({ config }) => {
   if (!Array.isArray(config) || config.length === 0) {
-    return <Text type="secondary" style={{ fontSize: 12 }}>暂无操作步骤</Text>
+    return (
+      <Text type="secondary" style={{ fontSize: 12 }}>
+        暂无操作步骤
+      </Text>
+    )
   }
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -110,20 +130,12 @@ const RecipeFormModal = ({ open, editingRecipe, datasets, projectId, onClose, on
       destroyOnHide
     >
       <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
-        <Form.Item
-          name="name"
-          label="配方名称"
-          rules={[{ required: true, message: '请输入配方名称' }]}
-        >
+        <Form.Item name="name" label="配方名称" rules={[{ required: true, message: '请输入配方名称' }]}>
           <Input placeholder="如：销售数据清洗规则" maxLength={60} />
         </Form.Item>
 
         {!editingRecipe && (
-          <Form.Item
-            name="dataset_id"
-            label="关联数据源"
-            rules={[{ required: true, message: '请选择数据源' }]}
-          >
+          <Form.Item name="dataset_id" label="关联数据源" rules={[{ required: true, message: '请选择数据源' }]}>
             <Select placeholder="选择该配方所作用的数据源" showSearch optionFilterProp="children">
               {datasets.map((ds) => (
                 <Option key={ds.id} value={ds.id}>
@@ -136,11 +148,7 @@ const RecipeFormModal = ({ open, editingRecipe, datasets, projectId, onClose, on
         )}
 
         <Form.Item name="description" label="描述（可选）">
-          <Input.TextArea
-            placeholder="简要描述该配方的用途与处理逻辑..."
-            rows={3}
-            maxLength={200}
-          />
+          <Input.TextArea placeholder="简要描述该配方的用途与处理逻辑..." rows={3} maxLength={200} />
         </Form.Item>
       </Form>
     </Modal>
@@ -153,15 +161,12 @@ const RecipeDetailDrawer = ({ open, recipe, onClose }) => {
   const config = Array.isArray(recipe.config) ? recipe.config : []
 
   return (
-    <Drawer
-      title={`配方详情 — ${recipe.name}`}
-      open={open}
-      onClose={onClose}
-      width={520}
-    >
+    <Drawer title={`配方详情 — ${recipe.name}`} open={open} onClose={onClose} width={520}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
         <div>
-          <Text type="secondary" style={{ fontSize: 12 }}>关联数据源</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            关联数据源
+          </Text>
           <div style={{ marginTop: 4 }}>
             <Tag color="blue">{recipe.dataset_name ?? recipe.dataset_id}</Tag>
           </div>
@@ -169,13 +174,17 @@ const RecipeDetailDrawer = ({ open, recipe, onClose }) => {
 
         {recipe.description && (
           <div>
-            <Text type="secondary" style={{ fontSize: 12 }}>描述</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              描述
+            </Text>
             <div style={{ marginTop: 4, fontSize: 13 }}>{recipe.description}</div>
           </div>
         )}
 
         <div>
-          <Text type="secondary" style={{ fontSize: 12 }}>创建时间</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            创建时间
+          </Text>
           <div style={{ marginTop: 4, fontSize: 13 }}>
             {recipe.date_created ? dayjs(recipe.date_created).format('YYYY-MM-DD HH:mm:ss') : '—'}
           </div>
@@ -190,7 +199,9 @@ const RecipeDetailDrawer = ({ open, recipe, onClose }) => {
           </Text>
           <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
             {config.length === 0 && (
-              <Text type="secondary" style={{ fontSize: 12 }}>暂无操作步骤</Text>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                暂无操作步骤
+              </Text>
             )}
             {config.map((op, idx) => {
               const meta = OP_LABELS[op.type] ?? { label: op.type, color: 'default' }
@@ -210,7 +221,9 @@ const RecipeDetailDrawer = ({ open, recipe, onClose }) => {
                   <Text type="secondary" style={{ fontSize: 11, width: 24, flexShrink: 0 }}>
                     {idx + 1}.
                   </Text>
-                  <Tag color={meta.color} style={{ margin: 0, flexShrink: 0 }}>{meta.label}</Tag>
+                  <Tag color={meta.color} style={{ margin: 0, flexShrink: 0 }}>
+                    {meta.label}
+                  </Tag>
                   <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{op.from}</Text>
                   {op.to && op.to !== op.from && (
                     <>
@@ -219,7 +232,9 @@ const RecipeDetailDrawer = ({ open, recipe, onClose }) => {
                     </>
                   )}
                   {op.label && (
-                    <Text type="secondary" style={{ fontSize: 11 }}>（展示: {op.label}）</Text>
+                    <Text type="secondary" style={{ fontSize: 11 }}>
+                      （展示: {op.label}）
+                    </Text>
                   )}
                 </div>
               )
@@ -239,7 +254,9 @@ const Recipes = () => {
   const [projectId, setProjectId] = useState(null)
   useEffect(() => {
     if (!slug) return
-    getProjectBySlug(slug).then((p) => { if (p?.id) setProjectId(p.id) })
+    getProjectBySlug(slug).then((p) => {
+      if (p?.id) setProjectId(p.id)
+    })
   }, [slug])
   const [recipes, setRecipes] = useState([])
   const [datasets, setDatasets] = useState([])
@@ -248,29 +265,31 @@ const Recipes = () => {
   const [editingRecipe, setEditingRecipe] = useState(null)
   const [detailDrawer, setDetailDrawer] = useState({ open: false, recipe: null })
 
-  const fetchData = useCallback(async (silent = false) => {
-    if (!projectId) return
-    if (!silent) setLoading(true)
-    try {
-      const [rList, dList] = await Promise.all([
-        getRecipesByProject(projectId),
-        getDatasets(projectId),
-      ])
-      const dsMap = Object.fromEntries((dList ?? []).map((d) => [d.id, d.name]))
-      const enriched = (rList ?? []).map((r) => ({
-        ...r,
-        dataset_name: dsMap[r.dataset_id] ?? r.dataset_id,
-      }))
-      setRecipes(enriched)
-      setDatasets(dList ?? [])
-    } catch {
-      if (!silent) message.error('获取配方列表失败')
-    } finally {
-      if (!silent) setLoading(false)
-    }
-  }, [projectId])
+  const fetchData = useCallback(
+    async (silent = false) => {
+      if (!projectId) return
+      if (!silent) setLoading(true)
+      try {
+        const [rList, dList] = await Promise.all([getRecipesByProject(projectId), getDatasets(projectId)])
+        const dsMap = Object.fromEntries((dList ?? []).map((d) => [d.id, d.name]))
+        const enriched = (rList ?? []).map((r) => ({
+          ...r,
+          dataset_name: dsMap[r.dataset_id] ?? r.dataset_id,
+        }))
+        setRecipes(enriched)
+        setDatasets(dList ?? [])
+      } catch {
+        if (!silent) message.error('获取配方列表失败')
+      } finally {
+        if (!silent) setLoading(false)
+      }
+    },
+    [projectId]
+  )
 
-  useEffect(() => { fetchData() }, [fetchData])
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
 
   const handleDelete = (record) => {
     Modal.confirm({
@@ -301,7 +320,9 @@ const Recipes = () => {
           <ThunderboltOutlined style={{ color: '#1677ff' }} />
           <Text strong>{name}</Text>
           {record.description && (
-            <Text type="secondary" style={{ fontSize: 12 }}>— {record.description}</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              — {record.description}
+            </Text>
           )}
         </Space>
       ),
@@ -323,7 +344,7 @@ const Recipes = () => {
       dataIndex: 'date_created',
       key: 'date_created',
       width: 180,
-      render: (val) => val ? dayjs(val).format('YYYY-MM-DD HH:mm:ss') : '—',
+      render: (val) => (val ? dayjs(val).format('YYYY-MM-DD HH:mm:ss') : '—'),
     },
     {
       title: '操作',
@@ -346,19 +367,16 @@ const Recipes = () => {
               type="link"
               size="small"
               icon={<EditOutlined />}
-              onClick={() => { setEditingRecipe(record); setFormOpen(true) }}
+              onClick={() => {
+                setEditingRecipe(record)
+                setFormOpen(true)
+              }}
             >
               编辑
             </Button>
           </Tooltip>
           <Tooltip title="删除配方">
-            <Button
-              type="link"
-              size="small"
-              danger
-              icon={<DeleteOutlined />}
-              onClick={() => handleDelete(record)}
-            />
+            <Button type="link" size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(record)} />
           </Tooltip>
         </Space>
       ),
@@ -370,7 +388,9 @@ const Recipes = () => {
       {/** 页头 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
-          <Title level={4} style={{ margin: 0 }}>ETL 配方管理</Title>
+          <Title level={4} style={{ margin: 0 }}>
+            ETL 配方管理
+          </Title>
           <Text type="secondary" style={{ fontSize: 13 }}>
             配置数据处理规则，定义字段映射、过滤、转换等操作，持续应用于数据更新流程
           </Text>
@@ -378,7 +398,10 @@ const Recipes = () => {
         <Button
           type="primary"
           icon={<PlusOutlined />}
-          onClick={() => { setEditingRecipe(null); setFormOpen(true) }}
+          onClick={() => {
+            setEditingRecipe(null)
+            setFormOpen(true)
+          }}
         >
           新建配方
         </Button>
@@ -394,7 +417,10 @@ const Recipes = () => {
           <Button
             type="primary"
             icon={<PlusOutlined />}
-            onClick={() => { setEditingRecipe(null); setFormOpen(true) }}
+            onClick={() => {
+              setEditingRecipe(null)
+              setFormOpen(true)
+            }}
           >
             新建第一个配方
           </Button>

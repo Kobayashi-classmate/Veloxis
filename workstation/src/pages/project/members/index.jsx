@@ -1,12 +1,27 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import {
-  Typography, Table, Button, Tag, Space, Modal, Select,
-  Avatar, Tooltip, Empty, message, AutoComplete, Input,
+  Typography,
+  Table,
+  Button,
+  Tag,
+  Space,
+  Modal,
+  Select,
+  Avatar,
+  Tooltip,
+  Empty,
+  message,
+  AutoComplete,
+  Input,
 } from 'antd'
 import {
-  PlusOutlined, DeleteOutlined, UserOutlined,
-  CrownOutlined, TeamOutlined, EditOutlined,
+  PlusOutlined,
+  DeleteOutlined,
+  UserOutlined,
+  CrownOutlined,
+  TeamOutlined,
+  EditOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
@@ -23,10 +38,10 @@ const { Title, Text } = Typography
 const { Option } = Select
 
 const ROLE_CONFIG = {
-  Owner:      { color: 'gold',    icon: <CrownOutlined />,   label: '所有者' },
-  'Data Admin': { color: 'purple', icon: <TeamOutlined />,    label: '数据管理员' },
-  Analyst:    { color: 'blue',   icon: <UserOutlined />,     label: '分析师' },
-  Viewer:     { color: 'default', icon: <UserOutlined />,    label: '观察者' },
+  Owner: { color: 'gold', icon: <CrownOutlined />, label: '所有者' },
+  'Data Admin': { color: 'purple', icon: <TeamOutlined />, label: '数据管理员' },
+  Analyst: { color: 'blue', icon: <UserOutlined />, label: '分析师' },
+  Viewer: { color: 'default', icon: <UserOutlined />, label: '观察者' },
 }
 
 const ROLE_OPTIONS = ['Owner', 'Data Admin', 'Analyst', 'Viewer']
@@ -40,7 +55,10 @@ const AddMemberModal = ({ open, onClose, onAdded, projectId }) => {
   const [adding, setAdding] = useState(false)
 
   const handleSearch = useCallback(async (query) => {
-    if (!query || query.length < 2) { setUserOptions([]); return }
+    if (!query || query.length < 2) {
+      setUserOptions([])
+      return
+    }
     try {
       const users = await getUsers(query)
       setUserOptions(
@@ -53,8 +71,12 @@ const AddMemberModal = ({ open, onClose, onAdded, projectId }) => {
                 icon={<UserOutlined />}
                 src={u.avatar ? `${window.__APP_CONFIG__?.APP_BASE_URL}/assets/${u.avatar}` : undefined}
               />
-              <span>{u.first_name} {u.last_name}</span>
-              <Text type="secondary" style={{ fontSize: 12 }}>{u.email}</Text>
+              <span>
+                {u.first_name} {u.last_name}
+              </span>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {u.email}
+              </Text>
             </Space>
           ),
           raw: u,
@@ -71,7 +93,10 @@ const AddMemberModal = ({ open, onClose, onAdded, projectId }) => {
   }
 
   const handleOk = async () => {
-    if (!selectedUser) { message.warning('请先搜索并选择一位用户'); return }
+    if (!selectedUser) {
+      message.warning('请先搜索并选择一位用户')
+      return
+    }
     setAdding(true)
     try {
       await addProjectMember(projectId, selectedUser.id, role)
@@ -118,13 +143,18 @@ const AddMemberModal = ({ open, onClose, onAdded, projectId }) => {
             style={{ width: '100%' }}
             options={userOptions}
             value={searchValue}
-            onSearch={(v) => { setSearchValue(v); handleSearch(v) }}
+            onSearch={(v) => {
+              setSearchValue(v)
+              handleSearch(v)
+            }}
             onSelect={handleSelect}
             placeholder="输入至少 2 个字符进行搜索..."
             notFoundContent={
-              searchValue.length >= 2
-                ? <Text type="secondary" style={{ fontSize: 12 }}>未找到匹配用户</Text>
-                : null
+              searchValue.length >= 2 ? (
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  未找到匹配用户
+                </Text>
+              ) : null
             }
           >
             <Input prefix={<UserOutlined style={{ color: '#94a3b8' }} />} />
@@ -159,7 +189,9 @@ const Members = () => {
   const [projectId, setProjectId] = useState(null)
   useEffect(() => {
     if (!slug) return
-    getProjectBySlug(slug).then((p) => { if (p?.id) setProjectId(p.id) })
+    getProjectBySlug(slug).then((p) => {
+      if (p?.id) setProjectId(p.id)
+    })
   }, [slug])
   const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(false)
@@ -168,26 +200,31 @@ const Members = () => {
 
   const currentUserId = authService.getState().user?.id
 
-  const fetchMembers = useCallback(async (silent = false) => {
-    if (!projectId) return
-    if (!silent) setLoading(true)
-    try {
-      const data = await getProjectMembers(projectId)
-      setMembers(data ?? [])
-    } catch {
-      if (!silent) message.error('获取成员列表失败')
-    } finally {
-      if (!silent) setLoading(false)
-    }
-  }, [projectId])
+  const fetchMembers = useCallback(
+    async (silent = false) => {
+      if (!projectId) return
+      if (!silent) setLoading(true)
+      try {
+        const data = await getProjectMembers(projectId)
+        setMembers(data ?? [])
+      } catch {
+        if (!silent) message.error('获取成员列表失败')
+      } finally {
+        if (!silent) setLoading(false)
+      }
+    },
+    [projectId]
+  )
 
-  useEffect(() => { fetchMembers() }, [fetchMembers])
+  useEffect(() => {
+    fetchMembers()
+  }, [fetchMembers])
 
   const handleRoleChange = async (memberId, role) => {
     setEditingRole((prev) => ({ ...prev, [memberId]: true }))
     try {
       await updateProjectMemberRole(memberId, role)
-      setMembers((prev) => prev.map((m) => m.id === memberId ? { ...m, role } : m))
+      setMembers((prev) => prev.map((m) => (m.id === memberId ? { ...m, role } : m)))
       message.success('角色已更新')
     } catch {
       message.error('更新角色失败')
@@ -198,9 +235,8 @@ const Members = () => {
 
   const handleRemove = (member) => {
     const user = member.directus_users_id
-    const displayName = typeof user === 'object'
-      ? `${user.first_name ?? ''} ${user.last_name ?? ''}`.trim() || user.email
-      : user
+    const displayName =
+      typeof user === 'object' ? `${user.first_name ?? ''} ${user.last_name ?? ''}`.trim() || user.email : user
     Modal.confirm({
       title: `确认移除「${displayName}」？`,
       content: '移除后该成员将无法访问此项目。',
@@ -226,34 +262,27 @@ const Members = () => {
       render: (_, record) => {
         const user = typeof record.directus_users_id === 'object' ? record.directus_users_id : null
         const fullName = user
-          ? (`${user.first_name ?? ''} ${user.last_name ?? ''}`.trim() || '未命名')
+          ? `${user.first_name ?? ''} ${user.last_name ?? ''}`.trim() || '未命名'
           : (record.directus_users_id ?? '—')
         const email = user?.email ?? ''
-        const avatarSrc = user?.avatar
-          ? `${window.__APP_CONFIG__?.APP_BASE_URL}/assets/${user.avatar}`
-          : undefined
+        const avatarSrc = user?.avatar ? `${window.__APP_CONFIG__?.APP_BASE_URL}/assets/${user.avatar}` : undefined
 
         return (
           <Space size={10}>
-            <Avatar
-              icon={<UserOutlined />}
-              src={avatarSrc}
-              style={{ background: '#e0e7ff', color: '#1677ff' }}
-            />
+            <Avatar icon={<UserOutlined />} src={avatarSrc} style={{ background: '#e0e7ff', color: '#1677ff' }} />
             <div>
               <div style={{ fontWeight: 600, fontSize: 14, color: '#1e293b' }}>
                 {fullName}
                 {user?.id === currentUserId && (
-                  <Tag
-                    style={{ marginLeft: 8, fontSize: 10, padding: '0 4px' }}
-                    color="blue"
-                  >
+                  <Tag style={{ marginLeft: 8, fontSize: 10, padding: '0 4px' }} color="blue">
                     我
                   </Tag>
                 )}
               </div>
               {email && (
-                <Text type="secondary" style={{ fontSize: 12 }}>{email}</Text>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  {email}
+                </Text>
               )}
             </div>
           </Space>
@@ -268,12 +297,15 @@ const Members = () => {
       render: (role, record) => {
         const cfg = ROLE_CONFIG[role] ?? { color: 'default', label: role }
         const isOwner = role === 'Owner'
-        const isSelf = typeof record.directus_users_id === 'object'
-          ? record.directus_users_id?.id === currentUserId
-          : false
+        const isSelf =
+          typeof record.directus_users_id === 'object' ? record.directus_users_id?.id === currentUserId : false
 
         if (isOwner || isSelf) {
-          return <Tag color={cfg.color} icon={cfg.icon}>{cfg.label ?? role}</Tag>
+          return (
+            <Tag color={cfg.color} icon={cfg.icon}>
+              {cfg.label ?? role}
+            </Tag>
+          )
         }
 
         return (
@@ -310,9 +342,7 @@ const Members = () => {
         if (!updatedText) return <span>{joinText}</span>
         return (
           <Tooltip title={updatedText}>
-            <span style={{ cursor: 'default', borderBottom: '1px dashed #d1d5db' }}>
-              {joinText}
-            </span>
+            <span style={{ cursor: 'default', borderBottom: '1px dashed #d1d5db' }}>{joinText}</span>
           </Tooltip>
         )
       },
@@ -323,9 +353,8 @@ const Members = () => {
       width: 100,
       render: (_, record) => {
         const isOwner = record.role === 'Owner'
-        const isSelf = typeof record.directus_users_id === 'object'
-          ? record.directus_users_id?.id === currentUserId
-          : false
+        const isSelf =
+          typeof record.directus_users_id === 'object' ? record.directus_users_id?.id === currentUserId : false
 
         if (isOwner || isSelf) {
           return (
@@ -337,13 +366,7 @@ const Members = () => {
 
         return (
           <Tooltip title="移除成员">
-            <Button
-              type="link"
-              size="small"
-              danger
-              icon={<DeleteOutlined />}
-              onClick={() => handleRemove(record)}
-            />
+            <Button type="link" size="small" danger icon={<DeleteOutlined />} onClick={() => handleRemove(record)} />
           </Tooltip>
         )
       },
@@ -355,16 +378,14 @@ const Members = () => {
       {/** 页头 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
-          <Title level={4} style={{ margin: 0 }}>成员管理</Title>
+          <Title level={4} style={{ margin: 0 }}>
+            成员管理
+          </Title>
           <Text type="secondary" style={{ fontSize: 13 }}>
             管理项目成员与角色权限。Owner 拥有全部权限；Analyst 可读写数据；Viewer 仅查看
           </Text>
         </div>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => setAddModalOpen(true)}
-        >
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddModalOpen(true)}>
           添加成员
         </Button>
       </div>
@@ -376,11 +397,7 @@ const Members = () => {
           description="暂无成员，点击「添加成员」邀请协作者"
           style={{ marginTop: 80 }}
         >
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => setAddModalOpen(true)}
-          >
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddModalOpen(true)}>
             添加第一个成员
           </Button>
         </Empty>

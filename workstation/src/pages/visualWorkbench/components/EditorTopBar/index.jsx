@@ -42,10 +42,7 @@ const EditorTopBar = () => {
   const { slug, workbookSlug } = useParams()
   const [workbookName, setWorkbookName] = useState('分析工作台')
 
-  const {
-    categories, activeCategoryId, categorySidebarOpen, toggleCategorySidebar,
-    isDirty,
-  } = useWorkbenchState()
+  const { categories, activeCategoryId, categorySidebarOpen, toggleCategorySidebar, isDirty } = useWorkbenchState()
 
   const { save, saving } = useFormalSave()
 
@@ -60,16 +57,18 @@ const EditorTopBar = () => {
         try {
           const project = await getProjectBySlug(slug)
           projectId = project?.id
-        } catch { /* 降级 */ }
+        } catch {
+          /* 降级 */
+        }
       }
       // 优先用 slug 查；若 workbookSlug 不含 'wb-' 前缀则当 UUID 直接用 getWorkbook
-      const wb = workbookSlug.startsWith('wb-')
-        ? await getWorkbookBySlug(workbookSlug, projectId)
-        : null
+      const wb = workbookSlug.startsWith('wb-') ? await getWorkbookBySlug(workbookSlug, projectId) : null
       if (!cancelled && wb?.name) setWorkbookName(wb.name)
     }
     load()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [workbookSlug, slug])
 
   const handleBack = () => {
@@ -93,12 +92,7 @@ const EditorTopBar = () => {
       {/* 左侧：返回 + 面包屑 */}
       <div className={styles.leftSection}>
         <Tooltip title="返回工作台列表">
-          <Button
-            type="text"
-            icon={<ArrowLeftOutlined />}
-            className={styles.backBtn}
-            onClick={handleBack}
-          />
+          <Button type="text" icon={<ArrowLeftOutlined />} className={styles.backBtn} onClick={handleBack} />
         </Tooltip>
 
         <Divider type="vertical" className={styles.divider} />
@@ -156,22 +150,12 @@ const EditorTopBar = () => {
             </Button>
           </Tooltip>
           <Tooltip title="导出（开发中）">
-            <Button
-              type="text"
-              size="small"
-              icon={<ExportOutlined />}
-              className={styles.actionBtn}
-            >
+            <Button type="text" size="small" icon={<ExportOutlined />} className={styles.actionBtn}>
               导出
             </Button>
           </Tooltip>
           <Tooltip title="分享（开发中）">
-            <Button
-              size="small"
-              type="primary"
-              icon={<ShareAltOutlined />}
-              className={styles.shareBtn}
-            >
+            <Button size="small" type="primary" icon={<ShareAltOutlined />} className={styles.shareBtn}>
               分享
             </Button>
           </Tooltip>

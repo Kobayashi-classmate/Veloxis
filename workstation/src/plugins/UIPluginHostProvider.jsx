@@ -1,11 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { getPluginInstallations } from '@src/service/api/worker'
 import { getOfficialVisualizationAdapters } from './official/helloChartAdapter'
-import {
-  registerVisualizationAction,
-  registerVisualizationRenderer,
-  resetSlotRegistry,
-} from './slotRegistry'
+import { registerVisualizationAction, registerVisualizationRenderer, resetSlotRegistry } from './slotRegistry'
 
 const UIPluginHostContext = createContext({
   loading: false,
@@ -89,7 +85,7 @@ export const UIPluginHostProvider = ({ projectId, children }) => {
       registryVersion,
       refresh,
     }),
-    [loading, error, installations, registryVersion, refresh],
+    [loading, error, installations, registryVersion, refresh]
   )
 
   return <UIPluginHostContext.Provider value={value}>{children}</UIPluginHostContext.Provider>

@@ -26,8 +26,13 @@ const VisualWorkbench = () => {
   const [resolvedProjectId, setResolvedProjectId] = useState(null)
 
   const {
-    bootstrap, bootstrapping, bootstrapped,
-    selectedChartId, removeChart, closeConfigPanel, deselectChart,
+    bootstrap,
+    bootstrapping,
+    bootstrapped,
+    selectedChartId,
+    removeChart,
+    closeConfigPanel,
+    deselectChart,
     resetWorkbench,
   } = useWorkbenchState()
 
@@ -49,7 +54,9 @@ const VisualWorkbench = () => {
             const project = await getProjectBySlug(projectSlug)
             projectId = project?.id
             setResolvedProjectId(project?.id ?? null)
-          } catch { /* 降级：不过滤 project_id */ }
+          } catch {
+            /* 降级：不过滤 project_id */
+          }
         } else {
           setResolvedProjectId(null)
         }
@@ -68,7 +75,9 @@ const VisualWorkbench = () => {
     }
 
     load()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [workbookSlug, projectSlug, resetWorkbench, bootstrap])
 
   /** 全局键盘快捷键 */
@@ -113,10 +122,7 @@ const VisualWorkbench = () => {
 
   return (
     <UIPluginHostProvider projectId={resolvedProjectId}>
-      <div
-        className={styles.editor}
-        onClick={() => deselectChart()}
-      >
+      <div className={styles.editor} onClick={() => deselectChart()}>
         {/** 顶部工具条 */}
         <EditorTopBar />
 

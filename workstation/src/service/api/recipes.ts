@@ -75,7 +75,12 @@ export async function createProjectRecipe(data: {
  */
 export async function updateProjectRecipe(
   id: string,
-  data: Partial<Pick<ProjectRecipe, 'name' | 'description' | 'config' | 'header_row_count' | 'storage_row_index' | 'label_row_index'>>
+  data: Partial<
+    Pick<
+      ProjectRecipe,
+      'name' | 'description' | 'config' | 'header_row_count' | 'storage_row_index' | 'label_row_index'
+    >
+  >
 ): Promise<void> {
   await request.patch(`/items/recipes/${id}`, data)
 }

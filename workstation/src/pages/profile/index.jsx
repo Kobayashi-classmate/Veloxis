@@ -1,18 +1,5 @@
 import React from 'react'
-import {
-  Avatar,
-  Button,
-  Card,
-  Col,
-  Form,
-  Input,
-  Row,
-  Space,
-  Tag,
-  Typography,
-  message,
-  theme,
-} from 'antd'
+import { Avatar, Button, Card, Col, Form, Input, Row, Space, Tag, Typography, message, theme } from 'antd'
 import { ReloadOutlined, SaveOutlined, UndoOutlined, UserOutlined } from '@ant-design/icons'
 import FixTabPanel from '@stateless/FixTabPanel'
 import { useTranslation } from 'react-i18next'
@@ -26,7 +13,7 @@ const toFormValues = (profile) => ({
   first_name: profile?.first_name ?? '',
   last_name: profile?.last_name ?? '',
   email: profile?.email ?? '',
-  tenant: profile?.tenant ?? '',
+  organization: profile?.organization ?? '',
 })
 
 const toDisplayName = ({ first_name, last_name, email, login }) => {
@@ -146,7 +133,7 @@ const Profile = () => {
         email: saved.email,
         login: saved.email || fallbackLogin,
         avatar_url: saved.avatar,
-        tenant: saved.tenant,
+        organization: saved.organization,
       })
 
       messageApi.success('个人资料保存成功')
@@ -197,7 +184,7 @@ const Profile = () => {
               </div>
               <Space wrap>
                 <Tag color="blue">ID: {profile?.id || '-'}</Tag>
-                <Tag color="cyan">租户: {profile?.tenant || '-'}</Tag>
+                <Tag color="cyan">组织: {profile?.organization || '-'}</Tag>
               </Space>
             </Card>
           </Col>
@@ -239,7 +226,7 @@ const Profile = () => {
                     </Form.Item>
                   </Col>
                   <Col xs={24} md={12}>
-                    <Form.Item label="租户 (只读)" name="tenant">
+                    <Form.Item label="组织 (只读)" name="organization">
                       <Input disabled />
                     </Form.Item>
                   </Col>
@@ -250,7 +237,13 @@ const Profile = () => {
                     <Button icon={<UndoOutlined />} onClick={handleReset} disabled={!dirty || saving || loading}>
                       重置
                     </Button>
-                    <Button type="primary" icon={<SaveOutlined />} onClick={handleSave} loading={saving} disabled={!dirty}>
+                    <Button
+                      type="primary"
+                      icon={<SaveOutlined />}
+                      onClick={handleSave}
+                      loading={saving}
+                      disabled={!dirty}
+                    >
                       保存
                     </Button>
                   </Space>

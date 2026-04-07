@@ -5,28 +5,9 @@
  * Tab 2「关联画布」— 基于 @xyflow/react 的可视化 Join 关联画布
  */
 
-import React, {
-  useState,
-  useEffect,
-  useCallback,
-  useRef,
-  memo,
-} from 'react'
+import React, { useState, useEffect, useCallback, useRef, memo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import {
-  Typography,
-  Table,
-  Tag,
-  Button,
-  Space,
-  Drawer,
-  Tabs,
-  Empty,
-  Tooltip,
-  Select,
-  Skeleton,
-  message,
-} from 'antd'
+import { Typography, Table, Tag, Button, Space, Drawer, Tabs, Empty, Tooltip, Select, Skeleton, message } from 'antd'
 import {
   DatabaseOutlined,
   EyeOutlined,
@@ -88,9 +69,9 @@ function inferFieldType(storageName) {
 }
 
 const TYPE_TAG_CONFIG = {
-  text:   { color: 'blue',   label: '文本' },
-  number: { color: 'green',  label: '数值' },
-  date:   { color: 'orange', label: '日期' },
+  text: { color: 'blue', label: '文本' },
+  number: { color: 'green', label: '数值' },
+  date: { color: 'orange', label: '日期' },
 }
 
 /* ── 工具函数 ──────────────────────────────────────────────────────────────── */
@@ -101,9 +82,9 @@ function formatDate(iso) {
 }
 
 const STATUS_CONFIG = {
-  ready:      { color: 'success',   label: '就绪' },
+  ready: { color: 'success', label: '就绪' },
   processing: { color: 'processing', label: '处理中' },
-  failed:     { color: 'error',     label: '失败' },
+  failed: { color: 'error', label: '失败' },
 }
 
 /* ════════════════════════════════════════════════════════════════════════════
@@ -116,9 +97,7 @@ const FieldDrawer = memo(({ open, dataset, fields, onClose }) => {
     {
       title: '字段标签',
       key: 'label',
-      render: (_, op) => (
-        <span className={styles.fieldLabel}>{op.label || op.to}</span>
-      ),
+      render: (_, op) => <span className={styles.fieldLabel}>{op.label || op.to}</span>,
     },
     {
       title: '存储字段名',
@@ -150,9 +129,7 @@ const FieldDrawer = memo(({ open, dataset, fields, onClose }) => {
         <Space size={8}>
           <DatabaseOutlined style={{ color: '#6366f1' }} />
           <span>{dataset?.name ?? '数据集字段'}</span>
-          {fields.length > 0 && (
-            <Tag style={{ marginLeft: 4 }}>{fields.length} 个字段</Tag>
-          )}
+          {fields.length > 0 && <Tag style={{ marginLeft: 4 }}>{fields.length} 个字段</Tag>}
         </Space>
       }
       open={open}
@@ -161,10 +138,7 @@ const FieldDrawer = memo(({ open, dataset, fields, onClose }) => {
       destroyOnHide
     >
       {fields.length === 0 ? (
-        <Empty
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description="暂无字段信息，请先在数据集页面完成字段映射配置"
-        />
+        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无字段信息，请先在数据集页面完成字段映射配置" />
       ) : (
         <Table
           className={styles.drawerTable}
@@ -199,7 +173,9 @@ const FieldOverviewTab = memo(({ datasets, recipesMap, loading, onGoDatasets }) 
           <Space size={8}>
             <DatabaseOutlined style={{ color: '#6366f1', fontSize: 15 }} />
             <span style={{ fontWeight: 600, color: '#1e293b' }}>{record.name}</span>
-            <Tag color={cfg.color} style={{ marginLeft: 4 }}>{cfg.label}</Tag>
+            <Tag color={cfg.color} style={{ marginLeft: 4 }}>
+              {cfg.label}
+            </Tag>
           </Space>
         )
       },
@@ -208,9 +184,7 @@ const FieldOverviewTab = memo(({ datasets, recipesMap, loading, onGoDatasets }) 
       title: 'Cube 模型名',
       key: 'cube_name',
       width: 220,
-      render: (_, record) => (
-        <span className={styles.cubeNameCell}>Dataset_{record.id}</span>
-      ),
+      render: (_, record) => <span className={styles.cubeNameCell}>Dataset_{record.id}</span>,
     },
     {
       title: '字段数',
@@ -219,11 +193,7 @@ const FieldOverviewTab = memo(({ datasets, recipesMap, loading, onGoDatasets }) 
       align: 'center',
       render: (_, record) => {
         const fields = recipesMap[record.id] ?? []
-        return (
-          <Tag color={fields.length > 0 ? 'blue' : 'default'}>
-            {fields.length}
-          </Tag>
-        )
+        return <Tag color={fields.length > 0 ? 'blue' : 'default'}>{fields.length}</Tag>
       },
     },
     {
@@ -243,12 +213,7 @@ const FieldOverviewTab = memo(({ datasets, recipesMap, loading, onGoDatasets }) 
       width: 120,
       render: (_, record) => (
         <Tooltip title="查看字段列表">
-          <Button
-            type="link"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => handleViewFields(record)}
-          >
+          <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => handleViewFields(record)}>
             查看字段
           </Button>
         </Tooltip>
@@ -273,11 +238,7 @@ const FieldOverviewTab = memo(({ datasets, recipesMap, loading, onGoDatasets }) 
         description="暂无就绪的数据集，请先在数据集页面上传并处理数据"
         style={{ marginTop: 80 }}
       >
-        <Button
-          type="primary"
-          icon={<DatabaseOutlined />}
-          onClick={onGoDatasets}
-        >
+        <Button type="primary" icon={<DatabaseOutlined />} onClick={onGoDatasets}>
           前往数据集
         </Button>
       </Empty>
@@ -322,9 +283,7 @@ const DatasetNode = memo(({ data }) => {
       {/* 字段行 */}
       <div className={styles.datasetNodeBody}>
         {fields.length === 0 ? (
-          <div style={{ padding: '6px 12px', fontSize: 11, color: '#94a3b8' }}>
-            暂无字段信息
-          </div>
+          <div style={{ padding: '6px 12px', fontSize: 11, color: '#94a3b8' }}>暂无字段信息</div>
         ) : (
           fields.map((op, idx) => {
             const fieldId = op.to || String(idx)
@@ -367,12 +326,12 @@ function buildJoinConfig(edges, nodes, joinType) {
   return edges.map((edge) => {
     const sourceNode = nodes.find((n) => n.id === edge.source)
     const targetNode = nodes.find((n) => n.id === edge.target)
-    const leftField  = edge.sourceHandle?.replace(/^source-/, '') ?? ''
+    const leftField = edge.sourceHandle?.replace(/^source-/, '') ?? ''
     const rightField = edge.targetHandle?.replace(/^target-/, '') ?? ''
     return {
-      left:  { dataset: `Dataset_${sourceNode?.data?.dataset?.id ?? ''}`, field: leftField },
+      left: { dataset: `Dataset_${sourceNode?.data?.dataset?.id ?? ''}`, field: leftField },
       right: { dataset: `Dataset_${targetNode?.data?.dataset?.id ?? ''}`, field: rightField },
-      type:  joinType,
+      type: joinType,
     }
   })
 }
@@ -427,9 +386,7 @@ const CanvasSidebar = memo(({ datasets, addedIds, onDragStart, joinConfig, jsonE
                 {'// 连接两个节点的字段\n// 以生成 JOIN 配置'}
               </pre>
             ) : (
-              <pre className={styles.jsonCode}>
-                {JSON.stringify(joinConfig, null, 2)}
-              </pre>
+              <pre className={styles.jsonCode}>{JSON.stringify(joinConfig, null, 2)}</pre>
             )}
           </div>
         )}
@@ -442,12 +399,7 @@ const CanvasSidebar = memo(({ datasets, addedIds, onDragStart, joinConfig, jsonE
 const CanvasToolbar = memo(({ joinType, onJoinTypeChange, onClear, onFitView }) => (
   <div className={styles.toolbar}>
     <span className={styles.toolbarLabel}>JOIN 类型</span>
-    <Select
-      size="small"
-      value={joinType}
-      onChange={onJoinTypeChange}
-      style={{ width: 100 }}
-    >
+    <Select size="small" value={joinType} onChange={onJoinTypeChange} style={{ width: 100 }}>
       <Option value="INNER">INNER</Option>
       <Option value="LEFT">LEFT</Option>
       <Option value="RIGHT">RIGHT</Option>
@@ -492,7 +444,11 @@ const JoinCanvasInner = memo(({ datasets, recipesMap }) => {
       if (!raw) return
 
       let parsed
-      try { parsed = JSON.parse(raw) } catch { return }
+      try {
+        parsed = JSON.parse(raw)
+      } catch {
+        return
+      }
 
       const dataset = datasets.find((d) => d.id === parsed.id)
       if (!dataset) return
@@ -561,12 +517,7 @@ const JoinCanvasInner = memo(({ datasets, recipesMap }) => {
       />
 
       {/* 右侧画布区 */}
-      <div
-        ref={reactFlowWrapper}
-        className={styles.canvasArea}
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
-      >
+      <div ref={reactFlowWrapper} className={styles.canvasArea} onDragOver={handleDragOver} onDrop={handleDrop}>
         {/* 工具栏 */}
         <CanvasToolbar
           joinType={joinType}
@@ -643,7 +594,9 @@ const Models = () => {
   const [projectId, setProjectId] = useState(null)
   useEffect(() => {
     if (!slug) return
-    getProjectBySlug(slug).then((p) => { if (p?.id) setProjectId(p.id) })
+    getProjectBySlug(slug).then((p) => {
+      if (p?.id) setProjectId(p.id)
+    })
   }, [slug])
 
   /** 所有 ready 状态的数据集 */
@@ -669,9 +622,7 @@ const Models = () => {
       }
 
       // Step 2: 并行获取每个数据集的 Recipe
-      const recipeResults = await Promise.allSettled(
-        ready.map((ds) => getRecipes(ds.id))
-      )
+      const recipeResults = await Promise.allSettled(ready.map((ds) => getRecipes(ds.id)))
 
       const map = {}
       recipeResults.forEach((result, idx) => {
@@ -693,7 +644,9 @@ const Models = () => {
     }
   }, [projectId])
 
-  useEffect(() => { loadData() }, [loadData])
+  useEffect(() => {
+    loadData()
+  }, [loadData])
 
   /* ── Tab 配置 ──────────────────────────────────────────────────────────── */
   const tabItems = [
@@ -722,13 +675,7 @@ const Models = () => {
           关联画布
         </Space>
       ),
-      children: (
-        <JoinCanvasTab
-          datasets={datasets}
-          recipesMap={recipesMap}
-          loading={loading}
-        />
-      ),
+      children: <JoinCanvasTab datasets={datasets} recipesMap={recipesMap} loading={loading} />,
     },
   ]
 
@@ -737,7 +684,9 @@ const Models = () => {
       {/* ── 页头 ── */}
       <div className={styles.pageHeader}>
         <div className={styles.pageHeaderLeft}>
-          <Title level={4} style={{ margin: 0 }}>数据模型</Title>
+          <Title level={4} style={{ margin: 0 }}>
+            数据模型
+          </Title>
           <Text type="secondary" style={{ fontSize: 13 }}>
             查看数据集字段结构，并通过关联画布定义数据集间的 JOIN 关系
           </Text>

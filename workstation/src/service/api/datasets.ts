@@ -123,9 +123,11 @@ export function uploadDatasetFileWithProgress(
       const raw = localStorage.getItem('token')
       if (raw) {
         const parsed = JSON.parse(raw)
-        token = typeof parsed === 'object' ? parsed.token ?? '' : raw
+        token = typeof parsed === 'object' ? (parsed.token ?? '') : raw
       }
-    } catch { /* 忽略 */ }
+    } catch {
+      /* 忽略 */
+    }
 
     /** 读取 BaseURL */
     let baseURL = ''
@@ -133,7 +135,9 @@ export function uploadDatasetFileWithProgress(
       if (typeof (window as any).__APP_CONFIG__ !== 'undefined') {
         baseURL = (window as any).__APP_CONFIG__?.APP_BASE_URL ?? ''
       }
-    } catch { /* 忽略 */ }
+    } catch {
+      /* 忽略 */
+    }
 
     const formData = new FormData()
     formData.append('title', file.name)
@@ -267,17 +271,19 @@ export async function createDatasetVersion(data: {
   return (versionRes as any)?.data ?? versionRes
 }
 
-export async function createDatasetVersionsBulk(data: Array<{
-  dataset_id: string
-  version_name: string
-  file_id: string
-  status: string
-  ingest_batch_id?: string
-  sheet_name?: string
-  schema_fingerprint?: string
-  source_file_name?: string
-  source_sheet_name?: string
-}>): Promise<DatasetVersion[]> {
+export async function createDatasetVersionsBulk(
+  data: Array<{
+    dataset_id: string
+    version_name: string
+    file_id: string
+    status: string
+    ingest_batch_id?: string
+    sheet_name?: string
+    schema_fingerprint?: string
+    source_file_name?: string
+    source_sheet_name?: string
+  }>
+): Promise<DatasetVersion[]> {
   if (!Array.isArray(data) || data.length === 0) return []
   const payload = data.map((item) => ({
     dataset_id: item.dataset_id,
@@ -359,7 +365,11 @@ export async function deleteDataset(id: string): Promise<void> {
   // 3. 逐个删除 Directus 文件（file_id 去重，避免同一文件被多版本引用时重复删除）
   const uniqueFileIds = [...new Set(versions.map((v) => v.file_id).filter(Boolean))] as string[]
   for (const fid of uniqueFileIds) {
-    try { await deleteFile(fid) } catch { /* 文件可能已被删除，忽略 */ }
+    try {
+      await deleteFile(fid)
+    } catch {
+      /* 文件可能已被删除，忽略 */
+    }
   }
 
   // 4. 批量删除 dataset_versions（Directus 批量删除：body 为 id 数组，通过 axios data 字段传入）
@@ -370,14 +380,22 @@ export async function deleteDataset(id: string): Promise<void> {
     } catch {
       // Fallback：逐个删除
       for (const vid of versionIds) {
-        try { await deleteDatasetVersion(vid) } catch { /* 忽略 */ }
+        try {
+          await deleteDatasetVersion(vid)
+        } catch {
+          /* 忽略 */
+        }
       }
     }
   }
 
   // 5. 删除 recipes
   for (const r of recipes) {
-    try { await deleteRecipe(r.id) } catch { /* 忽略 */ }
+    try {
+      await deleteRecipe(r.id)
+    } catch {
+      /* 忽略 */
+    }
   }
 
   // 6. 删除 datasets 记录
@@ -420,12 +438,15 @@ export async function getRecipes(datasetId: string): Promise<any[]> {
 /**
  * 更新 ETL Recipe 配置
  */
-export async function updateRecipe(id: string, data: {
-  config: RecipeOperator[]
-  header_row_count?: number
-  storage_row_index?: number
-  label_row_index?: number
-}): Promise<any> {
+export async function updateRecipe(
+  id: string,
+  data: {
+    config: RecipeOperator[]
+    header_row_count?: number
+    storage_row_index?: number
+    label_row_index?: number
+  }
+): Promise<any> {
   const res = await request.patch(`/items/recipes/${id}`, {
     config: data.config,
     ...(data.header_row_count !== undefined && { header_row_count: data.header_row_count }),

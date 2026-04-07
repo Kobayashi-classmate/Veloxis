@@ -3,16 +3,18 @@
   background: #fff;
   border-radius: 10px;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 8%);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  transition: box-shadow 0.2s, border-color 0.2s;
+  transition:
+    box-shadow 0.2s,
+    border-color 0.2s;
   z-index: 1;
   cursor: default;
 
   &:hover {
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.14);
+    box-shadow: 0 4px 20px rgb(0 0 0 / 14%);
     border-color: #93c5fd;
     z-index: 10;
   }
@@ -20,10 +22,11 @@
 
 .chartItemSelected {
   border-color: #1677ff !important;
-  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.25), 0 4px 20px rgba(0, 0, 0, 0.12) !important;
+  box-shadow:
+    0 0 0 2px rgb(22 119 255 / 25%),
+    0 4px 20px rgb(0 0 0 / 12%) !important;
   z-index: 15 !important;
 }
-
 
 .chartHeader {
   display: flex;

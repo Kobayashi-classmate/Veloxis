@@ -1,6 +1,6 @@
 import request from '@/service/request'
 
-const PROFILE_FIELDS = 'id,email,first_name,last_name,avatar,tenant'
+const PROFILE_FIELDS = 'id,email,first_name,last_name,avatar,organization,organization.id,organization.name'
 const UPDATABLE_FIELDS = ['first_name', 'last_name'] as const
 
 export interface MyProfile {
@@ -9,12 +9,20 @@ export interface MyProfile {
   first_name: string
   last_name: string
   avatar: string
-  tenant: string
+  organization: string
 }
 
 export interface UpdateMyProfilePayload {
   first_name?: string
   last_name?: string
+}
+
+const toScopeId = (value: any): string => {
+  if (typeof value === 'string') return value
+  if (!value || typeof value !== 'object') return ''
+  if (typeof value.id === 'string' && value.id.trim()) return value.id.trim()
+  if (typeof value.name === 'string' && value.name.trim()) return value.name.trim()
+  return ''
 }
 
 const normalizeProfile = (raw: any): MyProfile => ({
@@ -23,7 +31,7 @@ const normalizeProfile = (raw: any): MyProfile => ({
   first_name: raw?.first_name ?? '',
   last_name: raw?.last_name ?? '',
   avatar: raw?.avatar ?? '',
-  tenant: raw?.tenant ?? '',
+  organization: toScopeId(raw?.organization),
 })
 
 const pickUpdatableFields = (payload: UpdateMyProfilePayload): UpdateMyProfilePayload => {
@@ -62,4 +70,3 @@ export const updateMyProfile = async (payload: UpdateMyProfilePayload): Promise<
 
   return normalizeProfile(data)
 }
-

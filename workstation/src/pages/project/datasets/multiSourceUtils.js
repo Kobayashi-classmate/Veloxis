@@ -1,5 +1,7 @@
 function normalizeStorageName(name) {
-  return String(name ?? '').trim().toLowerCase()
+  return String(name ?? '')
+    .trim()
+    .toLowerCase()
 }
 
 export function canonicalizeStorageNames(names) {
@@ -23,7 +25,9 @@ function fallbackHash(input) {
     h ^= input.charCodeAt(i)
     h = Math.imul(h, 16777619)
   }
-  return Math.abs(h >>> 0).toString(16).padStart(8, '0')
+  return Math.abs(h >>> 0)
+    .toString(16)
+    .padStart(8, '0')
 }
 
 export async function computeSchemaFingerprintFromStorageNames(storageNames) {

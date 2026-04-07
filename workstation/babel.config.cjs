@@ -6,6 +6,8 @@ const plugins = [
   ['babel-plugin-react-compiler'],
 ]
 
+const isTest = process.env.BABEL_ENV === 'test' || process.env.NODE_ENV === 'test'
+
 module.exports = {
   presets: [
     [
@@ -14,7 +16,7 @@ module.exports = {
         targets: {
           browsers: ['> 1%', 'last 2 versions', 'not ie <= 8'],
         },
-        modules: false,
+        modules: isTest ? 'commonjs' : false,
         useBuiltIns: 'entry',
         corejs: 3,
       },
