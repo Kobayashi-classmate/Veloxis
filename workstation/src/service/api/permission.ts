@@ -51,6 +51,54 @@ interface DirectusPermission {
 const toPermissionCode = (collection: string, action: string): PermissionCode =>
   `${collection}:${action}` as PermissionCode
 
+const toScopeId = (value: any): string => {
+  if (typeof value === 'string') return value.trim()
+  if (!value || typeof value !== 'object') return ''
+
+  if (typeof value.id === 'string' && value.id.trim()) return value.id.trim()
+  if (typeof value.organization_id === 'string' && value.organization_id.trim()) return value.organization_id.trim()
+  if (typeof value.tenant_id === 'string' && value.tenant_id.trim()) return value.tenant_id.trim()
+  if (typeof value.name === 'string' && value.name.trim()) return value.name.trim()
+  if (typeof value.organization_name === 'string' && value.organization_name.trim())
+    return value.organization_name.trim()
+  if (typeof value.tenant_name === 'string' && value.tenant_name.trim()) return value.tenant_name.trim()
+
+  return ''
+}
+
+const isAuthStatusError = (error: any): boolean => {
+  const status = Number(error?.status || error?.response?.status || 0)
+  return status === 401 || status === 403
+}
+
+const fetchCurrentUserInfo = async (): Promise<any> => {
+  const fieldCandidates = [
+    'id,email,first_name,last_name,role,organization,organization.id,organization.name,tenant,tenant.id,tenant.name',
+    'id,email,first_name,last_name,role,organization,organization.id,organization.name,tenant',
+    'id,email,first_name,last_name,role,organization,organization.id,organization.name',
+    'id,email,first_name,last_name,role,tenant,tenant.id,tenant.name',
+    'id,email,first_name,last_name,role,tenant',
+  ]
+
+  let lastError: any = null
+  for (const fields of fieldCandidates) {
+    try {
+      const meResp = (await request.get('/users/me', { fields })) as any
+      return meResp?.data ?? meResp
+    } catch (error) {
+      if (isAuthStatusError(error)) {
+        throw error
+      }
+      lastError = error
+    }
+  }
+
+  if (lastError) {
+    throw lastError
+  }
+  throw new Error('Failed to fetch current user info')
+}
+
 /**
  * 获取当前用户权限信息，对接 Directus v11。
  */
@@ -62,8 +110,8 @@ export const getUserPermissions = async (_userId?: string): Promise<UserPermissi
     const isAdmin: boolean = jwtPayload.admin_access === true
 
     // Step 2: 获取用户基本信息
-    const meResp = (await request.get('/users/me', { fields: 'id,email,first_name,last_name,role,tenant' })) as any
-    const me = meResp?.data ?? meResp
+    const me = await fetchCurrentUserInfo()
+    const organizationScope = toScopeId(me?.organization) || toScopeId(me?.tenant)
 
     if (!me?.id) {
       return { userId: '', username: '', roles: [], permissions: [], routes: [] }
@@ -95,7 +143,8 @@ export const getUserPermissions = async (_userId?: string): Promise<UserPermissi
         roles: frontendRoles,
         permissions: ['*:*'],
         routes: Array.from(new Set(['*', ...adminRoutes])),
-        tenant: me.tenant,
+        organization: organizationScope,
+        tenant: organizationScope,
       }
     }
 
@@ -153,7 +202,8 @@ export const getUserPermissions = async (_userId?: string): Promise<UserPermissi
       roles: frontendRoles,
       permissions: permissionCodes,
       routes,
-      tenant: me.tenant,
+      organization: organizationScope,
+      tenant: organizationScope,
     }
   } catch (error: any) {
     const status = error?.response?.status

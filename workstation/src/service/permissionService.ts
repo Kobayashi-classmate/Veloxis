@@ -49,12 +49,18 @@ class PermissionService {
     const roles = Array.isArray(safe.roles) ? safe.roles.filter(Boolean) : []
     const permissions = Array.isArray(safe.permissions) ? safe.permissions.filter(Boolean) : []
     const routes = Array.isArray(safe.routes) ? safe.routes.filter(Boolean) : []
+    const organizationFromOrganization = typeof safe.organization === 'string' ? safe.organization : ''
+    const organizationFromTenant = typeof safe.tenant === 'string' ? safe.tenant : ''
+    const organization = organizationFromOrganization || organizationFromTenant
+    const tenant = organizationFromTenant || organizationFromOrganization
     return {
       userId: typeof safe.userId === 'string' ? safe.userId : '',
       username: typeof safe.username === 'string' ? safe.username : '',
       roles,
       permissions,
       routes,
+      organization,
+      tenant,
     }
   }
 

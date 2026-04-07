@@ -77,6 +77,7 @@ export interface UserPermission {
   roles: Role[]
   permissions: PermissionCode[]
   routes: string[]
+  organization?: string
   tenant?: string
 }
 

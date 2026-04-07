@@ -9,6 +9,7 @@ export interface User {
   email: string
   avatar_url: string
   html_url: string
+  organization?: string
   tenant?: string
 }
 
@@ -51,6 +52,7 @@ function isLikelyEmail(value: string): boolean {
 function buildTestAccountUser(email: string): User {
   // 用于“测试账号登录”展示；不代表真实用户
   const login = email
+  const defaultScope = '集团本部'
   return {
     id: '',
     login,
@@ -58,8 +60,77 @@ function buildTestAccountUser(email: string): User {
     email,
     avatar_url: '',
     html_url: '',
-    tenant: '集团本部',
+    organization: defaultScope,
+    tenant: defaultScope,
   }
+}
+
+const toScopeString = (value: any): string => {
+  if (typeof value === 'string') return value.trim()
+  if (!value || typeof value !== 'object') return ''
+
+  if (typeof value.id === 'string' && value.id.trim()) return value.id.trim()
+  if (typeof value.organization_id === 'string' && value.organization_id.trim()) return value.organization_id.trim()
+  if (typeof value.tenant_id === 'string' && value.tenant_id.trim()) return value.tenant_id.trim()
+  if (typeof value.name === 'string' && value.name.trim()) return value.name.trim()
+  if (typeof value.organization_name === 'string' && value.organization_name.trim())
+    return value.organization_name.trim()
+  if (typeof value.tenant_name === 'string' && value.tenant_name.trim()) return value.tenant_name.trim()
+
+  return ''
+}
+
+const resolveUserScope = (user: User | null | undefined): string => {
+  if (!user) return ''
+  return toScopeString(user.organization) || toScopeString(user.tenant)
+}
+
+const normalizeUserScope = (user: User | null): User | null => {
+  if (!user) return null
+
+  const scope = resolveUserScope(user)
+
+  return {
+    ...user,
+    organization: scope,
+    tenant: scope,
+  }
+}
+
+const isAuthStatusError = (error: any): boolean => {
+  const status = Number(error?.status || error?.response?.status || 0)
+  return status === 401 || status === 403
+}
+
+const fetchCurrentUserProfile = async (accessToken: string): Promise<any> => {
+  const fieldCandidates = [
+    'id,email,first_name,last_name,avatar,organization,organization.id,organization.name,tenant,tenant.id,tenant.name',
+    'id,email,first_name,last_name,avatar,organization,organization.id,organization.name,tenant',
+    'id,email,first_name,last_name,avatar,organization,organization.id,organization.name',
+    'id,email,first_name,last_name,avatar,tenant,tenant.id,tenant.name',
+    'id,email,first_name,last_name,avatar,tenant',
+  ]
+
+  let lastError: any = null
+  for (const fields of fieldCandidates) {
+    try {
+      const meResp = (await request.get('/users/me', { fields }, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        needToken: false,
+      } as any)) as any
+      return meResp?.data ?? meResp
+    } catch (error) {
+      if (isAuthStatusError(error)) {
+        throw error
+      }
+      lastError = error
+    }
+  }
+
+  if (lastError) {
+    throw lastError
+  }
+  throw new Error('Failed to fetch current user profile')
 }
 
 // ✅ 修复 3: parseToken - 修正存储格式解析逻辑
@@ -148,7 +219,7 @@ class AuthService {
       let restoredUser: User | null = null
       if (storedUserRaw) {
         try {
-          restoredUser = JSON.parse(storedUserRaw) as User
+          restoredUser = normalizeUserScope(JSON.parse(storedUserRaw) as User)
         } catch {
           // ignore
         }
@@ -207,15 +278,15 @@ class AuthService {
       const typedKey = key as keyof User
       const value = partial[typedKey]
       if (value !== undefined) {
-        (merged as Record<string, any>)[typedKey] = value
+        ;(merged as Record<string, any>)[typedKey] = value
       }
     })
 
-    this.authState.user = merged
+    this.authState.user = normalizeUserScope(merged)
     this.saveToStorage()
     this.notifyListeners()
 
-    return merged
+    return this.authState.user
   }
 
   async setAuthenticated(
@@ -227,7 +298,7 @@ class AuthService {
     this.authState.isAuthenticated = isAuthenticated
 
     if (user !== undefined) {
-      this.authState.user = user
+      this.authState.user = normalizeUserScope(user)
     }
 
     if (token !== undefined) {
@@ -298,12 +369,9 @@ class AuthService {
         throw new Error('Invalid login response: missing access_token')
       }
 
-      // Step 2: 用 access_token 请求当前用户信息
-      const meResp = (await request.get('/users/me', { fields: 'id,email,first_name,last_name,avatar,tenant' }, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-        needToken: false,
-      } as any)) as any
-      const meData = meResp?.data ?? meResp
+      // Step 2: 用 access_token 请求当前用户信息（优先 organization，兼容 tenant）
+      const meData = await fetchCurrentUserProfile(accessToken)
+      const organizationScope = toScopeString(meData?.organization) || toScopeString(meData?.tenant)
 
       const user: User = {
         id: meData?.id ?? '',
@@ -312,7 +380,8 @@ class AuthService {
         email: meData?.email ?? '',
         avatar_url: meData?.avatar ?? '',
         html_url: '',
-        tenant: meData?.tenant ?? '',
+        organization: organizationScope,
+        tenant: organizationScope,
       }
 
       this.authState = {
