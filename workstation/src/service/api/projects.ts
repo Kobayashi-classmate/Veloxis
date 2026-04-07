@@ -24,8 +24,8 @@ export interface DirectusProject {
   description: string
   status: ProjectStatus
   visibility: ProjectVisibility
-  /** Human-readable tenant / org name */
-  tenant: string
+  /** Human-readable organization name / relation */
+  organization: string | { id?: string; name?: string } | null
   /** Hex accent color for the card, e.g. "#1677ff" */
   color: string
   /** JSON array of tag strings */
@@ -65,7 +65,7 @@ export interface Project {
   description: string
   status: ProjectStatus
   visibility: ProjectVisibility
-  tenant: string
+  organization: string
   color: string
   tags: string[]
   storage: string
@@ -95,6 +95,15 @@ function parseTags(raw: string[] | string | null | undefined): string[] {
   }
 }
 
+function parseOrganization(raw: unknown): string {
+  if (typeof raw === 'string') return raw
+  if (!raw || typeof raw !== 'object') return ''
+  const safe = raw as Record<string, unknown>
+  if (typeof safe.name === 'string' && safe.name.trim()) return safe.name.trim()
+  if (typeof safe.id === 'string' && safe.id.trim()) return safe.id.trim()
+  return ''
+}
+
 function relativeTime(isoDate: string | null | undefined): string {
   if (!isoDate) return '—'
   const diff = Date.now() - new Date(isoDate).getTime()
@@ -118,7 +127,7 @@ function normalize(raw: DirectusProject, memberRecord: ProjectMember | undefined
     description: raw.description ?? '',
     status: raw.status ?? 'active',
     visibility: raw.visibility ?? 'private',
-    tenant: raw.tenant ?? '',
+    organization: parseOrganization(raw.organization),
     color: raw.color ?? '#1677ff',
     tags: parseTags(raw.tags),
     storage: raw.storage_label ?? '—',
@@ -166,7 +175,7 @@ export async function getProjects(): Promise<Project[]> {
     'description',
     'status',
     'visibility',
-    'tenant',
+    'organization',
     'color',
     'tags',
     'storage_label',
@@ -245,7 +254,7 @@ export async function getProjectBySlug(slug: string): Promise<Project | null> {
     'description',
     'status',
     'visibility',
-    'tenant',
+    'organization',
     'color',
     'tags',
     'storage_label',
@@ -317,7 +326,7 @@ export async function getProject(id: string): Promise<Project | null> {
     'description',
     'status',
     'visibility',
-    'tenant',
+    'organization',
     'color',
     'tags',
     'storage_label',
@@ -422,7 +431,7 @@ export async function createProject(data: {
   name: string
   slug: string
   description?: string
-  tenant?: string
+  organization?: string
   visibility?: ProjectVisibility
   color?: string
 }): Promise<Project> {
@@ -438,21 +447,32 @@ export async function createProject(data: {
     })
   }
 
-  return normalize(raw, { id: 'tmp', project_id: raw.id, directus_users_id: userId || '', role: 'Owner', date_created: null, date_updated: null }, false)
+  return normalize(
+    raw,
+    {
+      id: 'tmp',
+      project_id: raw.id,
+      directus_users_id: userId || '',
+      role: 'Owner',
+      date_created: null,
+      date_updated: null,
+    },
+    false
+  )
 }
 
 /**
- * Fetch unique tenant names from projects.
- * In a real scenario, this might come from a dedicated 'tenants' collection.
+ * Fetch unique organization names from projects.
+ * In a real scenario, this might come from a dedicated 'organizations' collection.
  */
-export async function getTenants(): Promise<string[]> {
+export async function getOrganizations(): Promise<string[]> {
   const res = await request.get('/items/projects', {
-    fields: 'tenant',
-    groupBy: 'tenant',
+    fields: 'organization',
+    groupBy: 'organization',
     limit: -1,
   })
   const data = (res as any)?.data ?? res ?? []
-  return data.map((t: any) => t.tenant).filter(Boolean)
+  return data.map((item: any) => item.organization).filter(Boolean)
 }
 
 /**

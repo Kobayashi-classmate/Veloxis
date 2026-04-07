@@ -32,11 +32,11 @@ const MOCK_CLUSTER_NODES = [
   { id: 'node-03', name: 'Data-Worker-01', type: 'Executor', cpu: '88%', mem: '6GB / 8GB', status: 'busy' },
 ]
 
-// 全局租户/项目资源消耗排行
-const MOCK_TENANT_STATS = [
-  { id: 'proj-001', name: '电商运营项目', tenant: '集团本部', storage: '1.2 TB', users: 125, health: 98 },
-  { id: 'proj-002', name: '海外增长中心', tenant: '国际事业部', storage: '850 GB', users: 42, health: 95 },
-  { id: 'proj-003', name: '供应链实时监控', tenant: '物流部', storage: '4.2 TB', users: 15, health: 88 },
+// 全局组织/项目资源消耗排行
+const MOCK_ORGANIZATION_STATS = [
+  { id: 'proj-001', name: '电商运营项目', organization: '集团本部', storage: '1.2 TB', users: 125, health: 98 },
+  { id: 'proj-002', name: '海外增长中心', organization: '国际事业部', storage: '850 GB', users: 42, health: 95 },
+  { id: 'proj-003', name: '供应链实时监控', organization: '物流部', storage: '4.2 TB', users: 15, health: 88 },
 ]
 
 // 管理员快捷管理入口
@@ -57,7 +57,7 @@ const ADMIN_QUICK_ACTIONS = [
 const MOCK_PIPELINE_JOBS = [
   {
     id: 'job-101',
-    tenant: '集团本部',
+    organization: '集团本部',
     name: '全量交易数据清洗',
     target: 'Doris.fact_sales',
     status: 'processing',
@@ -66,7 +66,7 @@ const MOCK_PIPELINE_JOBS = [
   },
   {
     id: 'job-102',
-    tenant: '物流部',
+    organization: '物流部',
     name: '实时轨迹数据解析',
     target: 'Doris.ods_logistics',
     status: 'warning',
@@ -266,7 +266,7 @@ const GlobalConsole = () => {
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                           <Space>
                             <Text strong>{item.name}</Text>
-                            <Tag color="blue">{item.tenant}</Tag>
+                            <Tag color="blue">{item.organization}</Tag>
                           </Space>
                           <Text type="secondary" style={{ fontSize: 12 }}>
                             {item.startTime}
@@ -290,13 +290,13 @@ const GlobalConsole = () => {
               <Card
                 title={
                   <Space>
-                    <DatabaseOutlined /> 租户资源消耗排行
+                    <DatabaseOutlined /> 组织资源消耗排行
                   </Space>
                 }
                 variant="borderless"
               >
                 <List
-                  dataSource={MOCK_TENANT_STATS}
+                  dataSource={MOCK_ORGANIZATION_STATS}
                   renderItem={(item, index) => (
                     <List.Item>
                       <List.Item.Meta
@@ -307,7 +307,7 @@ const GlobalConsole = () => {
                         description={
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
                             <Text type="secondary" style={{ fontSize: 12 }}>
-                              {item.tenant}
+                              {item.organization}
                             </Text>
                             <Text strong style={{ color: token.colorPrimary }}>
                               {item.storage}

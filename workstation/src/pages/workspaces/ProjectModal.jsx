@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { Modal, Form, Input, Select, ColorPicker, Alert, Space, Typography } from 'antd'
 import { ProjectOutlined, LockOutlined, TeamOutlined, GlobalOutlined, LinkOutlined } from '@ant-design/icons'
 import { authService } from '@/service/authService'
-import { getTenants } from '@/service/api/projects'
+import { getOrganizations } from '@/service/api/projects'
 import { getUserPermissions } from '@/service/api/permission'
 
 const { TextArea } = Input
@@ -54,15 +54,17 @@ const VISIBILITY_OPTIONS = [
  *   - 去掉首尾连字符、合并连续连字符
  */
 function toSlug(str) {
-  return str
-    .trim()
-    .toLowerCase()
-    // 保留字母、数字、空格、连字符；中文等直接移除
-    .replace(/[^a-z0-9\s_-]/g, '')
-    .replace(/[\s_]+/g, '-')    // 空格/下划线 → 连字符
-    .replace(/-+/g, '-')        // 合并连续连字符
-    .replace(/^-+|-+$/g, '')    // 去首尾连字符
-    .slice(0, 63)               // 最长 63 字符
+  return (
+    str
+      .trim()
+      .toLowerCase()
+      // 保留字母、数字、空格、连字符；中文等直接移除
+      .replace(/[^a-z0-9\s_-]/g, '')
+      .replace(/[\s_]+/g, '-') // 空格/下划线 → 连字符
+      .replace(/-+/g, '-') // 合并连续连字符
+      .replace(/^-+|-+$/g, '') // 去首尾连字符
+      .slice(0, 63)
+  ) // 最长 63 字符
 }
 
 /** 验证 slug 格式 */
@@ -78,7 +80,7 @@ function validateSlug(slug) {
 
 const ProjectModal = ({ open, onCancel, onOk, initialValues, title }) => {
   const [form] = Form.useForm()
-  const [tenants, setTenants] = useState([])
+  const [organizations, setOrganizations] = useState([])
   const [isAdmin, setIsAdmin] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   /** 是否由用户手动编辑过 slug（手动后不再自动同步） */
@@ -96,10 +98,10 @@ const ProjectModal = ({ open, onCancel, onOk, initialValues, title }) => {
         setIsAdmin(admin)
         if (admin) {
           try {
-            const list = await getTenants()
-            setTenants(Array.from(new Set([...list, user?.tenant].filter(Boolean))))
+            const list = await getOrganizations()
+            setOrganizations(Array.from(new Set([...list, user?.organization].filter(Boolean))))
           } catch {
-            if (user?.tenant) setTenants([user.tenant])
+            if (user?.organization) setOrganizations([user.organization])
           }
         }
       } catch {
@@ -107,7 +109,7 @@ const ProjectModal = ({ open, onCancel, onOk, initialValues, title }) => {
       }
     }
     checkAdmin()
-  }, [open, user?.tenant])
+  }, [open, user?.organization])
 
   useEffect(() => {
     if (!open) return
@@ -122,29 +124,33 @@ const ProjectModal = ({ open, onCancel, onOk, initialValues, title }) => {
       form.setFieldsValue({
         visibility: 'private',
         color: '#1677ff',
-        tenant: user?.tenant,
+        organization: user?.organization,
       })
     }
-  }, [open, initialValues, form, user?.tenant])
+  }, [open, initialValues, form, user?.organization])
 
   /** 当名称变化时，自动同步 slug（仅在用户未手动编辑过 slug 时） */
-  const handleNameChange = useCallback((e) => {
-    if (isEditing) return
-    if (slugManuallyEdited) return
-    const generated = toSlug(e.target.value)
-    form.setFieldValue('slug', generated)
-    // 触发 slug 字段的校验提示同步
-    if (generated) form.validateFields(['slug']).catch(() => {})
-  }, [form, isEditing, slugManuallyEdited])
+  const handleNameChange = useCallback(
+    (e) => {
+      if (isEditing) return
+      if (slugManuallyEdited) return
+      const generated = toSlug(e.target.value)
+      form.setFieldValue('slug', generated)
+      // 触发 slug 字段的校验提示同步
+      if (generated) form.validateFields(['slug']).catch(() => {})
+    },
+    [form, isEditing, slugManuallyEdited]
+  )
 
-  const handleSlugChange = useCallback((e) => {
-    // 用户手动输入 slug 时，只保留合法字符、强制小写
-    const cleaned = e.target.value
-      .toLowerCase()
-      .replace(/[^a-z0-9-]/g, '')
-    form.setFieldValue('slug', cleaned)
-    setSlugManuallyEdited(true)
-  }, [form])
+  const handleSlugChange = useCallback(
+    (e) => {
+      // 用户手动输入 slug 时，只保留合法字符、强制小写
+      const cleaned = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')
+      form.setFieldValue('slug', cleaned)
+      setSlugManuallyEdited(true)
+    },
+    [form]
+  )
 
   const handleOk = async () => {
     try {
@@ -186,12 +192,7 @@ const ProjectModal = ({ open, onCancel, onOk, initialValues, title }) => {
             { max: 64, message: '名称不超过 64 个字符' },
           ]}
         >
-          <Input
-            placeholder="例如：电商运营数据中台"
-            maxLength={64}
-            showCount
-            onChange={handleNameChange}
-          />
+          <Input placeholder="例如：电商运营数据中台" maxLength={64} showCount onChange={handleNameChange} />
         </Form.Item>
 
         <Form.Item
@@ -220,11 +221,16 @@ const ProjectModal = ({ open, onCancel, onOk, initialValues, title }) => {
             isEditing ? (
               <Text type="secondary" style={{ fontSize: 12 }}>
                 Slug 创建后不可修改，当前值：
-                <Text code style={{ fontSize: 12 }}>{initialValues?.slug}</Text>
+                <Text code style={{ fontSize: 12 }}>
+                  {initialValues?.slug}
+                </Text>
               </Text>
             ) : (
               <Text type="secondary" style={{ fontSize: 12 }}>
-                将用于项目 URL，如 <Text code style={{ fontSize: 11 }}>/project/<b>your-slug</b>/...</Text>
+                将用于项目 URL，如{' '}
+                <Text code style={{ fontSize: 11 }}>
+                  /project/<b>your-slug</b>/...
+                </Text>
               </Text>
             )
           }
@@ -234,7 +240,11 @@ const ProjectModal = ({ open, onCancel, onOk, initialValues, title }) => {
             maxLength={63}
             disabled={isEditing}
             onChange={handleSlugChange}
-            prefix={<Text type="secondary" style={{ fontSize: 12, userSelect: 'none' }}>/project/</Text>}
+            prefix={
+              <Text type="secondary" style={{ fontSize: 12, userSelect: 'none' }}>
+                /project/
+              </Text>
+            }
             style={isEditing ? { color: '#6b7280', background: '#f8fafc' } : undefined}
           />
         </Form.Item>
@@ -244,17 +254,17 @@ const ProjectModal = ({ open, onCancel, onOk, initialValues, title }) => {
         </Form.Item>
 
         {isAdmin ? (
-          <Form.Item name="tenant" label="所属组织 / 租户" rules={[{ required: true, message: '请选择所属组织' }]}>
+          <Form.Item name="organization" label="所属组织" rules={[{ required: true, message: '请选择所属组织' }]}>
             <Select placeholder="选择或搜索组织" showSearch allowClear>
-              {tenants.map((t) => (
-                <Select.Option key={t} value={t}>
-                  {t}
+              {organizations.map((item) => (
+                <Select.Option key={item} value={item}>
+                  {item}
                 </Select.Option>
               ))}
             </Select>
           </Form.Item>
         ) : (
-          <Form.Item name="tenant" label="所属组织 / 租户" tooltip="默认为您所在的组织，不可修改">
+          <Form.Item name="organization" label="所属组织" tooltip="默认为您所在的组织，不可修改">
             <Input disabled />
           </Form.Item>
         )}

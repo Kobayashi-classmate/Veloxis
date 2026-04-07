@@ -328,7 +328,7 @@ const Overview = () => {
               <Tag color={vis.color} icon={vis.icon} style={{ marginLeft: 4 }}>
                 {vis.text}
               </Tag>
-              {project.tenant && <Tag color="blue">{project.tenant}</Tag>}
+              {project.organization && <Tag color="blue">{project.organization}</Tag>}
               {project.role && (
                 <Tag style={{ background: '#f0f7ff', borderColor: '#bae0ff', color: '#0958d9' }}>{project.role}</Tag>
               )}

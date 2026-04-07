@@ -55,14 +55,16 @@ import styles from './index.module.less'
 
 /** 将项目名称转换为 URL-safe slug */
 function toSlug(str) {
-  return str
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9\s\-_]/g, '')  // 移除非法字符（中文等）
-    .replace(/[\s_]+/g, '-')          // 空格/下划线 → 连字符
-    .replace(/-+/g, '-')              // 合并连续连字符
-    .replace(/^-+|-+$/g, '')          // 去首尾连字符
-    .slice(0, 63) || 'project'        // 最长 63 字符，空则兜底
+  return (
+    str
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9\s\-_]/g, '') // 移除非法字符（中文等）
+      .replace(/[\s_]+/g, '-') // 空格/下划线 → 连字符
+      .replace(/-+/g, '-') // 合并连续连字符
+      .replace(/^-+|-+$/g, '') // 去首尾连字符
+      .slice(0, 63) || 'project'
+  ) // 最长 63 字符，空则兜底
 }
 
 /** 为项目列表中缺少 slug 的项目批量生成唯一 slug 并写入后端 */
@@ -85,9 +87,7 @@ async function backfillSlugs(projects) {
     return { id: p.id, slug: candidate }
   })
 
-  await Promise.allSettled(
-    updates.map(({ id, slug }) => updateProject(id, { slug }))
-  )
+  await Promise.allSettled(updates.map(({ id, slug }) => updateProject(id, { slug })))
   console.info(`[workspaces] 已为 ${updates.length} 个项目生成 slug:`, updates)
 }
 
@@ -112,14 +112,14 @@ const FILTER_OPTIONS = [
   { key: '已归档', label: '归档' },
 ]
 
-// ─── TenantDashboard ──────────────────────────────────────────────────────────
+// ─── WorkspaceDashboard ───────────────────────────────────────────────────────
 
-const TenantDashboard = ({ totalProjects, activeCount, starredCount, onCreate }) => (
-  <Card className={styles.tenantDashboard} variant="borderless" styles={{ body: { padding: '20px 28px' } }}>
+const WorkspaceDashboard = ({ totalProjects, activeCount, starredCount, onCreate }) => (
+  <Card className={styles.organizationDashboard} variant="borderless" styles={{ body: { padding: '20px 28px' } }}>
     <Row align="middle" justify="space-between" wrap>
       <Col>
-        <div className={styles.tenantGreeting}>
-          <div className={styles.tenantIcon}>
+        <div className={styles.organizationGreeting}>
+          <div className={styles.organizationIcon}>
             <LayoutOutlined />
           </div>
           <div>
@@ -311,10 +311,10 @@ const ProjectCard = ({ project, onEnter, onNavigate, onToggleStar, onSettings, o
               {vis.text}
             </Tag>
           </Tooltip>
-          {project.tenant && (
+          {project.organization && (
             <Tag bordered={false} style={{ fontSize: 11, background: '#f8fafc' }}>
               <FolderOpenOutlined style={{ marginRight: 3 }} />
-              {project.tenant}
+              {project.organization}
             </Tag>
           )}
           {project.tags?.slice(0, 2).map((t) => (
@@ -456,7 +456,7 @@ const ProjectRow = ({ project, onEnter, onNavigate, onToggleStar, onSettings, on
                 text={<Text style={{ fontSize: 11, color: status.color }}>{status.text}</Text>}
               />
               <Text type="secondary" style={{ fontSize: 11 }}>
-                · {project.tenant}
+                · {project.organization}
               </Text>
             </Space>
           </div>
@@ -611,60 +611,68 @@ const Workspaces = () => {
   const [editingProject, setEditingProject] = useState(null)
   const [currentProject, setCurrentProject] = useState(null)
 
-  const fetchProjects = useCallback(async (adminOverride) => {
-    setLoading(true)
-    setError(null)
-    // 支持调用方直接传入最新的 isAdmin 值，避免闭包捕获旧值
-    const adminFlag = adminOverride !== undefined ? adminOverride : isAdmin
-    let canceled = false
-    try {
-      const list = await getProjects()
-      if (canceled) return
+  const fetchProjects = useCallback(
+    async (adminOverride) => {
+      setLoading(true)
+      setError(null)
+      // 支持调用方直接传入最新的 isAdmin 值，避免闭包捕获旧值
+      const adminFlag = adminOverride !== undefined ? adminOverride : isAdmin
+      let canceled = false
+      try {
+        const list = await getProjects()
+        if (canceled) return
 
-      // 为没有 slug 的老项目自动生成并写入（静默处理，不阻塞渲染）
-      backfillSlugs(list).catch((err) => console.warn('[workspaces] backfillSlugs 失败:', err))
+        // 为没有 slug 的老项目自动生成并写入（静默处理，不阻塞渲染）
+        backfillSlugs(list).catch((err) => console.warn('[workspaces] backfillSlugs 失败:', err))
 
-      const visibleList = list
-        .filter((p) => {
-          // 管理员可见全部项目
-          if (adminFlag) return true
-          // 项目成员（非 Guest）始终可见
-          if (p.role && p.role !== 'Guest') return true
-          // 公开项目对所有人可见
-          if (p.visibility === 'public') return true
-          // 内部项目：同租户可见（tenant 为空时跳过，避免误过滤）
-          if (p.visibility === 'internal' && user?.tenant && p.tenant === user.tenant) return true
-          return false
-        })
-        .map((p) => ({ ...p, role: p.role || (adminFlag ? 'Admin' : 'Guest') }))
-      setProjects(visibleList)
-    } catch (err) {
-      if (err?.message === 'canceled' || err?.code === 'ERR_CANCELED') {
-        canceled = true
-        return
+        const visibleList = list
+          .filter((p) => {
+            // 管理员可见全部项目
+            if (adminFlag) return true
+            // 项目成员（非 Guest）始终可见
+            if (p.role && p.role !== 'Guest') return true
+            // 公开项目对所有人可见
+            if (p.visibility === 'public') return true
+            // 内部项目：同组织可见（organization 为空时跳过，避免误过滤）
+            if (p.visibility === 'internal' && user?.organization && p.organization === user.organization) return true
+            return false
+          })
+          .map((p) => ({ ...p, role: p.role || (adminFlag ? 'Admin' : 'Guest') }))
+        setProjects(visibleList)
+      } catch (err) {
+        if (err?.message === 'canceled' || err?.code === 'ERR_CANCELED') {
+          canceled = true
+          return
+        }
+        if (canceled) return
+        const errMsg = err?.response?.data?.errors?.[0]?.message ?? err?.message ?? '加载失败，请稍后重试'
+        console.error('[Workspaces] fetch failed:', errMsg, err)
+        setError(errMsg)
+        message.error(`项目列表加载失败：${errMsg}`)
+      } finally {
+        if (!canceled) setLoading(false)
       }
-      if (canceled) return
-      const errMsg = err?.response?.data?.errors?.[0]?.message ?? err?.message ?? '加载失败，请稍后重试'
-      console.error('[Workspaces] fetch failed:', errMsg, err)
-      setError(errMsg)
-      message.error(`项目列表加载失败：${errMsg}`)
-    } finally {
-      if (!canceled) setLoading(false)
-    }
-  }, [user?.tenant, isAdmin])
+    },
+    [user?.organization, isAdmin]
+  )
 
   // 初始化管理员状态：权限缓存就绪后检查一次，之后由 fetchProjects 的 dep 驱动刷新
   useEffect(() => {
     let alive = true
-    permissionService.hasPermission('*:*').then((result) => {
-      if (!alive) return
-      setIsAdmin(result)
-      // 直接将权限结果传入 fetchProjects，避免等待 setIsAdmin re-render 后再触发
-      fetchProjects(result)
-    }).catch(() => {
-      if (alive) fetchProjects(false)
-    })
-    return () => { alive = false }
+    permissionService
+      .hasPermission('*:*')
+      .then((result) => {
+        if (!alive) return
+        setIsAdmin(result)
+        // 直接将权限结果传入 fetchProjects，避免等待 setIsAdmin re-render 后再触发
+        fetchProjects(result)
+      })
+      .catch(() => {
+        if (alive) fetchProjects(false)
+      })
+    return () => {
+      alive = false
+    }
   }, [user?.id]) // user.id 变化意味着切换了账号，重新检查
 
   const handleEnter = (slug) => redirectTo(`/project/${slug}`)
@@ -736,7 +744,7 @@ const Workspaces = () => {
         !q ||
         p.name.toLowerCase().includes(q) ||
         (p.description ?? '').toLowerCase().includes(q) ||
-        (p.tenant ?? '').toLowerCase().includes(q)
+        (p.organization ?? '').toLowerCase().includes(q)
       const matchStatus = statusFilter === '全部' || STATUS_CONFIG[p.status]?.text === statusFilter
       return matchSearch && matchStatus
     })
@@ -783,7 +791,7 @@ const Workspaces = () => {
     <FixTabPanel>
       <div className={styles.container}>
         {/* 大盘头部 */}
-        <TenantDashboard
+        <WorkspaceDashboard
           totalProjects={projects.length}
           activeCount={projects.filter((p) => p.status === 'active').length}
           starredCount={projects.filter((p) => p.starred).length}
@@ -794,7 +802,7 @@ const Workspaces = () => {
         <div className={styles.toolbar}>
           <Space size={12} wrap>
             <Input
-              placeholder="搜索项目名称、描述或租户..."
+              placeholder="搜索项目名称、描述或组织..."
               allowClear
               style={{ width: 300 }}
               prefix={<SearchOutlined style={{ color: '#9ca3af' }} />}
