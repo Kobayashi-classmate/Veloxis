@@ -11,6 +11,11 @@ export const errorRoutes = [
     name: '403',
     element: <lazyComponents.Exception403 />,
   },
+  {
+    path: 'error',
+    name: 'Error',
+    element: <lazyComponents.ErrorPage />,
+  },
   // 显式 404 路由，避免访问 /404 时被 * 捕获显示 "No match for /404"
   {
     path: '/404',

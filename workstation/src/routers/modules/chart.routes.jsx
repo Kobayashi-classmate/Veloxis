@@ -14,19 +14,26 @@ export const chartRoutes = [
   {
     path: 'echarts',
     name: 'React Echarts',
-    i18nKey: 'menu.echarts',
     element: <lazyComponents.Echarts />,
+  },
+  {
+    path: 'big-screen',
+    name: 'Big Screen',
+    element: <lazyComponents.BigScreen />,
+  },
+  {
+    path: 'svg-viewer',
+    name: 'SVG Viewer',
+    element: <lazyComponents.SvgViewer />,
   },
   {
     path: 'topology',
     name: 'Topology',
-    i18nKey: 'menu.topology',
     element: <lazyComponents.Topology />,
   },
   {
     path: 'mermaid',
     name: 'Mermaid',
-    i18nKey: 'menu.mermaid',
     element: <lazyComponents.Mermaid />,
   },
 ]

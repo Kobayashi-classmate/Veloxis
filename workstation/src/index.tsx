@@ -6,8 +6,7 @@ import { renderApp } from '@/bootstrap/renderApp'
 renderApp({
   children: (
     <ProThemeProvider>
-      {/* 后期变更为当前登录用户信息 */}
-      <WatermarkProvider content="Veloxis Panel 水印">
+      <WatermarkProvider content="Pro React Admin">
         <ThemeIndex />
       </WatermarkProvider>
     </ProThemeProvider>

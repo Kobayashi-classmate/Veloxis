@@ -13,6 +13,7 @@ import TransferHistory from '@stateless/TransferHistory'
 import FixCarousel from '@stateless/FixCarouse'
 import OrgChart from '@stateless/OrgChart'
 import TrapezoidTabs from '@stateless/TrapezoidTabs'
+import MusicPlayer from '@stateless/MusicPlayer'
 import GradientStats from '@stateless/GradientStats'
 import MarketingHero from '@stateless/MarketingHero'
 import ScriptView from '@stateless/ScriptView'
@@ -24,7 +25,13 @@ import OverflowText from '@stateless/OverflowText'
 import SafeHtml from '@stateless/SafeHtml'
 import AnimatedIcon from '@stateless/AnimatedIcon'
 import SandpackBasic from '@stateless/SandpackBasic'
+import SpringPng from '@assets/images/spring.png'
+import HePng from '@assets/images/he.png'
+import SongPng from '@assets/images/song.png'
+import XuePng from '@assets/images/xue.png'
 import OneTimePasscode from '@stateless/OneTimePasscode'
+
+const companies = [SpringPng, HePng, SongPng, XuePng]
 
 const fixTabsData = [
   {
@@ -294,6 +301,7 @@ const ProDemo = () => {
           </ScrollLayout>
         </div>
 
+        <MusicPlayer />
         <TransferHistory />
         <FixCarousel />
         <ScriptView codeLanguage="shell" commandMap={customCommandMap} />
@@ -370,12 +378,13 @@ const ProDemo = () => {
         <MarketingHero />
         <FixTabs tabs={fixTabsData} />
         <StatisticCard items={statisticItems} />
+        <LogoSlider companies={companies} />
         <section style={{ height: 240, overflow: 'hidden', margin: 20 }}>
           <AnimatedList>
             {animatedListItems.map((item) => (
               <div key={item.id} className="flex flex-col items-center justify-center gap-4">
                 <div className="flex items-center justify-center gap-4">
-                  <div className="h-16 w-100 rounded-full bg-linear-to-br from-purple-500 to-blue-500" />
+                  <div className="h-16 w-100 rounded-full bg-gradient-to-br from-purple-500 to-blue-500" />
                 </div>
               </div>
             ))}

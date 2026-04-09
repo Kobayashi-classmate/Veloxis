@@ -241,7 +241,7 @@ const EChart = forwardRef<EChartHandle, EChartProps>((props, ref) => {
         chart.off(eventName as any)
       }
     }
-  }, [onEvents, onEventsRef])
+  }, [onEvents])
 
   // Loading.
   useEffect(() => {

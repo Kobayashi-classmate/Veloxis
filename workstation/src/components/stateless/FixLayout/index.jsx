@@ -25,7 +25,7 @@ const FixLayout = ({ children }) => {
           zIndex: 100,
         }}
       >
-        <div style={{ fontWeight: 'bold', fontSize: 16, padding: '0 10px' }}>Veloxis Panel</div>
+        <div style={{ fontWeight: 'bold', fontSize: 16, padding: '0 10px' }}>Pro React Admin</div>
         <div style={{ padding: '0 10px' }}>
           <FlipLink href={`https://skyline.github.com/wkylin/${new Date().getFullYear() - 1}`}>SkyLine</FlipLink>
         </div>

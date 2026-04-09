@@ -9,6 +9,7 @@ import AnimatedIcon from '@stateless/AnimatedIcon'
 import {
   UserOutlined,
   LogoutOutlined,
+  GithubOutlined,
   SmileOutlined,
   SettingOutlined,
   MenuOutlined,
@@ -16,7 +17,6 @@ import {
   RocketOutlined,
   BookOutlined,
   SearchOutlined,
-  SafetyCertificateOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { removeLocalStorage, getLocalStorage } from '@utils/publicFn'
@@ -25,14 +25,13 @@ import LanguageSwitcher from '@stateless/LanguageSwitcher'
 import GradientAnimationText from '@stateless/GradientAnimation'
 
 import Logo from '@assets/images/pro-logo.png'
+import SoundBar from '@stateless/SoundBar'
 import NotificationDrawer from '@stateless/NotificationDrawer'
 
 import { useAuth } from '@src/service/useAuth'
 import { authService } from '@src/service/authService'
 import { permissionService } from '@src/service/permissionService'
 import { HashRouterUtils } from '@src/utils/hashRouter'
-import { resolveUserDisplayName } from '@src/utils/userDisplayName'
-import { buildAdminAccessProfile } from '@src/utils/adminAccess'
 import PrimaryNav, { usePrimaryNavItems } from '../primaryNav'
 import styles from './index.module.less'
 import Fullscreen from '../fullscreen'
@@ -73,24 +72,13 @@ const safeNotifyDeniedOnce = async ({ path, lastDeniedRef, messageApi }) => {
   }
 }
 
-const buildUserMenuItems = ({ t, isAuthenticated, user, displayName, showAdminEntry }) => [
-  ...(isAuthenticated && user
-    ? [
-        {
-          key: 'userinfo',
-          label: (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '2px 0' }}>
-              <span style={{ fontWeight: 600 }}>{displayName}</span>
-              {user.email && user.email !== displayName ? (
-                <span style={{ fontSize: 12, opacity: 0.6 }}>{user.email}</span>
-              ) : null}
-            </div>
-          ),
-          disabled: true,
-        },
-        { type: 'divider' },
-      ]
-    : []),
+const buildUserMenuItems = ({ t, tokenValue, isAuthenticated, user }) => [
+  {
+    key: 'token',
+    label: <>{tokenValue}</>,
+    disabled: true,
+  },
+  { type: 'divider' },
   {
     key: '1',
     label: <Space>{t('header.userCenter')}</Space>,
@@ -119,21 +107,6 @@ const buildUserMenuItems = ({ t, isAuthenticated, user, displayName, showAdminEn
       </AnimatedIcon>
     ),
   },
-  ...(showAdminEntry ? [{ type: 'divider' }] : []),
-  ...(showAdminEntry
-    ? [
-        {
-          key: 'admin',
-          label: <Space>管理员控制台</Space>,
-          icon: (
-            <AnimatedIcon variant="spin" mode="hover">
-              <SafetyCertificateOutlined />
-            </AnimatedIcon>
-          ),
-        },
-      ]
-    : []),
-  { type: 'divider' },
   {
     key: '4',
     label: <Space>{t('header.logout')}</Space>,
@@ -145,7 +118,14 @@ const buildUserMenuItems = ({ t, isAuthenticated, user, displayName, showAdminEn
   },
 ]
 
-const buildMobileMoreItems = ({ t, primaryNavItems, onSettingClick, redirectGithub, redirectWiki }) => [
+const buildMobileMoreItems = ({
+  t,
+  primaryNavItems,
+  onSettingClick,
+  redirectGithub,
+  redirectWiki,
+  redirectWrapped,
+}) => [
   ...(Array.isArray(primaryNavItems) ? primaryNavItems : []).map((it) => ({
     ...it,
     label: it?.i18nKey ? t(it.i18nKey) : it?.label,
@@ -158,6 +138,16 @@ const buildMobileMoreItems = ({ t, primaryNavItems, onSettingClick, redirectGith
     onClick: undefined,
   },
   {
+    key: 'github',
+    label: t('header.github'),
+    icon: (
+      <AnimatedIcon variant="spin" mode="hover">
+        <GithubOutlined style={{ fontSize: 16 }} />
+      </AnimatedIcon>
+    ),
+    onClick: redirectGithub,
+  },
+  {
     key: 'wiki',
     label: t('header.wiki'),
     icon: (
@@ -166,6 +156,16 @@ const buildMobileMoreItems = ({ t, primaryNavItems, onSettingClick, redirectGith
       </AnimatedIcon>
     ),
     onClick: redirectWiki,
+  },
+  {
+    key: 'wrapped',
+    label: t('header.wrapped'),
+    icon: (
+      <AnimatedIcon variant="spin" mode="hover">
+        <RocketOutlined style={{ fontSize: 16 }} />
+      </AnimatedIcon>
+    ),
+    onClick: redirectWrapped,
   },
   {
     key: 'setting',
@@ -253,9 +253,11 @@ const renderDesktopActions = ({
   onSettingClick,
   redirectGithub,
   redirectWiki,
+  redirectWrapped,
   setSearchOpen,
 }) => (
   <Space orientation="horizontal" style={{ paddingRight: 8 }}>
+    <SoundBar buttonStyle={{ border: 'none' }} />
     <Tooltip title={t('header.searchTooltip')} placement="bottom">
       <Button
         icon={
@@ -270,6 +272,19 @@ const renderDesktopActions = ({
     </Tooltip>
 
     <NotificationDrawer variant="button" buttonStyle={iconButtonStyle} />
+    <Tooltip title={t('header.github')} placement="bottom">
+      <Button
+        icon={
+          <AnimatedIcon variant="spin" mode="hover">
+            <GithubOutlined style={{ fontSize: 16 }} />
+          </AnimatedIcon>
+        }
+        size="small"
+        type="default"
+        onClick={redirectGithub}
+        style={iconButtonStyle}
+      />
+    </Tooltip>
     <Fullscreen buttonStyle={iconButtonStyle} />
     <Tooltip title={isDark ? t('header.themeLight') : t('header.themeDark')} placement="bottom">
       <Button
@@ -294,6 +309,18 @@ const renderDesktopActions = ({
         }
         size="small"
         onClick={onSettingClick}
+        style={iconButtonStyle}
+      />
+    </Tooltip>
+    <Tooltip title={t('header.wrappedTooltip')} placement="bottom">
+      <Button
+        icon={
+          <AnimatedIcon variant="spin" mode="hover">
+            <RocketOutlined style={{ fontSize: 16 }} />
+          </AnimatedIcon>
+        }
+        size="small"
+        onClick={redirectWrapped}
         style={iconButtonStyle}
       />
     </Tooltip>
@@ -396,62 +423,19 @@ const ProHeader = ({ layout, onSettingClick, children, onMobileMenuClick }) => {
     window.open('https://github.com/wkylin/pro-react-admin', '_blank', 'noopener')
   }
 
+  const redirectWrapped = () => {
+    window.open('https://git-wrapped.com/', '_blank', 'noopener')
+  }
   const redirectWiki = () => {
     window.open('https://deepwiki.com/wkylin/pro-react-admin', '_blank', 'noopener')
   }
 
   const { isAuthenticated, user } = useAuth()
-  const [showAdminEntry, setShowAdminEntry] = React.useState(false)
 
-  React.useEffect(() => {
-    let mounted = true
-
-    const resolveAdminEntry = async () => {
-      if (!isAuthenticated) {
-        if (mounted) setShowAdminEntry(false)
-        return
-      }
-
-      try {
-        const userPermissions = await permissionService.getPermissions()
-        const permissions = Array.isArray(userPermissions?.permissions) ? userPermissions.permissions : []
-        const roles = Array.isArray(userPermissions?.roles)
-          ? userPermissions.roles
-              .map((role) => {
-                if (!role) return null
-                if (typeof role === 'string') return { code: role, name: role }
-                return {
-                  code: role.code || role.id || '',
-                  name: role.name || role.code || role.id || '',
-                }
-              })
-              .filter(Boolean)
-          : []
-
-        const profile = buildAdminAccessProfile(roles, {
-          isPlatformAdmin: permissions.includes('*:*'),
-        })
-
-        if (mounted) {
-          setShowAdminEntry(profile.isAdminConsoleUser)
-        }
-      } catch {
-        if (mounted) setShowAdminEntry(false)
-      }
-    }
-
-    resolveAdminEntry()
-
-    return () => {
-      mounted = false
-    }
-  }, [isAuthenticated])
-
-  const userDisplayName = React.useMemo(() => resolveUserDisplayName(user, t('header.unnamedUser')), [user, t])
-
+  const tokenValue = getLocalStorage('token')?.token || 'wkylin.w'
   const items = React.useMemo(
-    () => buildUserMenuItems({ t, isAuthenticated, user, displayName: userDisplayName, showAdminEntry }),
-    [t, isAuthenticated, user, userDisplayName, showAdminEntry]
+    () => buildUserMenuItems({ t, tokenValue, isAuthenticated, user }),
+    [t, tokenValue, isAuthenticated, user]
   )
 
   const mobileMoreItems = React.useMemo(
@@ -462,8 +446,9 @@ const ProHeader = ({ layout, onSettingClick, children, onMobileMenuClick }) => {
         onSettingClick,
         redirectGithub,
         redirectWiki,
+        redirectWrapped,
       }),
-    [t, primaryNavItems, onSettingClick, redirectGithub, redirectWiki]
+    [t, primaryNavItems, onSettingClick, redirectGithub, redirectWiki, redirectWrapped]
   )
 
   const handleUserMenuClick = React.useCallback(
@@ -478,10 +463,6 @@ const ProHeader = ({ layout, onSettingClick, children, onMobileMenuClick }) => {
       }
       if (key === '3') {
         redirectTo('/contact')
-        return
-      }
-      if (key === 'admin') {
-        redirectTo('/admin/overview')
         return
       }
       if (key === '4') {
@@ -551,7 +532,7 @@ const ProHeader = ({ layout, onSettingClick, children, onMobileMenuClick }) => {
       >
         {/* Pro React <Tag>{process.env.DEPLOYED_ENV}</Tag> */}
         {!isMobile && <img src={Logo} alt="logo" />}
-        <GradientAnimationText text="Veloxis Panel" />
+        <GradientAnimationText text="Pro React Admin" />
       </div>
       <div className={styles.headerMeta} style={isMobile ? { justifyContent: 'flex-end' } : {}}>
         {renderDesktopNav(isMobile, layout, children)}
@@ -565,6 +546,7 @@ const ProHeader = ({ layout, onSettingClick, children, onMobileMenuClick }) => {
             onSettingClick,
             redirectGithub,
             redirectWiki,
+            redirectWrapped,
             mobileMoreItems,
             setSearchOpen,
           })}

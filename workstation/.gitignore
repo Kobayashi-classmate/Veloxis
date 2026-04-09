@@ -51,13 +51,3 @@ storybook-static
 # 防止 Windows NUL 文件被误提交
 nul
 NUL
-
-# Custom ignores
-serve.log
-stats.json
-.sonarlint/
-
-
-# Env files
-.env*
-!.env.example

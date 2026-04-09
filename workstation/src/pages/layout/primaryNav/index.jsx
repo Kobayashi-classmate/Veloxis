@@ -2,7 +2,7 @@ import AnimatedIcon from '@stateless/AnimatedIcon'
 import React from 'react'
 import PropTypes from 'prop-types'
 import { Button, Space } from 'antd'
-import { HomeOutlined } from '@ant-design/icons'
+import { DashboardOutlined, ProjectOutlined, HomeOutlined } from '@ant-design/icons'
 import useSafeNavigate from '@app-hooks/useSafeNavigate'
 import { usePermission } from '@src/app-hooks/usePermission'
 import { useTranslation } from 'react-i18next'
@@ -68,6 +68,30 @@ export const usePrimaryNavItems = () => {
       ),
       onClick: () => redirectTo('/'),
       show: true,
+    },
+    {
+      key: 'dashboard',
+      label: '多路由设置',
+      i18nKey: 'nav.dashboard',
+      icon: (
+        <AnimatedIcon variant="spin" mode="hover">
+          <DashboardOutlined style={{ fontSize: 16 }} />
+        </AnimatedIcon>
+      ),
+      onClick: () => redirectTo('dashboard'),
+      show: hasAccess('/dashboard'),
+    },
+    {
+      key: 'portfilo',
+      label: 'My Portfilo',
+      i18nKey: 'nav.portfolio',
+      icon: (
+        <AnimatedIcon variant="spin" mode="hover">
+          <ProjectOutlined style={{ fontSize: 16 }} />
+        </AnimatedIcon>
+      ),
+      onClick: () => redirectTo('portfilo'),
+      show: hasAccess('/portfilo'),
     },
   ]
 

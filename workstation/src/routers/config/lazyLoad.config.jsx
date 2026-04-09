@@ -2,7 +2,9 @@ import React from 'react'
 import loadable from '@loadable/component'
 import Loading from '@stateless/Loading'
 
+import Home from '@pages/home'
 import Layout from '@pages/layout'
+import MyPortfilo from '@pages/portfilo'
 
 /**
  * 懒加载失败时的备用组件
@@ -56,48 +58,36 @@ export const lazyComponents = {
   // Layout: lazyLoad(() => import('@pages/layout')),
   Layout, // 布局改为同步加载，避免白屏
   Dashboard: lazyLoad(() => import('@pages/dashboard'), { preload: true }),
+  MyPortfilo, // MyPortfilo 改为同步加载，避免刷新时一直 loading
 
   // 认证相关（直接导入，不需要懒加载）
   // SignIn 和 SignUp 在路由中直接导入，不使用懒加载
+  AuthCallback: lazyLoad(() => import('@src/components/auth/AuthCallback')),
   Terms: lazyLoad(() => import('@pages/terms')),
   Privacy: lazyLoad(() => import('@pages/privacy')),
 
   // 业务页面
-  Workbench: lazyLoad(() => import('@pages/workbench'), { preload: true }), // 工作台首页
-  Workspaces: lazyLoad(() => import('@pages/workspaces'), { preload: true }), // 项目大厅
-  ProjectLayout: lazyLoad(() => import('@pages/project'), { preload: true }),
-  ProjectOverview: lazyLoad(() => import('@pages/project/overview'), { preload: true }),
-  ProjectDatasets: lazyLoad(() => import('@pages/project/datasets'), { preload: true }),
-  ProjectModels: lazyLoad(() => import('@pages/project/models'), { preload: true }),
-  ProjectWorkbooks: lazyLoad(() => import('@pages/project/workbooks'), { preload: true }),
-  VisualWorkbench: lazyLoad(() => import('@pages/visualWorkbench'), { preload: true }),
-  ProjectRecipes: lazyLoad(() => import('@pages/project/recipes'), { preload: true }),
-  ProjectMembers: lazyLoad(() => import('@pages/project/members'), { preload: true }),
-  ProjectSettings: lazyLoad(() => import('@pages/project/settings'), { preload: true }),
-  AdminLayout: lazyLoad(() => import('@pages/admin/layout'), { preload: true }),
-  AdminOverview: lazyLoad(() => import('@pages/admin/overview'), { preload: true }),
-  AdminUsers: lazyLoad(() => import('@pages/admin/users'), { preload: true }),
-  AdminRoles: lazyLoad(() => import('@pages/admin/roles'), { preload: true }),
-  AdminOrganizations: lazyLoad(() => import('@pages/admin/organizations'), { preload: true }),
-  AdminMembers: lazyLoad(() => import('@pages/admin/members'), { preload: true }),
-  AdminProjects: lazyLoad(() => import('@pages/admin/projects'), { preload: true }),
-  AdminPlugins: lazyLoad(() => import('@pages/admin/plugins'), { preload: true }),
-  AdminAudit: lazyLoad(() => import('@pages/admin/audit'), { preload: true }),
-  AdminLegacy: lazyLoad(() => import('@pages/admin/legacy'), { preload: true }),
-  Home: lazyLoad(() => import('@pages/home'), { preload: true }), // 原首页，现作为演示页
-  GlobalConsole: lazyLoad(() => import('@pages/globalConsole'), { preload: true }),
+  // Home: lazyLoad(() => import('@pages/home'), { preload: true }),
+  Home, // 首页改为同步加载，避免首屏白屏闪烁
   Demo: lazyLoad(() => import('@pages/demo'), { preload: true }),
   Business: lazyLoad(() => import('@pages/business')),
   ZustandDemo: lazyLoad(() => import('@pages/zustand'), { preload: true }),
+  AutoDeploy: lazyLoad(() => import('@pages/autoDeploy'), { preload: true }),
   RichTextEditor: lazyLoad(() => import('@pages/richTextEditor'), { preload: true }),
+  DeployFlow: lazyLoad(() => import('@pages/deployFlow'), { preload: true }),
 
   // UI 组件页面
   Motion: lazyLoad(() => import('@pages/motion')),
+  ReactTilt: lazyLoad(() => import('@pages/tilt'), { preload: true }),
+  ReactMusic: lazyLoad(() => import('@pages/music'), { preload: true }),
+  MyVideo: lazyLoad(() => import('@pages/video'), { preload: true }),
   MyCrypto: lazyLoad(() => import('@pages/crypto'), { preload: true }),
 
   // 图表相关
   Echarts: lazyLoad(() => import('@pages/echarts'), { preload: true }),
   GeoChart: lazyLoad(() => import('@pages/geoChart'), { preload: true }),
+  BigScreen: lazyLoad(() => import('@pages/bigScreen'), { preload: true }),
+  SvgViewer: lazyLoad(() => import('@pages/svgViewer'), { preload: true }),
   Topology: lazyLoad(() => import('@pages/topology'), { preload: true }),
 
   // 工具类页面
@@ -105,22 +95,20 @@ export const lazyComponents = {
   PrismRender: lazyLoad(() => import('@pages/prism'), { preload: true }),
   ChatGpt: lazyLoad(() => import('@pages/chatgpt'), { preload: true }),
   Mermaid: lazyLoad(() => import('@pages/mermaid'), { preload: true }),
+  PostMessage: lazyLoad(() => import('@pages/postmessage'), { preload: true }),
+  MyIframe: lazyLoad(() => import('@pages/postmessage/myIframe'), {
+    preload: true,
+  }),
   Print: lazyLoad(() => import('@pages/print'), { preload: true }),
   // 通知页面
   Notifications: lazyLoad(() => import('@pages/notifications'), {
     preload: true,
   }),
   NotificationDetail: lazyLoad(() => import('@pages/notifications/NotificationDetail'), { preload: true }),
+  PHBar: lazyLoad(() => import('@pages/phbar'), { preload: true }),
 
   // 权限示例页面
   PermissionExample: lazyLoad(() => import('@pages/permission'), {
-    preload: true,
-  }),
-
-  Dependencies: lazyLoad(() => import('@pages/dependencies'), {
-    preload: true,
-  }),
-  PluginDebug: lazyLoad(() => import('@pages/pluginDebug'), {
     preload: true,
   }),
 
@@ -132,13 +120,39 @@ export const lazyComponents = {
 
   // 用户相关
   Profile: lazyLoad(() => import('@pages/profile')),
-  UserSettings: lazyLoad(() => import('@pages/setting')),
   Contact: lazyLoad(() => import('@pages/contact')),
 
   // 嵌套路由
+  BackendStack: lazyLoad(() => import('@pages/tech/backend'), {
+    preload: true,
+  }),
+  FrontendStack: lazyLoad(() => import('@pages/tech/frontend'), {
+    preload: true,
+  }),
+  ReactDemo: lazyLoad(() => import('@pages/tech/demos/react'), {
+    preload: true,
+  }),
+  VueDemo: lazyLoad(() => import('@pages/tech/demos/vue'), { preload: true }),
+  AngularDemo: lazyLoad(() => import('@pages/tech/demos/angular'), {
+    preload: true,
+  }),
+  NodeDemo: lazyLoad(() => import('@pages/tech/demos/node'), { preload: true }),
+  VuePlugins: lazyLoad(() => import('@pages/tech/demos/vue/plugins'), {
+    preload: true,
+  }),
+  Vue3Plugin: lazyLoad(() => import('@pages/tech/demos/vue/plugins/vue3'), {
+    preload: true,
+  }),
+  VuePerfPlugin: lazyLoad(() => import('@pages/tech/demos/vue/plugins/perf'), {
+    preload: true,
+  }),
+  WebpackList: lazyLoad(() => import('@pages/tech/demos/webpack'), {
+    preload: true,
+  }),
   ViteList: lazyLoad(() => import('@pages/order/list'), { preload: true }),
 
   // 异常页面
+  ErrorPage: lazyLoad(() => import('@pages/error'), { preload: true }),
   Exception403: lazyLoad(() => import('@stateless/Exception/exception403'), {
     preload: true,
   }),

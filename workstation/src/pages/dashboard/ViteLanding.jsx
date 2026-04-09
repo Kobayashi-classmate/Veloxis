@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { Button, theme } from 'antd'
 import {
   RightOutlined,
+  GithubOutlined,
   ThunderboltOutlined,
   AppstoreOutlined,
   CodeOutlined,
@@ -122,6 +123,18 @@ const ViteLanding = () => {
                 }
               >
                 Get Started
+              </Button>
+              <Button
+                size="large"
+                shape="round"
+                className={`h-12 px-8 text-lg font-medium ${isDark ? 'border-[#444] bg-[#333] text-white hover:bg-[#444]' : 'border-gray-200 bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                icon={
+                  <AnimatedIcon variant="spin" mode="hover">
+                    <GithubOutlined />
+                  </AnimatedIcon>
+                }
+              >
+                View on GitHub
               </Button>
             </motion.div>
           </div>

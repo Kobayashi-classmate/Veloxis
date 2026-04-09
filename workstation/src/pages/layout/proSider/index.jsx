@@ -57,7 +57,7 @@ const ProSider = ({ children, theme = 'light' }) => {
           )}
         </button>
       ) : (
-        <Button type="link">Veloxis Panel</Button>
+        <Button type="link">Pro React Admin</Button>
       )}
     </Layout.Sider>
   )

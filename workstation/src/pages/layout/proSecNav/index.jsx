@@ -81,7 +81,7 @@ const resolvePageModuleKey = (() => {
   }
 })()
 
-import { mainLayoutMenu, projectMenu, adminMenu } from '@src/config/menu.config'
+import { mainLayoutMenu } from '@src/config/menu.config'
 
 let lazyComponentsCache = null
 let lazyComponentsPromise = null
@@ -104,10 +104,6 @@ const loadLazyComponents = () => {
 const ProSecNav = ({ mode = 'inline', theme = 'light', onMenuClick }) => {
   const { pathname } = useLocation()
   const { redirectTo } = useSafeNavigate()
-
-  const isProjectRoute = pathname.startsWith('/project/')
-  const isAdminRoute = pathname === '/admin' || pathname.startsWith('/admin/')
-  const projectId = isProjectRoute ? pathname.split('/')[2] : null
 
   const { t } = useTranslation()
   const [messageApi, contextHolder] = message.useMessage()
@@ -257,33 +253,7 @@ const ProSecNav = ({ mode = 'inline', theme = 'light', onMenuClick }) => {
     }
 
     // 使用配置文件的菜单，并进行翻译；同时规范化每项的 path 字段
-    const baseMenu = isProjectRoute ? projectMenu : isAdminRoute ? adminMenu : mainLayoutMenu
-
-    const processItem = (item) => {
-      const newItem = { ...item }
-      if (isProjectRoute && projectId) {
-        // 兼容不同动态参数命名，统一替换为当前项目 slug
-        if (newItem.path?.includes(':id')) {
-          newItem.path = newItem.path.replace(':id', projectId)
-        }
-        if (newItem.path?.includes(':slug')) {
-          newItem.path = newItem.path.replace(':slug', projectId)
-        }
-        if (newItem.key?.includes(':id')) {
-          newItem.key = newItem.key.replace(':id', projectId)
-        }
-        if (newItem.key?.includes(':slug')) {
-          newItem.key = newItem.key.replace(':slug', projectId)
-        }
-      }
-      if (newItem.children) {
-        newItem.children = newItem.children.map(processItem)
-      }
-      return newItem
-    }
-
-    const processedMenu = baseMenu.map(processItem)
-    const allMenuItems = (Array.isArray(processedMenu) ? processedMenu : []).map(translateItem).filter(Boolean)
+    const allMenuItems = (Array.isArray(mainLayoutMenu) ? mainLayoutMenu : []).map(translateItem).filter(Boolean)
 
     const hasAccessSafely = (p) => {
       try {
@@ -329,7 +299,7 @@ const ProSecNav = ({ mode = 'inline', theme = 'light', onMenuClick }) => {
           continue
         }
 
-        const hasAccess = item.alwaysVisible || hasAccessSafely(rawKey) || matchesDynamicParam(rawKey)
+        const hasAccess = hasAccessSafely(rawKey) || matchesDynamicParam(rawKey)
         if (hasAccess) {
           pushWithChildren(item, null)
         }
@@ -463,13 +433,6 @@ const ProSecNav = ({ mode = 'inline', theme = 'light', onMenuClick }) => {
     }
 
     try {
-      if (selected?.bypassPermission) {
-        redirectTo(selectedPath)
-        setIsOpenChange(false)
-        onMenuClick?.()
-        return
-      }
-
       const ok = await permissionService.canAccessRoute(selectedPath, false)
       if (!ok) {
         showDeniedOnce(selectedPath)

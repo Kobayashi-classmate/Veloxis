@@ -493,8 +493,7 @@ Layout / component styles
 .layout-content {
   height: 100%;
   width: 100%;
-  min-height: 0;
-  overflow: auto;
+  overflow: hidden;
 }
 
 .layout-container {
@@ -534,9 +533,10 @@ Layout / component styles
 .layout-container .layout-tabpanel {
   width: 100%;
   height: 100%;
-  position: relative;
-  min-height: 0;
-  overflow: auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
 }
 
 /* Fill mode for FixTabPanel - overrides flex centering */

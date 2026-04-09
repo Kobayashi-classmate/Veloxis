@@ -101,4 +101,15 @@ export class HashRouterUtils {
 
     return result
   }
+
+  /**
+   * 处理 GitHub OAuth 回调
+   */
+  static handleOAuthCallback(): { code: string | null; error: string | null } {
+    const params = this.getQueryParams()
+    return {
+      code: params.code || null,
+      error: params.error || null,
+    }
+  }
 }

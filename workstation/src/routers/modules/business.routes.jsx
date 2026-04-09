@@ -15,19 +15,27 @@ export const businessRoutes = [
   {
     path: 'zustand',
     name: 'Zustand演示',
-    i18nKey: 'menu.zustand',
+    i18nKey: 'zustand',
     element: <lazyComponents.ZustandDemo />,
   },
   {
     path: 'motion',
     name: 'Motion',
-    i18nKey: 'menu.motion',
     element: <lazyComponents.Motion />,
   },
   {
     path: 'business',
     name: 'Business',
-    i18nKey: 'menu.business',
     element: <lazyComponents.Business />,
+  },
+  {
+    path: 'build/vite',
+    name: 'Vite',
+    element: <lazyComponents.ViteList />,
+  },
+  {
+    path: 'build/webpack',
+    name: 'Webpack',
+    element: <lazyComponents.WebpackList />,
   },
 ]

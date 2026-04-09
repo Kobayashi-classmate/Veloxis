@@ -2,6 +2,7 @@ import AnimatedIcon from '@stateless/AnimatedIcon'
 import React from 'react'
 import { motion } from 'motion/react'
 import { ArrowUpRight } from 'lucide-react'
+import SongPng from '@assets/images/song.png'
 
 const FixFooter = () => {
   return (
@@ -15,7 +16,7 @@ const FixFooter = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <img src="" width="40" height="40" alt="Logo" />
+              <img src={SongPng} width="40" height="40" alt="Logo" />
             </motion.h2>
             <p className="text-sm leading-relaxed sm:text-base">Shaping the future of web development</p>
             <div className="relative">

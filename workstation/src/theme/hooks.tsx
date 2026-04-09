@@ -31,8 +31,8 @@ export const defaultSettings: ThemeSettings = {
   colorWeak: false,
   grayMode: false,
   compactAlgorithm: false,
-  pointerMove: false,
-  magicTrail: false,
+  pointerMove: true,
+  magicTrail: true,
 }
 
 export interface ProThemeContextValue {

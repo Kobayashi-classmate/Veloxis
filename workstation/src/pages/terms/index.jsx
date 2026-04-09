@@ -59,7 +59,7 @@ const Terms = () => {
               <div className={styles.headerMeta}>
                 <span className={styles.kicker}>TERMS</span>
                 <span className={styles.dot} />
-                <span className={styles.metaText}>Veloxis Panel</span>
+                <span className={styles.metaText}>Pro React Admin</span>
               </div>
             </div>
 
@@ -73,7 +73,7 @@ const Terms = () => {
 
               <Title level={4}>1. 服务条款的接受</Title>
               <Paragraph>
-                欢迎使用 Veloxis Panel
+                欢迎使用 Pro React Admin
                 系统。通过访问或使用本系统，您同意受本用户协议（以下简称"协议"）的约束。如果您不同意本协议的任何条款，请勿使用本系统。
               </Paragraph>
 

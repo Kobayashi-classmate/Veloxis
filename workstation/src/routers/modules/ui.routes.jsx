@@ -9,38 +9,42 @@ export const uiRoutes = [
   {
     path: 'qrcode',
     name: 'QrGenerate',
-    i18nKey: 'menu.qrGenerate',
     element: <lazyComponents.QrCode />,
   },
   {
     path: 'tilt',
     name: 'React Tilt',
-    i18nKey: 'menu.reactTilt',
     element: <lazyComponents.ReactTilt />,
   },
   {
     path: 'music',
     name: 'React Music',
-    i18nKey: 'menu.music',
     element: <lazyComponents.ReactMusic />,
+  },
+  {
+    path: 'video',
+    name: 'React Video',
+    element: <lazyComponents.MyVideo />,
   },
   {
     path: 'crypto',
     name: 'React Crypto',
-    i18nKey: 'menu.crypto',
     element: <lazyComponents.MyCrypto />,
   },
   {
     path: 'chatgpt',
     name: 'ChatGPT Markmap',
-    i18nKey: 'menu.chatgpt',
     element: <lazyComponents.ChatGpt />,
   },
   {
     path: 'prism',
     name: 'Prism Render',
-    i18nKey: 'menu.prismRender',
     element: <lazyComponents.PrismRender />,
+  },
+  {
+    path: 'postmessage',
+    name: 'Post Message',
+    element: <lazyComponents.PostMessage />,
   },
   {
     path: 'my-iframe',
@@ -50,26 +54,22 @@ export const uiRoutes = [
   {
     path: 'print',
     name: 'Print',
-    i18nKey: 'menu.print',
     element: <lazyComponents.Print />,
   },
   {
     path: 'profile',
     name: 'Profile',
-    i18nKey: 'menu.profile',
     element: <lazyComponents.Profile />,
-  },
-  {
-    path: 'setting',
-    name: 'User Settings',
-    i18nKey: 'menu.setting',
-    element: <lazyComponents.UserSettings />,
   },
   {
     path: 'contact',
     name: 'Contact',
-    i18nKey: 'menu.contact',
     element: <lazyComponents.Contact />,
+  },
+  {
+    path: 'ph-bar',
+    name: 'PH Bar',
+    element: <lazyComponents.PHBar />,
   },
   {
     path: 'permission',
@@ -78,20 +78,21 @@ export const uiRoutes = [
     element: <lazyComponents.PermissionExample />,
   },
   {
-    path: 'dependencies',
-    name: '项目依赖分析',
-    i18nKey: 'menu.dependencies',
-    element: <lazyComponents.Dependencies />,
-  },
-  {
-    path: 'plugin-debug',
-    name: 'Plugin Debug',
-    element: <lazyComponents.PluginDebug />,
+    path: 'auto-deploy',
+    name: '自动部署',
+    i18nKey: 'menu.autoDeploy',
+    element: <lazyComponents.AutoDeploy />,
   },
   {
     path: 'text-editor',
     name: '文本编辑器',
     i18nKey: 'menu.textEditor',
     element: <lazyComponents.RichTextEditor />,
+  },
+  {
+    path: 'deploy-flow',
+    name: 'Deploy Flow',
+    i18nKey: 'menu.deployFlow',
+    element: <lazyComponents.DeployFlow />,
   },
 ]

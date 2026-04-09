@@ -9,33 +9,36 @@ const allRoutes = [
   '/motion',
   '/business',
   '/big-screen',
+  '/ph-bar',
   '/qrcode',
   '/prism',
   '/tilt',
+  '/music',
   '/crypto',
+  '/video',
   '/echarts',
   '/chatgpt',
+  '/postmessage',
   '/geo',
   '/print',
+  '/tech/frontend/vue',
+  '/tech/frontend/angular',
+  '/tech/backend',
+  '/build/webpack',
+  '/build/vite',
+  '/error',
   '/dashboard',
   '/mermaid',
   '/profile',
   '/contact',
+  '/portfilo',
   '/permission',
   '/topology',
   '/zustand',
-  '/dependencies',
+  '/svg-viewer',
+  '/auto-deploy',
   '/text-editor',
-  '/admin',
-  '/admin/overview',
-  '/admin/users',
-  '/admin/roles',
-  '/admin/organizations',
-  '/admin/members',
-  '/admin/projects',
-  '/admin/plugins',
-  '/admin/audit',
-  '/admin/legacy',
+  '/deploy-flow',
 ]
 
 // 超级管理员：所有路由
@@ -48,23 +51,21 @@ const managerRoutes = [
   '/business',
   '/echarts',
   '/geo',
+  '/tech/frontend/vue',
+  '/tech/frontend/angular',
+  '/build/webpack',
+  '/build/vite',
+  '/tech/backend',
   '/dashboard',
   '/profile',
   '/print',
   '/chatgpt',
+  '/postmessage',
   '/topology',
   '/svg-viewer',
   '/auto-deploy',
-  '/dependencies',
   '/text-editor',
   '/deploy-flow',
-  '/admin',
-  '/admin/overview',
-  '/admin/organizations',
-  '/admin/members',
-  '/admin/projects',
-  '/admin/audit',
-  '/admin/legacy',
 ]
 
 // 业务员：业务相关功能
@@ -101,6 +102,14 @@ export const mockRoles: Role[] = [
       'chatgpt:read',
     ],
     isDefault: false,
+  },
+  {
+    id: '3',
+    name: '业务员',
+    code: 'business_user',
+    description: '拥有业务相关权限',
+    permissions: ['home:read', 'business:*', 'tech:read'],
+    isDefault: true,
   },
   {
     id: '4',
@@ -141,17 +150,36 @@ export const routePermissionMap: Record<string, PermissionCode> = {
   '/': 'home:read',
   '/dashboard': 'dashboard:read',
   '/business': 'business:read',
+  '/big-screen': 'bigscreen:read',
   '/contact': 'contact:read',
+  '/tech': 'tech:read',
+  '/tech/frontend': 'tech:read',
+  '/tech/frontend/react': 'tech:read',
+  '/build/webpack': 'build:read',
+  '/tech/frontend/plugins': 'tech:read',
+  '/tech/frontend/plugins/vue3': 'tech:read',
+  '/tech/frontend/plugins/perf': 'tech:read',
+  '/tech/frontend/angular': 'tech:read',
+  '/tech/frontend/angular/:id': 'tech:read',
+  '/tech/frontend/node': 'tech:read',
+  '/tech/frontend/node/:id': 'tech:read',
+  '/build/vite': 'build:read',
+  '/tech/backend': 'tech:read',
   '/profile': 'profile:read',
   '/demo': 'demo:read',
   '/echarts': 'echarts:read',
   '/geo': 'geo:read',
   '/music': 'music:read',
+  '/video': 'video:read',
   '/print': 'print:read',
+  '/postmessage': 'postmessage:read',
   '/qrcode': 'qrcode:read',
   '/prism': 'prism:read',
+  '/ph-bar': 'phbar:read',
+  '/portfilo': 'portfilo:read',
   '/chatgpt': 'chatgpt:read',
   '/crypto': 'crypto:read',
+  '/error': 'error:read',
   '/403': 'error:read',
   '/404': 'error:read',
   '/500': 'error:read',
@@ -166,22 +194,15 @@ export const routePermissionMap: Record<string, PermissionCode> = {
   '/my-iframe': 'ui:read',
   '/tilt': 'tilt:read',
   '/sub-error': 'error:read',
+  '/tech/frontend/framework': 'tech:read',
+  '/build': 'build:read',
   '/permission': 'permission:read',
   '/topology': 'topology:read',
   '/zustand': 'zustand:read',
   '/svg-viewer': 'svg-viewer:read',
-  '/dependencies': 'dependencies:read',
+  '/auto-deploy': 'auto-deploy:read',
   '/text-editor': 'text-editor:read',
-  '/admin': 'system:read',
-  '/admin/overview': 'system:read',
-  '/admin/users': 'system:read',
-  '/admin/roles': 'system:read',
-  '/admin/organizations': 'system:read',
-  '/admin/members': 'system:read',
-  '/admin/projects': 'system:read',
-  '/admin/plugins': 'system:read',
-  '/admin/audit': 'system:read',
-  '/admin/legacy': 'system:read',
+  '/deploy-flow': 'deploy-flow:read',
   '*': '*:*',
 }
 
@@ -295,6 +316,17 @@ const tryGetManualRolePermission = (): UserPermission | null => {
   return null
 }
 
+const tryGetGithubUserPermission = (): UserPermission | null => {
+  const githubUser = safeGetStorageItem('github_user')
+  const user = safeJsonParse<{ email?: string }>(githubUser)
+  if (!user) return null
+
+  if (user.email) {
+    return { ...mockUserPermissions['super_admin'] }
+  }
+  return null
+}
+
 const tryGetTokenRolePermission = (): UserPermission | null => {
   const tokenData = safeGetStorageItem('token')
   if (!tokenData) return null
@@ -320,7 +352,11 @@ export const mockGetUserPermissions = async (_userId?: string, _roleCode?: strin
   const manual = tryGetManualRolePermission()
   if (manual) return manual
 
-  // 2. 根据测试账号 token 中的邮箱获取角色
+  // 2. GitHub 登录用户检查（优先级最高，因为 GitHub 用户总是超级管理员）
+  const github = tryGetGithubUserPermission()
+  if (github) return github
+
+  // 3. 根据测试账号 token 中的邮箱获取角色
   const token = tryGetTokenRolePermission()
   if (token) return token
 

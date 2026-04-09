@@ -37,49 +37,23 @@ import {
   SafetyCertificateOutlined,
   NodeIndexOutlined,
   PlayCircleOutlined,
-  ControlOutlined,
-  FolderOpenOutlined,
-  DashboardOutlined,
-  TeamOutlined,
-  SettingOutlined,
-  ArrowLeftOutlined,
 } from '@ant-design/icons'
 
 // 静态菜单配置
 // 这里的 path 对应路由 path
 const rawMainLayoutMenu = [
   {
-    label: '我的工作台',
-    i18nKey: 'menu.workbench',
+    label: 'home',
+    i18nKey: 'home',
     path: '/',
     icon: (
       <AnimatedIcon variant="spin" mode="hover">
-        <AppstoreOutlined />
+        <HomeOutlined />
       </AnimatedIcon>
     ),
   },
   {
-    label: '项目大厅',
-    i18nKey: 'menu.workspaces',
-    path: '/workspaces',
-    icon: (
-      <AnimatedIcon variant="spin" mode="hover">
-        <FolderOpenOutlined />
-      </AnimatedIcon>
-    ),
-  },
-  {
-    label: '全局控制台',
-    i18nKey: 'menu.globalConsole',
-    path: '/global-console',
-    icon: (
-      <AnimatedIcon variant="spin" mode="hover">
-        <ControlOutlined />
-      </AnimatedIcon>
-    ),
-  },
-  {
-    label: '演示',
+    label: 'demo',
     i18nKey: 'demo',
     path: '/demo',
     icon: (
@@ -89,21 +63,22 @@ const rawMainLayoutMenu = [
     ),
   },
   {
-    label: '项目依赖分析',
-    i18nKey: 'menu.dependencies',
-    path: '/dependencies',
+    label: 'SVG Viewer',
+    i18nKey: 'menu.svgViewer',
+    path: '/svg-viewer',
     icon: (
       <AnimatedIcon variant="spin" mode="hover">
-        <CloudUploadOutlined />
+        <HeatMapOutlined />
       </AnimatedIcon>
     ),
   },
   {
-    label: 'Plugin Debug',
-    path: '/plugin-debug',
+    label: '自动部署',
+    i18nKey: 'menu.autoDeploy',
+    path: '/auto-deploy',
     icon: (
       <AnimatedIcon variant="spin" mode="hover">
-        <ToolOutlined />
+        <CloudUploadOutlined />
       </AnimatedIcon>
     ),
   },
@@ -124,6 +99,16 @@ const rawMainLayoutMenu = [
     icon: (
       <AnimatedIcon variant="spin" mode="hover">
         <DatabaseOutlined />
+      </AnimatedIcon>
+    ),
+  },
+  {
+    label: 'Deploy Flow',
+    i18nKey: 'menu.deployFlow',
+    path: '/deploy-flow',
+    icon: (
+      <AnimatedIcon variant="spin" mode="hover">
+        <RocketOutlined />
       </AnimatedIcon>
     ),
   },
@@ -168,6 +153,16 @@ const rawMainLayoutMenu = [
     ),
   },
   {
+    label: 'PH Bar',
+    i18nKey: 'menu.phBar',
+    path: '/ph-bar',
+    icon: (
+      <AnimatedIcon variant="spin" mode="hover">
+        <BarChartOutlined />
+      </AnimatedIcon>
+    ),
+  },
+  {
     label: 'ChatGPT',
     i18nKey: 'menu.chatgpt',
     path: '/chatgpt',
@@ -178,12 +173,52 @@ const rawMainLayoutMenu = [
     ),
   },
   {
+    label: 'React Tilt',
+    i18nKey: 'menu.reactTilt',
+    path: '/tilt',
+    icon: (
+      <AnimatedIcon variant="spin" mode="hover">
+        <ExperimentOutlined />
+      </AnimatedIcon>
+    ),
+  },
+  {
+    label: 'Music',
+    i18nKey: 'menu.music',
+    path: '/music',
+    icon: (
+      <AnimatedIcon variant="spin" mode="hover">
+        <SoundOutlined />
+      </AnimatedIcon>
+    ),
+  },
+  {
     label: 'Crypto',
     i18nKey: 'menu.crypto',
     path: '/crypto',
     icon: (
       <AnimatedIcon variant="spin" mode="hover">
         <SafetyCertificateOutlined />
+      </AnimatedIcon>
+    ),
+  },
+  {
+    label: 'Video',
+    i18nKey: 'menu.video',
+    path: '/video',
+    icon: (
+      <AnimatedIcon variant="spin" mode="hover">
+        <VideoCameraOutlined />
+      </AnimatedIcon>
+    ),
+  },
+  {
+    label: 'Big Screen',
+    i18nKey: 'menu.bigScreen',
+    path: '/big-screen',
+    icon: (
+      <AnimatedIcon variant="spin" mode="hover">
+        <FundProjectionScreenOutlined />
       </AnimatedIcon>
     ),
   },
@@ -228,6 +263,26 @@ const rawMainLayoutMenu = [
     ),
   },
   {
+    label: 'Post Message',
+    i18nKey: 'menu.postMessage',
+    path: '/postmessage',
+    icon: (
+      <AnimatedIcon variant="spin" mode="hover">
+        <SendOutlined />
+      </AnimatedIcon>
+    ),
+  },
+  {
+    label: 'Geo Chart',
+    i18nKey: 'menu.geoChart',
+    path: '/geo',
+    icon: (
+      <AnimatedIcon variant="spin" mode="hover">
+        <EnvironmentOutlined />
+      </AnimatedIcon>
+    ),
+  },
+  {
     label: 'Print',
     i18nKey: 'menu.print',
     path: '/print',
@@ -257,6 +312,178 @@ const rawMainLayoutMenu = [
       </AnimatedIcon>
     ),
   },
+  {
+    label: '前端技术栈',
+    i18nKey: 'menu.frontendTechStack',
+    path: '/tech/frontend',
+    icon: (
+      <AnimatedIcon variant="spin" mode="hover">
+        <NodeIndexOutlined />
+      </AnimatedIcon>
+    ),
+    children: [
+      {
+        label: 'React',
+        i18nKey: 'menu.react',
+        path: '/tech/frontend/react',
+        icon: (
+          <AnimatedIcon variant="spin" mode="hover">
+            <CodeOutlined />
+          </AnimatedIcon>
+        ),
+      },
+      {
+        label: 'Vue',
+        i18nKey: 'menu.vue',
+        path: '/tech/frontend/vue',
+        icon: (
+          <AnimatedIcon variant="spin" mode="hover">
+            <CodeOutlined />
+          </AnimatedIcon>
+        ),
+        children: [
+          {
+            label: 'Vue 插件',
+            i18nKey: 'menu.vuePlugins',
+            path: '/tech/frontend/plugins',
+            icon: (
+              <AnimatedIcon variant="spin" mode="hover">
+                <AppstoreOutlined />
+              </AnimatedIcon>
+            ),
+            children: [
+              {
+                label: 'Vue3 API',
+                i18nKey: 'menu.vue3Api',
+                path: '/tech/frontend/plugins/vue3',
+                icon: (
+                  <AnimatedIcon variant="spin" mode="hover">
+                    <FileTextOutlined />
+                  </AnimatedIcon>
+                ),
+              },
+              {
+                label: '性能优化',
+                i18nKey: 'menu.performanceOptimization',
+                path: '/tech/frontend/plugins/perf',
+                icon: (
+                  <AnimatedIcon variant="spin" mode="hover">
+                    <ThunderboltOutlined />
+                  </AnimatedIcon>
+                ),
+              },
+            ],
+          },
+        ],
+      },
+      {
+        label: 'Angular',
+        i18nKey: 'menu.angular',
+        path: '/tech/frontend/angular',
+        icon: (
+          <AnimatedIcon variant="spin" mode="hover">
+            <Html5Outlined />
+          </AnimatedIcon>
+        ),
+      },
+      {
+        label: 'Node',
+        i18nKey: 'menu.node',
+        path: '/tech/frontend/node',
+        icon: (
+          <AnimatedIcon variant="spin" mode="hover">
+            <CloudServerOutlined />
+          </AnimatedIcon>
+        ),
+      },
+    ],
+  },
+  {
+    label: '后端技术栈',
+    i18nKey: 'menu.backendTechStack',
+    path: '/tech/backend',
+    icon: (
+      <AnimatedIcon variant="spin" mode="hover">
+        <CloudServerOutlined />
+      </AnimatedIcon>
+    ),
+    children: [
+      {
+        label: 'Node',
+        i18nKey: 'menu.node',
+        path: '/tech/backend/node',
+        icon: (
+          <AnimatedIcon variant="spin" mode="hover">
+            <CodeOutlined />
+          </AnimatedIcon>
+        ),
+      },
+      {
+        label: 'Java',
+        i18nKey: 'menu.java',
+        path: '/tech/backend/java',
+        icon: (
+          <AnimatedIcon variant="spin" mode="hover">
+            <CodeOutlined />
+          </AnimatedIcon>
+        ),
+      },
+      {
+        label: 'Go',
+        i18nKey: 'menu.go',
+        path: '/tech/backend/go',
+        icon: (
+          <AnimatedIcon variant="spin" mode="hover">
+            <CodeOutlined />
+          </AnimatedIcon>
+        ),
+      },
+    ],
+  },
+  {
+    label: '构建工具',
+    i18nKey: 'menu.buildTools',
+    path: '/build',
+    icon: (
+      <AnimatedIcon variant="spin" mode="hover">
+        <ApartmentOutlined />
+      </AnimatedIcon>
+    ),
+    children: [
+      {
+        label: 'Webpack',
+        i18nKey: 'menu.webpack',
+        path: '/build/webpack',
+        icon: (
+          <AnimatedIcon variant="spin" mode="hover">
+            <ToolOutlined />
+          </AnimatedIcon>
+        ),
+      },
+      {
+        label: 'Vite',
+        i18nKey: 'menu.vite',
+        path: '/build/vite',
+        icon: (
+          <AnimatedIcon variant="spin" mode="hover">
+            <ThunderboltOutlined />
+          </AnimatedIcon>
+        ),
+      },
+    ],
+  },
+
+  {
+    label: 'Error',
+    i18nKey: 'menu.error',
+    path: '/sub-error',
+    icon: (
+      <AnimatedIcon variant="spin" mode="hover">
+        <QuestionCircleOutlined />
+      </AnimatedIcon>
+    ),
+    children: [{ label: 'ErrorBoundary', i18nKey: 'menu.errorBoundary', path: '/error' }],
+  },
 ]
 
 // 规范化菜单：确保同时存在 path 和 key（两者值一致）
@@ -274,186 +501,3 @@ function normalizeMenu(items) {
 }
 
 export const mainLayoutMenu = normalizeMenu(rawMainLayoutMenu)
-
-// 项目内部专用的菜单配置
-const rawProjectMenu = [
-  {
-    label: '项目概览',
-    i18nKey: 'menu.project.overview',
-    path: '/project/:slug',
-    icon: (
-      <AnimatedIcon variant="spin" mode="hover">
-        <DashboardOutlined />
-      </AnimatedIcon>
-    ),
-  },
-  {
-    label: '数据源管理',
-    i18nKey: 'menu.project.datasets',
-    path: '/project/:slug/datasets',
-    icon: (
-      <AnimatedIcon variant="spin" mode="hover">
-        <DatabaseOutlined />
-      </AnimatedIcon>
-    ),
-  },
-  {
-    label: '数据模型',
-    i18nKey: 'menu.project.models',
-    path: '/project/:slug/models',
-    icon: (
-      <AnimatedIcon variant="spin" mode="hover">
-        <NodeIndexOutlined />
-      </AnimatedIcon>
-    ),
-  },
-  {
-    label: '可视化工作台',
-    i18nKey: 'menu.project.workbooks',
-    path: '/project/:slug/workbooks',
-    icon: (
-      <AnimatedIcon variant="spin" mode="hover">
-        <BarChartOutlined />
-      </AnimatedIcon>
-    ),
-  },
-  {
-    label: '数据配方 (ETL)',
-    i18nKey: 'menu.project.recipes',
-    path: '/project/:slug/recipes',
-    icon: (
-      <AnimatedIcon variant="spin" mode="hover">
-        <ThunderboltOutlined />
-      </AnimatedIcon>
-    ),
-  },
-  {
-    label: '成员管理',
-    i18nKey: 'menu.project.members',
-    path: '/project/:slug/members',
-    icon: (
-      <AnimatedIcon variant="spin" mode="hover">
-        <TeamOutlined />
-      </AnimatedIcon>
-    ),
-  },
-  {
-    label: '项目设置',
-    i18nKey: 'menu.project.settings',
-    path: '/project/:slug/settings',
-    icon: (
-      <AnimatedIcon variant="spin" mode="hover">
-        <SettingOutlined />
-      </AnimatedIcon>
-    ),
-  },
-  {
-    label: '返回大厅',
-    i18nKey: 'menu.project.back',
-    path: '/workspaces',
-    icon: (
-      <AnimatedIcon variant="spin" mode="hover">
-        <ArrowLeftOutlined />
-      </AnimatedIcon>
-    ),
-  },
-]
-
-export const projectMenu = normalizeMenu(rawProjectMenu)
-
-const rawAdminMenu = [
-  {
-    label: '管理总览',
-    path: '/admin/overview',
-    icon: (
-      <AnimatedIcon variant="spin" mode="hover">
-        <SafetyCertificateOutlined />
-      </AnimatedIcon>
-    ),
-  },
-  {
-    label: '用户管理',
-    path: '/admin/users',
-    icon: (
-      <AnimatedIcon variant="spin" mode="hover">
-        <UserOutlined />
-      </AnimatedIcon>
-    ),
-  },
-  {
-    label: '角色管理',
-    path: '/admin/roles',
-    icon: (
-      <AnimatedIcon variant="spin" mode="hover">
-        <LockOutlined />
-      </AnimatedIcon>
-    ),
-  },
-  {
-    label: '组织管理',
-    path: '/admin/organizations',
-    icon: (
-      <AnimatedIcon variant="spin" mode="hover">
-        <ApartmentOutlined />
-      </AnimatedIcon>
-    ),
-  },
-  {
-    label: '成员关系',
-    path: '/admin/members',
-    icon: (
-      <AnimatedIcon variant="spin" mode="hover">
-        <TeamOutlined />
-      </AnimatedIcon>
-    ),
-  },
-  {
-    label: '项目管理',
-    path: '/admin/projects',
-    icon: (
-      <AnimatedIcon variant="spin" mode="hover">
-        <ProjectOutlined />
-      </AnimatedIcon>
-    ),
-  },
-  {
-    label: '插件治理',
-    path: '/admin/plugins',
-    icon: (
-      <AnimatedIcon variant="spin" mode="hover">
-        <ToolOutlined />
-      </AnimatedIcon>
-    ),
-  },
-  {
-    label: '审计中心',
-    path: '/admin/audit',
-    icon: (
-      <AnimatedIcon variant="spin" mode="hover">
-        <SafetyCertificateOutlined />
-      </AnimatedIcon>
-    ),
-  },
-  {
-    label: 'Legacy 入口',
-    path: '/admin/legacy',
-    icon: (
-      <AnimatedIcon variant="spin" mode="hover">
-        <SettingOutlined />
-      </AnimatedIcon>
-    ),
-  },
-  {
-    label: '返回前台首页',
-    path: '/',
-    alwaysVisible: true,
-    bypassPermission: true,
-    icon: (
-      <AnimatedIcon variant="spin" mode="hover">
-        <ArrowLeftOutlined />
-      </AnimatedIcon>
-    ),
-  },
-]
-
-export const adminMenu = normalizeMenu(rawAdminMenu)

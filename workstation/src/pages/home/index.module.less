@@ -247,6 +247,64 @@
   }
 }
 
+.video-box .video-btn {
+  box-shadow: 0 6px 10px rgb(0 0 0 / 20%);
+  position: relative;
+  display: inline-block;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  line-height: 40px;
+  text-align: center;
+  background-color: #1d5fca;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 20px;
+  z-index: 1;
+  margin-left: auto;
+  margin-right: auto;
+  cursor: pointer;
+}
+
+.video-box .video-btn::after,
+.video-box .video-btn::before {
+  content: '';
+  display: block;
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: 50%;
+  border: 1px solid #1d5fca;
+  transition: 0.5s;
+}
+
+.video-box .video-btn i {
+  z-index: 1;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.video-box .video-btn::before {
+  animation: ripple 2s linear infinite;
+}
+
+.video-box .video-btn::after {
+  animation: ripple 2s linear 1s infinite;
+}
+
+.video-box .video-btn:focus,
+.video-box .video-btn:hover {
+  background-color: #2d995d;
+  color: #fff;
+}
+
+.video-box .video-btn:focus::after,
+.video-box .video-btn:focus::before,
+.video-box .video-btn:hover::after,
+.video-box .video-btn:hover::before {
+  border-color: #2d995d;
+}
+
 @keyframes ripple {
   0% {
     transform: scale(1);

@@ -54,7 +54,7 @@ services:
       PROJECT_DESCRIPTOR: "Self-hosted Data Analytics"
     volumes:
       - ./data/uploads:/directus/uploads
-      - ./data/extensions:/directus/extensions
+      - ./extensions:/directus/extensions
     depends_on:
       redis:
         condition: service_healthy

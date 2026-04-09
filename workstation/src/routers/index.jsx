@@ -13,14 +13,13 @@
 import { mainLayoutRoute, layoutRoutes } from './modules/layout.routes'
 import { authRoutes } from './modules/auth.routes'
 import { businessRoutes } from './modules/business.routes'
-import { projectRoutes } from './modules/project.routes'
 import { uiRoutes } from './modules/ui.routes'
 import { chartRoutes } from './modules/chart.routes'
 import { nestedRoutes } from './modules/nested.routes'
 import { errorRoutes } from './modules/error.routes'
 import { notificationRoutes } from './modules/notification.routes'
+import { techRoutes } from './modules/tech.routes'
 import { zustandRoutes } from './modules/zustand.routes'
-import { adminRoutes } from './modules/admin.routes'
 import { annotateRoutesWithPermissions, filterRoutesByAccessiblePaths } from './utils'
 import { permissionService } from '@src/service/permissionService'
 
@@ -28,12 +27,11 @@ import { permissionService } from '@src/service/permissionService'
 mainLayoutRoute.children = [
   ...mainLayoutRoute.children,
   ...businessRoutes,
-  ...projectRoutes,
-  ...adminRoutes,
   ...uiRoutes,
   ...chartRoutes,
   ...nestedRoutes,
   ...notificationRoutes,
+  ...techRoutes,
   ...zustandRoutes,
 ]
 

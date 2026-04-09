@@ -148,6 +148,22 @@ const ComponentToPrint = React.forwardRef((props, ref) => {
               </svg>
             </td>
           </tr>
+          <tr>
+            <td>Video</td>
+            <td>
+              <video src="https://www.w3schools.com/html/mov_bbb.mp4" width="200" />
+            </td>
+          </tr>
+          <tr>
+            <td>Video: With Poster</td>
+            <td>
+              <video
+                poster="https://images.freeimages.com/images/large-previews/9a9/tuscany-landscape-4-1500765.jpg"
+                src="https://www.w3schools.com/html/mov_bbb.mp4"
+                width="200"
+              />
+            </td>
+          </tr>
         </tbody>
       </table>
       <div ref={shadowRootHostEl} />

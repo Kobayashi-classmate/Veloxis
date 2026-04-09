@@ -59,7 +59,7 @@ const Privacy = () => {
               <div className={styles.headerMeta}>
                 <span className={styles.kicker}>PRIVACY</span>
                 <span className={styles.dot} />
-                <span className={styles.metaText}>Veloxis Panel</span>
+                <span className={styles.metaText}>Pro React Admin</span>
               </div>
             </div>
 

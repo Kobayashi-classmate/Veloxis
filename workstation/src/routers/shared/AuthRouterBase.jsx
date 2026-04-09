@@ -133,7 +133,7 @@ const AuthRouterBase = (props) => {
     }
 
     const checkAuth = async () => {
-      const { token } = getLocalStorage('token') || { token: null }
+      const { token } = getLocalStorage('token') || getLocalStorage('github_token') || { token: null }
       const policyRoute = resolveRoutePolicy(pathname)
       const policyMeta = policyRoute?.meta || {}
       const isPolicyPublic = policyMeta.auth === false || isRouteConfigPublic(policyRoute)
@@ -184,9 +184,6 @@ const AuthRouterBase = (props) => {
   if (canAccess === null) return null
 
   if (canAccess === false) {
-    const { token } = getLocalStorage('token') || { token: null }
-    const redirectPath = token ? '/403' : '/signin'
-
     if (lastDeniedPathRef.current !== pathname) {
       lastDeniedPathRef.current = pathname
       showDeniedMessage(messageApi)
@@ -194,7 +191,7 @@ const AuthRouterBase = (props) => {
     return (
       <>
         {contextHolder}
-        <Navigate to={redirectPath} replace />
+        <Navigate to="/signin" replace />
       </>
     )
   }

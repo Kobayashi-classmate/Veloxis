@@ -72,7 +72,7 @@ const main = async () => {
     if (!ok) {
       console.error(`[lighthouse] URL 不可用: ${explicitUrl}`)
       console.error('[lighthouse] 请先启动服务，或改用正确端口：')
-      console.error('  cross-env LH_URL=http://localhost:3000 npm run lighthouse')
+      console.error('  cross-env LH_URL=http://localhost:8080 npm run lighthouse')
       process.exit(1)
     }
     runLighthouse(explicitUrl)

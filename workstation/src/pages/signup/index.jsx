@@ -8,6 +8,7 @@ import {
   LockOutlined,
   EyeInvisibleOutlined,
   EyeTwoTone,
+  GithubOutlined,
   GoogleOutlined,
   MailOutlined,
   PhoneOutlined,
@@ -95,10 +96,23 @@ const SignUp = () => {
                 <Title level={2} className={styles.title}>
                   创建账户
                 </Title>
-                <Text type="secondary">完成注册后进入 Veloxis Panel 工作台</Text>
+                <Text type="secondary">完成注册后进入 Pro React Admin 工作台</Text>
               </div>
 
               <Row gutter={12} className={styles.socialRow}>
+                <Col span={12}>
+                  <Button
+                    block
+                    icon={
+                      <AnimatedIcon variant="spin" mode="hover">
+                        <GithubOutlined />
+                      </AnimatedIcon>
+                    }
+                    className={styles.socialBtn}
+                  >
+                    GitHub
+                  </Button>
+                </Col>
                 <Col span={12}>
                   <Button
                     block

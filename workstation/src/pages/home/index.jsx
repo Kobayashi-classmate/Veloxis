@@ -32,6 +32,8 @@ import useRect from '@hooks/useRect'
 import TagCloud from '@stateless/TagCloud'
 import ShiCode from '@stateless/ShiCode'
 import StaticStepper from '@stateless/StaticStepper'
+import FeatureAny from '@stateless/FeatureAny'
+import UserIP from '@stateless/UserIP'
 import ScratchToReveal from '@stateless/ScratchToReveal'
 // import SlideLinear from '@stateless/SlideLinear'
 import DynamicBackground from '@stateless/DynamicBackground'
@@ -39,18 +41,24 @@ import ContentPlaceholder from '@stateless/ContentPlaceholder'
 import SkeletonFix from '@stateless/SkeletonFix'
 import { ReactSignature } from '@stateless/ReactSignature'
 // import AdvancedCodeBlock from '@stateless/AdvancedCodeBlock'
+import SquaresGrid from '@stateless/SquaresGrid'
 import ShinyText from '@stateless/ShinyText'
 // import BlurText from '@stateless/BlurText'
 import Meteors from '@stateless/Meteors'
+import CompareAll from '@stateless/CompareAll'
 import TextLoader from '@stateless/TextLoader'
+import BackgroundBoxes from '@stateless/BackgroundBoxes'
 import TypeWriter from '@stateless/TypeWriter'
 import SlideText from '@stateless/SlideText'
+import SparklesCore from '@stateless/Sparkles'
 import SparklesText from '@stateless/SparklesText'
 import ColorfulText from '@stateless/ColorfulText'
+import MemoizedStars from '@stateless/MemoizedStars'
 // import WordRotate from '@stateless/WordRotate'
 import TestimonialCarousel from '@stateless/TestimonialCarousel'
 // import InteractiveGrid from '@stateless/InteractiveGrid'
 import BlurFade from '@stateless/BlurFade'
+import IconCloud from '@stateless/IconCloud'
 import GradualSpacing from '@stateless/GradualSpacing'
 import MultiDirectionSlide from '@stateless/MultiDirectionSlide'
 import InViewBasicMultiple from '@stateless/AnimInViewBasic'
@@ -58,13 +66,17 @@ import DottedStepper from '@stateless/DottedStepper'
 import MoveChecker from '@stateless/MoveChecker'
 import FlipWords from '@stateless/FlipWords'
 import BorderBeam from '@stateless/BorderBeam'
+import AutoSlider from '@stateless/AutoSlider'
 import AnimText from '@stateless/AnimText'
 import SlideButton from '@stateless/SlideButton'
 import NumberViewCard from '@stateless/NumberViewCard'
 import CubeSpinner from '@stateless/CubeSpinner'
 import firstImage from '@assets/images/88-300x160.jpg'
 import secondImage from '@assets/images/2-300x160.jpg'
-import AiCover from '@assets/images/ai-cover.webp'
+import SpringPng from '@assets/images/spring.png'
+import HePng from '@assets/images/he.png'
+import SongPng from '@assets/images/song.png'
+import XuePng from '@assets/images/xue.png'
 
 import {
   oneApiChat,
@@ -359,6 +371,75 @@ const Home = () => {
       <section className={styles.avatar} style={{ margin: '10px 0', fontSize: 24 }}>
         <ColorfulText text={`React version: ${version}`} />
       </section>
+      <section style={{ width: '320px', margin: '30px 0' }}>
+        <Input defaultValue={apiKey} placeholder="api key" onChange={changeApiKey} style={{ marginBottom: 20 }} />
+        <Flex align="center">
+          <Input.TextArea
+            ref={textareaRef}
+            defaultValue={chatText}
+            placeholder="来，说点什么呗...Meta + Enter发送"
+            onChange={changeChatText}
+            onKeyDown={onInputKeyDown}
+            autoSize
+            style={{ height: 30, caretColor: '#ff0000' }}
+          />
+        </Flex>
+        <Button
+          style={{ margin: '10px' }}
+          icon={
+            <AnimatedIcon variant="spin" mode="hover">
+              <SendOutlined rotate={-60} />
+            </AnimatedIcon>
+          }
+          type="primary"
+          disabled={isStream}
+          onClick={onSubmit}
+        >
+          发送
+        </Button>
+        <Button
+          style={{ margin: '10px' }}
+          icon={
+            <AnimatedIcon variant="spin" mode="hover">
+              <SendOutlined rotate={-60} />
+            </AnimatedIcon>
+          }
+          type="primary"
+          disabled={isStream}
+          onClick={onSubmitImage}
+        >
+          生成图片
+        </Button>
+        <Button
+          icon={
+            <AnimatedIcon variant="spin" mode="hover">
+              <SendOutlined rotate={-60} />
+            </AnimatedIcon>
+          }
+          type="primary"
+          disabled={!isStream}
+          onClick={onStop}
+        >
+          停止
+        </Button>
+      </section>
+      <section className="mb-10">
+        {isStream && <div>正在输入...</div>}
+        <section style={{ textAlign: 'right', color: '#666' }}>{dateTime}</section>
+        <ReMarkdown markdownText={aiText} isLoading={isStream} />
+        <section className="aiImage">
+          {aiImageList.length > 0 && (
+            <>
+              {aiImageList.map((item, index) => (
+                <div key={index}>
+                  <div>{item.imagePrompt}</div>
+                  <img src={item.imageUrl} width="100%" alt={item.url} />
+                </div>
+              ))}
+            </>
+          )}
+        </section>
+      </section>
       <section style={{ margin: '10px 0', display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
         <MoveChecker
           ref={mcRef}
@@ -451,6 +532,15 @@ const Home = () => {
           overflow: 'hidden',
         }}
       >
+        <IconCloud images={images} />
+      </section>
+      <section
+        style={{
+          marginBottom: 15,
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
         <NumberViewCard />
       </section>
       <section
@@ -467,6 +557,128 @@ const Home = () => {
         <Meteors starCount={30} primaryColor="#6366f1" className="opacity-30" />
         <Meteors starCount={25} primaryColor="#818cf8" className="opacity-50" />
         <Meteors starCount={20} primaryColor="#ffffff" className="opacity-70" />
+      </section>
+      <section
+        style={{
+          marginBottom: 15,
+          fontSize: 20,
+          height: 200,
+          width: 360,
+          background: '#111827',
+        }}
+      >
+        <SparklesCore
+          background="transparent"
+          minSize={0.4}
+          maxSize={1}
+          particleDensity={1200}
+          className="h-full w-full"
+          particleColor="#FFFFFF"
+        />
+      </section>
+      <section
+        style={{
+          marginBottom: 15,
+          fontSize: 20,
+          height: 200,
+          width: 360,
+          overflow: 'hidden',
+          position: 'relative',
+        }}
+        className="bg-slate-900"
+      >
+        <BackgroundBoxes />
+      </section>
+      <section
+        style={{
+          marginBottom: 15,
+          fontSize: 20,
+          height: 200,
+          width: 360,
+          overflow: 'hidden',
+          position: 'relative',
+        }}
+        className="bg-slate-900"
+      >
+        <MemoizedStars />
+      </section>
+      <button
+        type="button"
+        onMouseEnter={handleMouseEnter}
+        onTouchStart={(e) => handleMouseEnter(e)}
+        onFocus={() => {
+          // provide some visible/default state when focused
+          setEnterDirection((prev) => prev || 'left')
+        }}
+        ref={mouseEnterRef}
+        style={{
+          marginBottom: 15,
+          height: 200,
+          width: 360,
+          background: '#111827',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#fff',
+          border: 'none',
+          padding: 0,
+        }}
+      >
+        Direction: {enterDirection}
+      </button>
+      <section style={{ margin: '20px 0' }}>
+        <CompareAll
+          firstImage={firstImage}
+          secondImage={secondImage}
+          firstImageClassName="object-cover object-left-top"
+          secondImageClassName="object-cover object-left-top"
+          className="h-[200px]"
+          slideMode="drag"
+        />
+      </section>
+      <section
+        style={{
+          margin: '20px 0',
+          width: 360,
+          height: 200,
+          background: '#999',
+        }}
+      >
+        <SquaresGrid
+          speed={0.5}
+          squareSize={20}
+          direction="diagonal" // up, down, left, right, diagonal
+          borderColor="#222"
+          hoverFillColor="#222"
+        />
+      </section>
+      <section
+        style={{
+          margin: '20px 0',
+          width: 360,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+          <Input value={svgFileName} onChange={(e) => setSvgFileName(e.target.value)} style={{ width: 180 }} />
+          <Button type="primary" onClick={saveSvgAsFile}>
+            保存 SVG
+          </Button>
+        </div>
+        <section className="relative p-4">
+          <div className={styles.itemCircle} />
+          <svg ref={svgRef} style={{ height: '10px', width: '100%' }}>
+            <path d="M 0 0 L 5000 0" fill="none" stroke="#595959">
+              <animate
+                attributeName="stroke-dashoffset"
+                values="100;0"
+                dur="3s"
+                calcMode="linear"
+                repeatCount="indefinite"
+              ></animate>
+            </path>
+          </svg>
+          <div className={styles.itemCircleTail} />
+        </section>
       </section>
       <section className={styles.line} />
       <section className={styles.linear} />
@@ -533,6 +745,11 @@ const Home = () => {
       <section style={{ margin: 40 }}>
         <BreatheText />
       </section>
+      <section style={{ margin: '60px 0 40px 40px' }}>
+        <div className={styles['video-box']}>
+          <div className={styles['video-btn']}>b</div>
+        </div>
+      </section>
       {/* <section style={{ marginBottom: 40 }}>
         <ShiftingCard />
       </section> */}
@@ -548,7 +765,7 @@ const Home = () => {
         }}
       >
         <AnimateOnScreen.FadeIn>
-          <AvatarCard avatar="" text="Hi, I'm a developer." />
+          <AvatarCard avatar={XuePng} text="Hi, I'm a developer." />
         </AnimateOnScreen.FadeIn>
       </section>
       <section
@@ -561,7 +778,7 @@ const Home = () => {
       >
         <AnimateOnScreen.FadeUp>
           <img
-            src=""
+            src={SongPng}
             alt=""
             style={{
               maskImage: 'linear-gradient(to top, transparent, black 20%, black 80%, transparent)',
@@ -579,7 +796,7 @@ const Home = () => {
       >
         <AnimateOnScreen.ScaleIn triggerOnce={false}>
           <>
-            <img src="" alt="" />
+            <img src={SpringPng} alt="" />
             <section className={styles['blend-me']}>Mix Blend Mode</section>
           </>
         </AnimateOnScreen.ScaleIn>
@@ -598,7 +815,7 @@ const Home = () => {
           triggerOnce={true}
         >
           <Zoom>
-            <img src="" alt="" />
+            <img src={HePng} alt="" />
           </Zoom>
         </AnimateOnScreen.DiyAnimation>
       </section>
@@ -739,6 +956,9 @@ const Home = () => {
             <StaticStepper.CodeContainer>{step.code}</StaticStepper.CodeContainer>
           </StaticStepper.StaticStep>
         ))}
+      </section>
+      <section style={{ margin: 20 }}>
+        <FeatureAny />
       </section>
       <section style={{ margin: 20 }}>
         <SkeletonFix />
@@ -920,7 +1140,16 @@ const Home = () => {
         <DottedStepper />
       </section>
       <section style={{ margin: 20 }}>
+        <ShiCode preCode={preCode} />
+      </section>
+      <section style={{ margin: 20 }}>
         <DynamicBackground />
+      </section>
+      <section style={{ margin: 20 }}>
+        <UserIP />
+      </section>
+      <section style={{ margin: 20 }}>
+        <AutoSlider />
       </section>
     </FixTabPanel>
   )

@@ -1,0 +1,768 @@
+.videoAnchor {
+  position: relative;
+}
+
+.miniRestore {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 1000;
+}
+
+.videoWrap {
+  background: rgb(0 0 0 / 92%);
+  position: relative;
+  overflow: hidden;
+}
+
+.embedToolbar {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-50%) translateX(6px);
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease;
+}
+
+.embedToolbar > * {
+  pointer-events: auto;
+}
+
+.videoWrap:hover .embedToolbar,
+.videoWrap:focus-within .embedToolbar {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+  pointer-events: auto;
+}
+
+.embedRatio {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: transparent;
+}
+
+.embedFrame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+
+.embedHint {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  z-index: 7;
+  max-width: min(320px, calc(100% - 20px));
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgb(0 0 0 / 55%);
+  border: 1px solid rgb(255 255 255 / 12%);
+  color: rgb(255 255 255 / 90%);
+  pointer-events: none;
+}
+
+.embedHintTitle {
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.embedHintAction {
+  pointer-events: auto;
+  background: rgb(255 255 255 / 12%);
+  color: rgb(255 255 255 / 92%);
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.embedHintAction:hover {
+  background: rgb(255 255 255 / 16%);
+}
+
+.embedFallback {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: rgb(0 0 0 / 92%);
+  color: rgb(255 255 255 / 85%);
+  display: grid;
+  place-content: center;
+  padding: 16px;
+  text-align: center;
+}
+
+.embedFallbackTitle {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.embedFallbackMeta {
+  font-size: 12px;
+  opacity: 0.9;
+  line-height: 1.4;
+}
+
+.centerToggle {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.loadingOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-content: center;
+  background: rgb(0 0 0 / 28%);
+  pointer-events: none;
+}
+
+.loadingOverlayText {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgb(0 0 0 / 55%);
+  border: 1px solid rgb(255 255 255 / 12%);
+  color: rgb(255 255 255 / 90%);
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.centerToggleButton {
+  pointer-events: none;
+  width: 64px;
+  height: 64px;
+  border-radius: 999px;
+  border: 1px solid rgb(255 255 255 / 16%);
+  background: rgb(0 0 0 / 42%);
+  color: rgb(255 255 255 / 92%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transform: scale(1);
+  transition:
+    opacity 0.15s ease,
+    transform 0.1s ease;
+}
+
+.centerToggleVisible .centerToggleButton {
+  pointer-events: auto;
+  opacity: 0.72;
+}
+
+.centerToggleButton:active {
+  transform: scale(0.96);
+}
+
+.mini .centerToggleButton {
+  width: 54px;
+  height: 54px;
+}
+
+.videoControls {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  background: rgb(0 0 0 / 72%);
+  border-top: 1px solid rgb(255 255 255 / 8%);
+  opacity: 0;
+  transform: translateY(56%);
+  pointer-events: none;
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
+}
+
+.mini .videoControls {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.controlsPinnedWrap .videoControls {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.playError {
+  font-size: 12px;
+  line-height: 1.2;
+  color: rgb(255 255 255 / 88%);
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: rgb(0 0 0 / 50%);
+  border: 1px solid rgb(255 255 255 / 12%);
+}
+
+.videoWrap:hover .videoControls,
+.videoWrap:focus-within .videoControls {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.controlsTop {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  overflow: visible;
+}
+
+.controlsBottom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.spacer {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.time {
+  font-size: 12px;
+  color: rgb(255 255 255 / 92%);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.videoControls .range {
+  accent-color: rgb(255 255 255 / 86%);
+  min-width: 0;
+}
+
+.progressRange {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+}
+
+.progressWrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 22px;
+  display: flex;
+  align-items: center;
+}
+
+.progressRangeOverlay {
+  position: relative;
+  z-index: 2;
+}
+
+.bufferBar {
+  position: absolute;
+  left: 0;
+  right: auto;
+  width: 0;
+  height: 3px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 18%);
+  z-index: 1;
+  transform: translateY(0);
+}
+
+.previewTooltip {
+  position: absolute;
+  top: -28px;
+  transform: translateX(-50%);
+  padding: 4px 6px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1;
+  color: rgb(255 255 255 / 92%);
+  background: rgb(0 0 0 / 60%);
+  border: 1px solid rgb(255 255 255 / 12%);
+  white-space: nowrap;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.volumeRange {
+  width: clamp(56px, 10vw, 96px);
+}
+
+.settingsWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.settingsPanel {
+  position: absolute;
+  right: 0;
+  bottom: 54px;
+  width: 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background: rgb(0 0 0 / 80%);
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 12px;
+  overflow: visible;
+}
+
+.settingsScroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  display: grid;
+  gap: 10px;
+}
+
+.settingsPanelPortal {
+  position: fixed !important;
+  inset: var(--svp-settings-top, 8px) auto auto var(--svp-settings-left, 8px) !important;
+  z-index: 2000;
+  box-sizing: border-box;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.settingsPanelPortal,
+.settingsPanelPortal *,
+.settingsPanelPortal *::before,
+.settingsPanelPortal *::after {
+  box-sizing: border-box;
+}
+
+.settingsPanelPortal label {
+  margin: 0;
+}
+
+.settingsPanelPortal button {
+  font: inherit;
+  letter-spacing: normal;
+}
+
+.settingsPanelPortal input {
+  font: inherit;
+}
+
+.settingItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  user-select: none;
+}
+
+.settingItemSplit {
+  width: 100%;
+}
+
+.settingLabel {
+  font-size: 12px;
+  line-height: 1.2;
+  color: rgb(255 255 255 / 82%);
+}
+
+.settingItemSplit .settingLabel {
+  flex: 1 1 0;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.speedDropdown {
+  position: relative;
+  margin-left: auto;
+}
+
+.settingItemSplit .speedDropdown {
+  flex: 1 1 0;
+  min-width: 0;
+  margin-left: 0;
+}
+
+.speedTrigger {
+  height: 26px;
+  min-width: 64px;
+  padding: 0 26px 0 10px;
+  border-radius: 8px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  background: rgb(255 255 255 / 4%);
+  color: rgb(255 255 255 / 90%);
+  font-size: 12px;
+  line-height: 26px;
+  cursor: pointer;
+  text-align: left;
+  position: relative;
+}
+
+.settingItemSplit .speedTrigger {
+  width: 100%;
+  min-width: 0;
+}
+
+.speedTrigger::after {
+  content: '▾';
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0.75;
+}
+
+.speedTrigger:hover {
+  background: rgb(255 255 255 / 8%);
+}
+
+.speedTrigger:focus-visible {
+  outline: 0;
+  outline-offset: 0;
+}
+
+.speedMenu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  width: auto;
+  min-width: 160px;
+  display: grid;
+  gap: 4px;
+  padding: 8px;
+  border-radius: 10px;
+  background: rgb(0 0 0 / 86%);
+  border: 1px solid rgb(255 255 255 / 12%);
+  z-index: 5;
+}
+
+.speedItem {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid rgb(255 255 255 / 8%);
+  background: rgb(255 255 255 / 4%);
+  color: rgb(255 255 255 / 90%);
+  font-size: 12px;
+  line-height: 28px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.speedItem:hover {
+  background: rgb(255 255 255 / 8%);
+}
+
+.speedItemActive {
+  background: rgb(255 255 255 / 12%);
+}
+
+.settingCheckbox {
+  width: 16px;
+  height: 16px;
+  accent-color: rgb(255 255 255 / 86%);
+}
+
+.iconButton {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  border-radius: 9px;
+  background: rgb(255 255 255 / 4%);
+  border: 1px solid rgb(255 255 255 / 10%);
+  color: rgb(255 255 255 / 92%);
+  cursor: pointer;
+  transition:
+    background-color 0.12s ease,
+    transform 0.08s ease;
+}
+
+.iconButton > svg {
+  width: 15px;
+  height: 15px;
+  display: block;
+  flex: 0 0 auto;
+}
+
+.mini .iconButton {
+  width: 26px;
+  height: 26px;
+}
+
+.iconButton:hover {
+  background: rgb(255 255 255 / 8%);
+  transform: translateY(-2px);
+}
+
+.iconButton:active {
+  transform: translateY(0);
+}
+
+.iconButton:focus-visible {
+  outline: 0;
+  outline-offset: 0;
+}
+
+.iconButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.iconButton:disabled:hover {
+  background: rgb(255 255 255 / 6%);
+  transform: none;
+}
+
+.tooltip {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%) translateY(6px);
+  bottom: 38px;
+  background: rgb(0 0 0 / 58%);
+  color: #fff;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  max-width: min(260px, calc(100vw - 24px));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 20;
+  transition:
+    opacity 0.12s ease,
+    transform 0.12s ease;
+}
+
+.miniRestore .tooltip {
+  bottom: 54px;
+}
+
+/* Mini window must clip to rounded corners; avoid partially clipped tooltips */
+.mini .tooltip {
+  display: none;
+}
+
+/* In the embed toolbar (right side), show tooltips to the left to avoid running off-screen */
+.embedToolbar .tooltip {
+  left: auto;
+  right: calc(100% + 10px);
+  bottom: 50%;
+  transform: translateY(50%) translateX(6px);
+}
+
+.iconButton:hover .tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.tooltipTopLeft {
+  left: 0;
+  transform: translateY(6px);
+}
+
+.iconButton:hover .tooltipTopLeft {
+  transform: translateY(0);
+}
+
+.tooltipTopRight {
+  left: auto;
+  right: 0;
+  transform: translateY(6px);
+}
+
+.iconButton:hover .tooltipTopRight {
+  transform: translateY(0);
+}
+
+.tooltipRight {
+  left: calc(100% + 10px);
+  bottom: auto;
+  top: 50%;
+  transform: translateY(-50%) translateX(6px);
+}
+
+.iconButton:hover .tooltipRight {
+  transform: translateY(-50%) translateX(0);
+}
+
+.tooltipLeft {
+  inset: 50% calc(100% + 10px) auto auto;
+  transform: translateY(-50%) translateX(-6px);
+}
+
+.iconButton:hover .tooltipLeft {
+  transform: translateY(-50%) translateX(0);
+}
+
+.tooltipBottom {
+  bottom: auto;
+  top: calc(100% + 10px);
+  transform: translateX(-50%) translateY(-6px);
+}
+
+.iconButton:hover .tooltipBottom {
+  transform: translateX(-50%) translateY(0);
+}
+
+.tooltipBottomLeft {
+  left: 0;
+  bottom: auto;
+  top: calc(100% + 10px);
+  transform: translateY(-6px);
+}
+
+.iconButton:hover .tooltipBottomLeft {
+  transform: translateY(0);
+}
+
+.tooltipBottomRight {
+  inset: calc(100% + 10px) 0 auto auto;
+  transform: translateY(-6px);
+}
+
+.iconButton:hover .tooltipBottomRight {
+  transform: translateY(0);
+}
+
+.iconButton:disabled .tooltip {
+  opacity: 0;
+}
+
+.embedToolbar .iconButton:hover .tooltip {
+  transform: translateY(50%) translateX(0);
+}
+
+.sep {
+  width: 1px;
+  height: 28px;
+  background: rgb(255 255 255 / 12%);
+  margin: 0 8px;
+}
+
+.miniPlaceholder {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: rgb(0 0 0 / 92%);
+}
+
+.mini {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  width: 360px;
+  max-width: calc(100vw - 36px);
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 12%);
+  z-index: 999;
+}
+
+@media (hover: none) {
+  .tooltip {
+    display: none;
+  }
+
+  .iconButton:hover .tooltip {
+    opacity: 0;
+  }
+}
+
+.mini .volumeRange {
+  width: 96px;
+}
+
+@media (width <= 540px) {
+  .videoControls {
+    padding: 6px;
+  }
+
+  .controlsTop {
+    gap: 4px;
+  }
+
+  .controlsBottom {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+
+  .progressWrap {
+    height: 28px;
+  }
+
+  .iconButton {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+  }
+
+  .sep {
+    display: none;
+  }
+
+  .volumeRange {
+    width: 64px;
+  }
+
+  .settingsPanel {
+    width: 210px;
+  }
+}
+
+.settingSelect {
+  flex: 0 0 auto;
+  min-width: 72px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  background: rgb(0 0 0 / 28%);
+  color: rgb(255 255 255 / 92%);
+  padding: 0 10px;
+  font-size: 12px;
+  line-height: 28px;
+  appearance: none;
+  color-scheme: dark;
+}
+
+.settingSelect:focus-visible {
+  outline: 0;
+  outline-offset: 0;
+}
+
+.video {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
+  background: rgb(0 0 0 / 92%);
+}

@@ -74,20 +74,7 @@ switch (process.env.BUILD_GOAL) {
 // Ensure PUBLIC_URL (and other env vars) are available to this webpack config file.
 // Note: dotenv-webpack injects env vars into the bundle, but it doesn't affect the
 // Node.js process.env used while generating the webpack configuration.
-const envPath = path.resolve(__dirname, '..', dotEnv)
-const dotenvResult = dotenv.config({ path: envPath })
-
-// 强制输出调试日志
-console.log(`\n========== WEBPACK CONFIG INIT ==========`)
-console.log(`BUILD_GOAL: ${process.env.BUILD_GOAL}`)
-console.log(`NODE_ENV: ${process.env.NODE_ENV}`)
-console.log(`Loading .env from: ${envPath}`)
-console.log(`File exists: ${fs.existsSync(envPath)}`)
-console.log(`dotenv.config() result:`, dotenvResult.error ? `ERROR: ${dotenvResult.error.message}` : 'OK')
-console.log(`APP_BASE_URL: ${process.env.APP_BASE_URL || 'NOT SET'}`)
-console.log(`VITE_API_BASE_URL: ${process.env.VITE_API_BASE_URL || 'NOT SET'}`)
-console.log(`REACT_APP_USE_MOCK: ${process.env.REACT_APP_USE_MOCK || 'NOT SET'}`)
-console.log(`=========================================\n`)
+dotenv.config({ path: path.resolve(__dirname, '..', dotEnv) })
 
 // GitHub Pages typically serves the site under "/<repo>/".
 // When building in GitHub Actions and PUBLIC_URL isn't explicitly provided,
@@ -160,6 +147,7 @@ const config = {
     extensions: ['.mjs', '.js', '.ts', '.jsx', '.tsx', '...'],
     alias: {
       '@assets/audio': path.resolve('./src/assets/audio'),
+      '@assets/video': path.resolve('./src/assets/video'),
       '@': path.resolve('./src'),
       '@src': path.resolve('./src'),
       '@app': paths.appDir,
@@ -183,27 +171,13 @@ const config = {
   plugins: [
     new Dotenv({
       path: path.resolve(__dirname, '..', dotEnv),
-      systemvars: true,
-      safe: false,
-    }),
-    // 显式注入环境变量到 process.env
-    new webpack.DefinePlugin({
-      'process.env.APP_BASE_URL': JSON.stringify(process.env.APP_BASE_URL || ''),
-      'process.env.VITE_API_BASE_URL': JSON.stringify(process.env.VITE_API_BASE_URL || '/api'),
-      'process.env.REACT_APP_USE_MOCK': JSON.stringify(process.env.REACT_APP_USE_MOCK || 'false'),
-      'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
-      '__APP_CONFIG__': JSON.stringify({
-        APP_BASE_URL: process.env.APP_BASE_URL || '',
-        VITE_API_BASE_URL: process.env.VITE_API_BASE_URL || '/api',
-        REACT_APP_USE_MOCK: process.env.REACT_APP_USE_MOCK || 'false',
-      }),
     }),
     codeInspectorPlugin({
       bundler: 'webpack',
     }),
     new HtmlWebpackPlugin({
       title:
-        (isDev ? 'Pro React Dev' : 'Veloxis Panel') +
+        (isDev ? 'Pro React Dev' : 'Pro React Admin') +
         (paths.projectName && paths.projectName !== 'default' ? ` (${paths.projectName})` : ''),
       template: paths.htmlTemplate,
       favicon: paths.favicon,
@@ -360,7 +334,7 @@ const config = {
         ],
       },
       {
-        test: /\.(png|jpe?g|gif|webp|avif|eot|ttf|woff|woff2|mp4|mp3|mkv|pdf)$/i,
+        test: /\.(png|jpe?g|gif|webp|eot|ttf|woff|woff2|mp4|mp3|mkv|pdf)$/i,
         type: 'asset',
         parser: {
           // Conditions for converting to base64
@@ -377,10 +351,6 @@ const config = {
         use: [
           {
             loader: 'babel-loader',
-            options: {
-              presets: [['@babel/preset-env', { modules: false }], '@babel/preset-react'],
-              plugins: ['@babel/plugin-transform-object-rest-spread', '@babel/plugin-transform-runtime'],
-            },
           },
           {
             loader: '@svgr/webpack',

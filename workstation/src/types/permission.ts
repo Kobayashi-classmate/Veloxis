@@ -15,36 +15,41 @@ export type Resource =
   | 'user'
   | 'role'
   | 'dashboard'
-  | 'global-console'
-  | 'workbench'
-  | 'workspaces'
   | 'system'
   | 'business'
   | 'chart'
   | 'ui'
+  | 'tech'
   | 'backend'
+  | 'build'
   | 'home'
   | 'demo'
+  | 'bigscreen'
+  | 'phbar'
   | 'qrcode'
   | 'prism'
   | 'tilt'
   | 'music'
   | 'crypto'
+  | 'video'
   | 'order'
   | 'error'
   | 'profile'
   | 'contact'
+  | 'portfilo'
   | 'motion'
   | 'echarts'
   | 'chatgpt'
+  | 'postmessage'
   | 'geo'
   | 'print'
   | 'permission'
   | 'topology'
   | 'zustand'
   | 'svg-viewer'
-  | 'dependencies'
+  | 'auto-deploy'
   | 'text-editor'
+  | 'deploy-flow'
 
 /**
  * 权限点定义
@@ -77,8 +82,6 @@ export interface UserPermission {
   roles: Role[]
   permissions: PermissionCode[]
   routes: string[]
-  organization?: string
-  tenant?: string
 }
 
 /**

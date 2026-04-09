@@ -21,53 +21,50 @@
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(58% 58% at 14% 18%, color-mix(in srgb, var(--signin-primary) 30%, transparent), transparent 66%),
-    radial-gradient(54% 54% at 88% 16%, color-mix(in srgb, var(--signin-primary-2) 22%, transparent), transparent 60%),
-    radial-gradient(78% 78% at 54% 96%, color-mix(in srgb, var(--signin-primary) 16%, transparent), transparent 62%);
-  opacity: 0.96;
+    radial-gradient(60% 60% at 15% 15%, color-mix(in srgb, var(--signin-primary) 22%, transparent), transparent 65%),
+    radial-gradient(60% 60% at 85% 20%, color-mix(in srgb, var(--signin-primary-2) 18%, transparent), transparent 60%),
+    radial-gradient(70% 70% at 55% 90%, color-mix(in srgb, var(--signin-primary) 14%, transparent), transparent 60%);
+  filter: saturate(1.1);
+  opacity: 0.95;
 }
 
 .bg::before {
   content: '';
   position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(to right, color-mix(in srgb, var(--signin-text) 7%, transparent) 1px, transparent 1px),
-    linear-gradient(to bottom, color-mix(in srgb, var(--signin-text) 7%, transparent) 1px, transparent 1px);
-  background-size: 50px 50px;
-  transform: perspective(960px) rotateX(56deg) translateY(14%);
-  transform-origin: center;
-  mask-image: radial-gradient(circle at 50% 20%, #000 0%, transparent 72%);
-  opacity: 0.28;
+  inset: -2px;
+  background: linear-gradient(
+    120deg,
+    color-mix(in srgb, var(--signin-primary) 18%, transparent),
+    transparent 40%,
+    color-mix(in srgb, var(--signin-primary-2) 16%, transparent)
+  );
+  animation: flow 10s linear infinite;
+  opacity: 0.8;
 }
 
 .bg::after {
   content: '';
   position: absolute;
-  inset: -1px;
-  background: linear-gradient(
-    120deg,
-    transparent 10%,
-    color-mix(in srgb, var(--signin-primary) 24%, transparent) 35%,
-    transparent 52%,
-    color-mix(in srgb, var(--signin-primary-2) 20%, transparent) 70%,
-    transparent 88%
-  );
-  animation: bg-flow 11s linear infinite;
-  opacity: 0.72;
+  inset: 0;
+  background:
+    linear-gradient(to right, color-mix(in srgb, var(--signin-text) 6%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--signin-text) 6%, transparent) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(circle at 30% 20%, #000 0%, transparent 70%);
+  opacity: 0.45;
 }
 
 .grid {
   position: relative;
   z-index: 1;
   min-height: 100%;
-  width: 100%;
-  max-width: 1240px;
-  margin: 0 auto;
   display: grid;
-  grid-template-columns: 1.15fr minmax(380px, 470px);
+  grid-template-columns: 1fr minmax(360px, 440px);
   gap: 24px;
   align-items: center;
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
 }
 
 .hero {
@@ -77,130 +74,70 @@
 
 .heroInner {
   position: relative;
-  padding: 34px;
-  border-radius: 22px;
-  border: 1px solid color-mix(in srgb, var(--signin-border) 72%, transparent);
+  padding: 28px;
+  border: 1px solid color-mix(in srgb, var(--signin-border) 70%, transparent);
+  border-radius: 16px;
   background: linear-gradient(
-    185deg,
-    color-mix(in srgb, var(--signin-panel) 66%, transparent),
-    color-mix(in srgb, var(--signin-panel-2) 82%, transparent)
+    180deg,
+    color-mix(in srgb, var(--signin-panel) 72%, transparent),
+    color-mix(in srgb, var(--signin-panel-2) 80%, transparent)
   );
-  box-shadow: 0 20px 60px color-mix(in srgb, var(--signin-text) 12%, transparent);
+  box-shadow: var(--signin-shadow);
   overflow: hidden;
 }
 
 .heroInner::before {
   content: '';
   position: absolute;
-  right: -180px;
-  bottom: -180px;
-  width: 420px;
-  height: 420px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--signin-primary) 14%, transparent);
-  filter: blur(8px);
-}
-
-.heroInner::after {
-  content: '';
-  position: absolute;
-  inset: 0;
+  left: -30%;
+  top: 0;
+  width: 60%;
+  height: 100%;
   background: linear-gradient(
-    130deg,
+    to bottom,
+    transparent,
     color-mix(in srgb, var(--signin-primary) 18%, transparent),
-    transparent 42%,
-    color-mix(in srgb, var(--signin-primary-2) 14%, transparent)
+    transparent
   );
-  opacity: 0.52;
-  animation: sheen 7.5s ease-in-out infinite;
+  transform: skewX(-18deg);
+  animation: scan 6s ease-in-out infinite;
+  opacity: 0.9;
 }
 
-.heroKicker {
-  position: relative;
-  z-index: 1;
-  display: inline-flex;
-  padding: 7px 12px;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--signin-border) 64%, transparent);
-  background: color-mix(in srgb, var(--signin-panel) 62%, transparent);
-  color: var(--signin-text);
-  font-size: 11px;
-  letter-spacing: 0.2em;
+.badgeRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
   margin-bottom: 16px;
 }
 
 .heroTitle {
-  position: relative;
-  z-index: 1;
-  margin: 0 0 14px !important;
+  margin: 0 0 12px !important;
   color: var(--signin-text) !important;
-  line-height: 1.22 !important;
   letter-spacing: 0.2px;
 }
 
 .heroDesc {
-  position: relative;
-  z-index: 1;
-  margin: 0 0 20px !important;
+  margin: 0 0 18px !important;
   color: var(--signin-text-2) !important;
 }
 
-.capabilityGrid {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 18px;
-}
-
-.capabilityItem {
+.heroPills {
   display: flex;
   gap: 10px;
-  align-items: flex-start;
-  padding: 12px;
-  border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--signin-border) 58%, transparent);
-  background: color-mix(in srgb, var(--signin-panel) 74%, transparent);
-  backdrop-filter: blur(2px);
-}
-
-.capabilityItem:last-child {
-  grid-column: span 2;
-}
-
-.capabilityIcon {
-  display: inline-flex;
-  width: 30px;
-  height: 30px;
-  border-radius: 10px;
-  align-items: center;
-  justify-content: center;
-  background: color-mix(in srgb, var(--signin-primary) 20%, transparent);
-  color: var(--signin-text);
-  font-size: 15px;
-  flex-shrink: 0;
-}
-
-.capabilityTitle {
-  color: var(--signin-text);
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.35;
-}
-
-.capabilityDesc {
-  color: var(--signin-text-2);
-  font-size: 12px;
-  line-height: 1.35;
-}
-
-.heroPills {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  gap: 8px;
   flex-wrap: wrap;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--signin-border) 65%, transparent);
+  background: color-mix(in srgb, var(--signin-panel) 60%, transparent);
+  color: var(--signin-text);
+  font-size: 12px;
 }
 
 .panel {
@@ -210,248 +147,97 @@
 
 .card {
   width: 100%;
-  border-radius: 20px;
-  border: 1px solid color-mix(in srgb, var(--signin-border) 70%, transparent);
-  background: color-mix(in srgb, var(--signin-panel) 90%, transparent);
-  box-shadow:
-    var(--signin-shadow),
-    0 18px 50px color-mix(in srgb, var(--signin-text) 10%, transparent);
-  backdrop-filter: blur(8px);
-}
-
-.brandRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-
-.brandIdentity {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.brandLogo {
-  width: 32px;
-  height: 32px;
-  object-fit: contain;
-  border-radius: 9px;
-  border: 1px solid color-mix(in srgb, var(--signin-border) 56%, transparent);
-  background: color-mix(in srgb, var(--signin-panel-2) 64%, transparent);
-  padding: 2px;
-}
-
-.brandText {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  line-height: 1.2;
-}
-
-.brandName {
-  color: var(--signin-text);
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.1px;
-}
-
-.brandSub {
-  color: var(--signin-text-2);
-  font-size: 12px;
+  border-radius: 16px;
+  box-shadow: var(--signin-shadow);
+  border: 1px solid color-mix(in srgb, var(--signin-border) 65%, transparent);
+  background: var(--signin-panel);
 }
 
 .titleBox {
   text-align: left;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .title {
-  margin-bottom: 4px !important;
+  margin-bottom: 6px !important;
 }
 
-.securityStrip {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 11px 12px;
+.quickBox {
+  border: 1px solid color-mix(in srgb, var(--signin-border) 65%, transparent);
   border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--signin-border) 66%, transparent);
-  margin-bottom: 14px;
-  transition:
-    border-color 160ms ease,
-    box-shadow 160ms ease;
+  padding: 12px;
+  background: color-mix(in srgb, var(--signin-panel-2) 70%, transparent);
+  margin-bottom: 16px;
 }
 
-.securityStripPending {
-  border-color: color-mix(in srgb, var(--signin-primary) 30%, var(--signin-border));
-  background: color-mix(in srgb, var(--signin-primary) 10%, transparent);
+.quickHeader {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  margin-bottom: 10px;
 }
 
-.securityStripOk {
-  border-color: color-mix(in srgb, var(--signin-success) 62%, var(--signin-border));
-  background: color-mix(in srgb, var(--signin-success) 14%, transparent);
-}
-
-.securityStripDanger {
-  border-color: color-mix(in srgb, var(--signin-danger) 56%, var(--signin-border));
-  background: color-mix(in srgb, var(--signin-danger) 12%, transparent);
-}
-
-.securityIcon {
-  margin-top: 1px;
-  font-size: 15px;
-  color: color-mix(in srgb, var(--signin-primary) 68%, var(--signin-text));
-}
-
-.securityTextWrap {
+.quickList {
   display: flex;
   flex-direction: column;
+  gap: 8px;
+}
+
+.quickItem {
+  width: 100%;
+  border: 1px solid color-mix(in srgb, var(--signin-border) 55%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--signin-panel) 85%, transparent);
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition:
+    transform 120ms ease,
+    border-color 120ms ease;
+}
+
+.quickItem:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--signin-primary) 40%, var(--signin-border));
+}
+
+.quickLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   min-width: 0;
 }
 
-.securityMain {
+.quickTag {
+  display: inline-flex;
+  width: fit-content;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--signin-primary) 12%, transparent);
   color: var(--signin-text);
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.35;
+  font-size: 12px;
+  border: 1px solid color-mix(in srgb, var(--signin-primary) 25%, transparent);
 }
 
-.securitySub {
+.quickMeta {
   color: var(--signin-text-2);
   font-size: 12px;
-  line-height: 1.35;
-}
-
-.card :global(.ant-form-item) {
-  margin-bottom: 14px;
-}
-
-.card :global(.ant-input-affix-wrapper) {
-  min-height: 44px;
-  border-radius: 12px;
-  border-color: color-mix(in srgb, var(--signin-border) 82%, transparent);
-  background: color-mix(in srgb, var(--signin-panel) 96%, transparent);
-  transition:
-    border-color 150ms ease,
-    box-shadow 150ms ease,
-    transform 150ms ease;
-}
-
-.card :global(.ant-input-affix-wrapper:hover) {
-  border-color: color-mix(in srgb, var(--signin-primary) 45%, var(--signin-border));
-}
-
-.card :global(.ant-input-affix-wrapper-focused) {
-  border-color: color-mix(in srgb, var(--signin-primary) 64%, var(--signin-border));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--signin-primary) 15%, transparent);
-}
-
-.card :global(.ant-input) {
-  color: var(--signin-text);
-  font-size: 14px;
-}
-
-.card :global(.ant-input::placeholder) {
-  color: color-mix(in srgb, var(--signin-text-2) 80%, transparent);
-}
-
-.submitBtn {
-  position: relative;
+  white-space: nowrap;
   overflow: hidden;
-  height: 44px;
-  border-radius: 12px;
-  border: none;
-  font-weight: 600;
+  text-overflow: ellipsis;
+  max-width: 260px;
 }
 
-.submitBtn::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    120deg,
-    color-mix(in srgb, var(--signin-primary) 72%, transparent),
-    color-mix(in srgb, var(--signin-primary-2) 56%, transparent)
-  );
-  opacity: 0.88;
-}
-
-.submitBtn::after {
-  content: '';
-  position: absolute;
-  top: -40%;
-  left: -60%;
-  width: 60%;
-  height: 180%;
-  background: linear-gradient(
-    to right,
-    transparent,
-    color-mix(in srgb, var(--signin-text) 24%, transparent),
-    transparent
-  );
-  transform: skewX(-18deg);
-  animation: shine 3.5s ease-in-out infinite;
-}
-
-.submitBtn :global(span) {
-  position: relative;
-  z-index: 1;
-}
-
-.verifyModal :global(.ant-modal-content) {
-  border-radius: 16px;
-  border: 1px solid color-mix(in srgb, var(--signin-border) 74%, transparent);
-  background: color-mix(in srgb, var(--signin-panel) 94%, transparent);
-  box-shadow:
-    var(--signin-shadow),
-    0 20px 50px color-mix(in srgb, var(--signin-text) 14%, transparent);
-  overflow: hidden;
-}
-
-.verifyModal :global(.ant-modal-header) {
-  padding: 18px 20px 12px;
-  border-bottom: 1px solid color-mix(in srgb, var(--signin-border) 66%, transparent);
-  background: linear-gradient(
-    120deg,
-    color-mix(in srgb, var(--signin-primary) 7%, transparent),
-    color-mix(in srgb, var(--signin-panel) 90%, transparent)
-  );
-}
-
-.verifyModal :global(.ant-modal-title) {
-  color: var(--signin-text);
-  font-weight: 700;
-  letter-spacing: 0.2px;
-}
-
-.verifyModal :global(.ant-modal-body) {
-  padding: 16px 20px 14px;
-}
-
-.verifyModal :global(.ant-modal-footer) {
-  margin-top: 0;
-  padding: 14px 20px 18px;
-  border-top: 1px solid color-mix(in srgb, var(--signin-border) 66%, transparent);
-  background: color-mix(in srgb, var(--signin-panel-2) 42%, transparent);
-}
-
-.verifyModalBody {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.verifyModalLead {
-  display: block;
-  margin-bottom: 2px;
+.quickPwd {
+  color: var(--signin-text-2);
+  font-variant-numeric: tabular-nums;
   font-size: 12px;
-  line-height: 1.45;
 }
 
 .footerRow {
-  margin-top: 8px;
+  margin-top: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -460,21 +246,17 @@
 
 .registerBtn {
   padding: 0;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 /* Mobile styles applied via root class `.is-mobile` */
 :global(.is-mobile) .grid {
   grid-template-columns: 1fr;
   gap: 16px;
-  align-items: start;
+  align-items: center;
 }
 
-:global(.is-mobile) .card {
-  border-radius: 16px;
-}
-
-@keyframes bg-flow {
+@keyframes flow {
   0% {
     transform: translate3d(-6%, -2%, 0) rotate(0deg);
   }
@@ -488,37 +270,23 @@
   }
 }
 
-@keyframes sheen {
-  0% {
-    opacity: 0.2;
-  }
-
-  50% {
-    opacity: 0.55;
-  }
-
-  100% {
-    opacity: 0.2;
-  }
-}
-
-@keyframes shine {
+@keyframes scan {
   0% {
     transform: translateX(-10%) skewX(-18deg);
     opacity: 0;
   }
 
   20% {
-    opacity: 0.6;
+    opacity: 0.75;
   }
 
-  55% {
-    transform: translateX(240%) skewX(-18deg);
-    opacity: 0.2;
+  50% {
+    transform: translateX(140%) skewX(-18deg);
+    opacity: 0.25;
   }
 
   100% {
-    transform: translateX(240%) skewX(-18deg);
+    transform: translateX(140%) skewX(-18deg);
     opacity: 0;
   }
 }

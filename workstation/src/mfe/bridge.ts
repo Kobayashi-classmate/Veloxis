@@ -62,3 +62,33 @@ export function patchMfeSharedState(patch: Record<string, unknown>, from?: strin
   Object.assign(state, patch)
   emitMfeEvent('mfe:state', { patch, state: { ...state }, from })
 }
+
+/**
+ * 跨域/iframe 的场景，可以用 postMessage 做桥接。
+ * 当前项目的 MF 是“同页面同 runtime”加载，通常不需要。
+ */
+export const MFE_POST_MESSAGE_TYPE = 'WUI_MFE_EVENT'
+
+export function emitMfePostMessage<K extends keyof MfeEventMap>(type: K, detail: MfeEventMap[K], targetOrigin = '*') {
+  const w = getWindow()
+  if (!w) return
+  w.postMessage({ __type: MFE_POST_MESSAGE_TYPE, event: type, detail }, targetOrigin)
+}
+
+export function attachMfePostMessageBridge(allowedOrigins: string[] = ['*']) {
+  const w = getWindow()
+  if (!w) return () => {}
+
+  const onMessage = (evt: MessageEvent) => {
+    const originAllowed = allowedOrigins.includes('*') || allowedOrigins.includes(evt.origin)
+    if (!originAllowed) return
+
+    const data = evt.data as any
+    if (!data || data.__type !== MFE_POST_MESSAGE_TYPE) return
+
+    emitMfeEvent(data.event, data.detail)
+  }
+
+  w.addEventListener('message', onMessage)
+  return () => w.removeEventListener('message', onMessage)
+}

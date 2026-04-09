@@ -8,7 +8,7 @@ import useSafeNavigate from '@app-hooks/useSafeNavigate'
 const initialNotifications = [
   {
     id: 1,
-    title: '欢迎使用 Veloxis Panel',
+    title: '欢迎使用 Pro React Admin',
     description: '感谢您的体验与支持！',
     read: false,
     time: '1分钟前',

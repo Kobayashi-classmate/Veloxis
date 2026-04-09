@@ -14,23 +14,14 @@ import Fullscreen from '../fullscreen'
 import KeepAlive from '@src/components/KeepAlive'
 
 const ProTabs = (props) => {
-  const {
-    activeKey,
-    setActiveKey,
-    panes,
-    setPanes,
-    removeTab,
-    homeTabKey,
-    switchScope,
-    scopeKey: contextScopeKey,
-  } = useProTabContext()
+  const { activeKey, setActiveKey, panes, setPanes, removeTab } = useProTabContext()
   const [isReload, setIsReload] = useState(false)
   const [, startTransition] = useTransition()
   const pathRef = useRef('')
 
   const { redirectTo } = useSafeNavigate()
   const { t } = useTranslation()
-  const { panesItem, tabActiveKey, scopeKey, scopeHomePath, scopeHomePane } = props
+  const { panesItem, tabActiveKey } = props
   const { pathname, search } = useLocation()
 
   const {
@@ -52,50 +43,28 @@ const ProTabs = (props) => {
   }, [pathname])
 
   useEffect(() => {
-    if (!scopeKey || !scopeHomePath) return
-    switchScope(scopeKey, scopeHomePath, scopeHomePane)
-  }, [scopeKey, scopeHomePath, scopeHomePane, switchScope])
+    const newPath = pathname + search
 
-  useEffect(() => {
-    const newPath = search ? `${pathname}${search}` : pathname
-
-    if (contextScopeKey !== scopeKey) return
     if (!panesItem.path || panesItem.path === pathRef.current) return
 
-    pathRef.current = panesItem.path
+    pathRef.current = newPath
 
-    if (!panesItem.key) {
+    const index = panes.findIndex((item) => item.key === panesItem.key)
+    setActiveKey(tabActiveKey)
+
+    if (!panesItem.key || (index > -1 && newPath === panes[index].path)) {
       return
     }
 
-    setPanes((prevPanes) => {
-      const index = prevPanes.findIndex((item) => item.key === panesItem.key)
-      if (index < 0) {
-        return [...prevPanes, panesItem]
-      }
+    if (index > -1) {
+      // avoid mutating existing panes array in place
+      const newPanes = panes.map((p, i) => (i === index ? { ...p, path: newPath } : p))
+      setPanes(newPanes)
+      return
+    }
 
-      const prev = prevPanes[index]
-      const nextPath = panesItem.path || newPath
-      const hasDiff =
-        prev.path !== nextPath ||
-        prev.title !== panesItem.title ||
-        prev.i18nKey !== panesItem.i18nKey ||
-        prev.closable !== panesItem.closable ||
-        prev.content !== panesItem.content
-
-      if (!hasDiff) return prevPanes
-
-      const nextPanes = prevPanes.slice()
-      nextPanes[index] = {
-        ...prev,
-        ...panesItem,
-        path: nextPath,
-      }
-      return nextPanes
-    })
-
-    setActiveKey(tabActiveKey)
-  }, [pathname, search, panesItem, tabActiveKey, scopeKey, contextScopeKey, setActiveKey, setPanes])
+    setPanes([...panes, panesItem])
+  }, [pathname, tabActiveKey])
 
   const onChange = (key) => {
     startTransition(() => {
@@ -112,7 +81,7 @@ const ProTabs = (props) => {
     })
   }
 
-  const onTabScroll = () => {
+  const onTabScroll = ({ direction }) => {
     // no-op: avoid logging on scroll (can cause jank)
   }
 
@@ -129,19 +98,14 @@ const ProTabs = (props) => {
   }
 
   const onTabContextMenu = (rightMenuKey) => {
-    const homePane = panes.find((pane) => pane.key === homeTabKey)
-
     if (rightMenuKey === 'all') {
-      const filterPanes = homePane ? [homePane] : []
+      const filterPanes = panes.filter((pane) => pane.key === '/')
       setPanes(filterPanes)
-      const homePath = homePane?.path || scopeHomePath || '/'
-      redirectTo(homePath)
-      if (homePane?.key) {
-        setActiveKey(homePane.key)
-      }
+      redirectTo('/')
+      setActiveKey('/')
     }
     if (rightMenuKey === 'other') {
-      const filterPanes = panes.filter((pane) => pane.key === homeTabKey || pane.key === activeKey)
+      const filterPanes = panes.filter((pane) => pane.key === '/' || pane.key === activeKey)
       setPanes(filterPanes)
     }
   }
@@ -234,7 +198,7 @@ const ProTabs = (props) => {
         children: (
           <ErrorBoundary onReset={fixError} navigate={redirectTo}>
             <div className="layout-tabpanel">
-              <KeepAlive id={pane.key} active={pane.key === activeKey} persistOnUnmount={pane.key === homeTabKey}>
+              <KeepAlive id={pane.key} active={pane.key === activeKey} persistOnUnmount={pane.key === '/'}>
                 <Suspense fallback={<Loading />}>
                   {isReload && pane.key === activeKey && pane.key !== '/404' ? (
                     <Loading tip="刷新中..." />
@@ -254,9 +218,6 @@ const ProTabs = (props) => {
 ProTabs.propTypes = {
   panesItem: PropTypes.object,
   tabActiveKey: PropTypes.string,
-  scopeKey: PropTypes.string,
-  scopeHomePath: PropTypes.string,
-  scopeHomePane: PropTypes.object,
   style: PropTypes.object,
 }
 

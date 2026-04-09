@@ -35,18 +35,21 @@ const mfeRole = (process.env.MFE_ROLE || '').toString().trim() // 'host' | 'remo
 const isMfeEnabled = mfeRole === 'host' || mfeRole === 'remote'
 
 const optimizedAudioDir = path.resolve(__dirname, '../src/assets-optimized/audio')
+const optimizedVideoDir = path.resolve(__dirname, '../src/assets-optimized/video')
 const hasOptimizedAudio = fs.existsSync(optimizedAudioDir)
+const hasOptimizedVideo = fs.existsSync(optimizedVideoDir)
 
 const prodWebpackConfig = merge(common, {
   mode: 'production',
   resolve:
-    hasOptimizedAudio
+    hasOptimizedAudio || hasOptimizedVideo
       ? {
           alias: {
             ...(hasOptimizedAudio ? { '@assets/audio': optimizedAudioDir } : {}),
+            ...(hasOptimizedVideo ? { '@assets/video': optimizedVideoDir } : {}),
           },
         }
-      : {},
+      : undefined,
   // 使用文件缓存
   cache: { type: 'filesystem', buildDependencies: { config: [__filename] } },
   // 生产调试开关：设置环境变量 DEBUG_PROD=1 可在 production 构建中输出 source-map 并关闭压缩，便于定位仅在构建后出现的问题。
@@ -100,34 +103,29 @@ const prodWebpackConfig = merge(common, {
       process.env.DEBUG_PROD === '1'
         ? []
         : [
-            new CssMinimizerPlugin({
-              minify: CssMinimizerPlugin.cssnanoMinify,
-            }),
+            new CssMinimizerPlugin(),
             new EsbuildPlugin({
               target: 'es2018',
               // 保留对象展开操作符，避免生成有问题的辅助函数
               keepNames: true,
             }),
-            new HtmlMinimizerPlugin({
-              minify: HtmlMinimizerPlugin.htmlMinifierTerserMinify,
+            new HtmlMinimizerPlugin(),
+            new ImageMinimizerPlugin({
+              loader: false,
+              test: /\.(png|jpe?g|gif|webp|avif)$/i,
+              minimizer: {
+                implementation: ImageMinimizerPlugin.sharpMinify,
+                options: {
+                  encodeOptions: {
+                    // Safe defaults; tune per your quality/size preference.
+                    jpeg: { quality: 78, mozjpeg: true },
+                    png: { compressionLevel: 9, palette: true },
+                    webp: { quality: 80 },
+                    avif: { quality: 50 },
+                  },
+                },
+              },
             }),
-            // Temporarily disabled ImageMinimizerPlugin
-            // new ImageMinimizerPlugin({
-            //   loader: false,
-            //   test: /\.(png|jpe?g|gif|webp|avif)$/i,
-            //   minimizer: {
-            //     implementation: ImageMinimizerPlugin.sharpMinify,
-            //     options: {
-            //       encodeOptions: {
-            //         // Safe defaults; tune per your quality/size preference.
-            //         jpeg: { quality: 78, mozjpeg: true },
-            //         png: { compressionLevel: 9, palette: true },
-            //         webp: { quality: 80 },
-            //         avif: { quality: 50 },
-            //       },
-            //     },
-            //   },
-            // }),
           ],
     splitChunks: {
       chunks: 'all',

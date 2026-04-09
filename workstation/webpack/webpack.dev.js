@@ -8,16 +8,9 @@ import devProxy from './dev.proxy.js'
 import paths from './paths.js'
 import { fileURLToPath } from 'url'
 import { dirname } from 'path'
-import dotenv from 'dotenv'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
-
-// 加载 .env 文件
-const envFile = process.env.BUILD_GOAL === 'production' 
-  ? '.env.dev' 
-  : '.env.development'
-dotenv.config({ path: path.resolve(__dirname, '..', envFile) })
 
 const mfeRole = (process.env.MFE_ROLE || '').toString().trim() // 'host' | 'remote' | ''
 const isMfeEnabled = mfeRole === 'host' || mfeRole === 'remote'
@@ -100,7 +93,6 @@ const devWebpackConfig = merge(common, {
 
 export default new Promise((resolve, reject) => {
   const basePort = (() => {
-    // 优先级：PORT 环境变量 > .env 文件中的 PORT > 默认 8080
     const raw = process.env.PORT
     const parsed = Number(raw)
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 8080
@@ -108,7 +100,7 @@ export default new Promise((resolve, reject) => {
 
   portfinder.getPort(
     {
-      port: basePort, // 支持从 .env 文件读取，也支持用 PORT 环境变量指定起始端口
+      port: basePort, // 默认8080端口；支持用 PORT 指定起始端口（适用于 MF 固定端口联调）
       stopPort: 65535, // maximum port
     },
     (err, port) => {
